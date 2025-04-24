@@ -17,7 +17,7 @@ client_group_relationship = Table(
 )
 
 client_role_relationship = Table(
-    'cgrel', Base.metadata,
+    'crrel', Base.metadata,
     Column('client_id', Integer, ForeignKey('client.id'), primary_key=True),
     Column('role_id', Integer, ForeignKey('role.id'), primary_key=True)
 )
@@ -37,7 +37,7 @@ class Client(Base):
     owned_groups: Mapped[List["Group"]] = relationship("Group", back_populates="owner", foreign_keys="Group.owner_id")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="client", foreign_keys="Message.client_id")
     privates: Mapped[List["Channel"]] = relationship("Channel", back_populates="client", foreign_keys="Channel.client_id")
-    blocked: Mapped[List["Channel"]] = relationship("Channel", back_populates="client", foreign_keys="Channel.client_id")
+    blocked: Mapped[List["Block"]] = relationship("Block", back_populates="client", foreign_keys="Block.client_id")
     co_privates: Mapped[List["Channel"]] = relationship("Channel", back_populates="co_client", foreign_keys="Channel.co_client_id")
 
     def __repr__(self) -> str:
@@ -95,6 +95,7 @@ class Group(Base):
     owner: Mapped["Client"] = relationship("Client", back_populates="owned_groups", foreign_keys=[owner_id])
     channels: Mapped[List["Channel"]] = relationship("Channel", back_populates="group", foreign_keys="Channel.group_id")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="group", foreign_keys="Message.group_id")
+    roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id")
 
     def __repr__(self) -> str:
         return f"Group(name={self.name!r}, desc={self.desc!r}, icon_path={self.icon_path!r}, id={self.id!r})"
