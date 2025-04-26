@@ -28,6 +28,72 @@ body, html {
     background-color: rgb(57, 62, 70);
 }
 
+.contactoverlay {
+    height: 500px;
+    position: fixed;
+    overflow: hidden;
+    width: 20%;
+    margin-top: 150px;
+    right: 1%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    box-sizing: border-box;
+    border-radius: 20px;
+    padding: 10px;
+    background-color: rgb(57, 62, 70);
+}
+
+.contactmaininfo {
+    width: 95%;
+    height: 150px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 5%;
+}
+
+.contacticon {
+    height: 70px;
+    width: 70px;
+}
+
+.contacticon img {
+    position: relative;
+    margin: auto;
+    width: 100%;
+    border-radius: 50%;
+    height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.contactusername {
+    text-wrap: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contactbio {
+    height: 500px;
+    width: 95%;
+    box-sizing: border-box;
+    border-radius: 20px;
+    padding: 20px;
+    overflow: hidden;
+    background-color: rgb(89, 97, 109);
+}
+
+.contactbio::-webkit-scrollbar {
+    width: 0;
+}
+
+.contactbio {
+    scrollbar-width: none;
+}
+
 .actionoverlay {
     height: 20%;
     position: fixed;
@@ -53,7 +119,7 @@ body, html {
     width: 15%;
     top: 1.5%;
     left: 7%;
-    display: flex;
+    display: none; /*Previously flex*/
     flex-direction: column;
     box-sizing: border-box;
     padding: 20px;
@@ -161,6 +227,7 @@ body, html {
     box-sizing: border-box;
     overflow-y: auto;
     padding: 20px;
+    display: none; /*Previously non-existant*/
     background-color: rgb(57, 62, 70);
 }
 
@@ -199,11 +266,74 @@ body, html {
 
 }
 
+.contacts {
+    height: 95%;
+    width: 20%;
+    margin-top: 1.5%;
+    border-radius: 20px;
+    justify-items: center;
+    box-sizing: border-box;
+    overflow-y: auto;
+    padding: 20px;
+    background-color: rgb(57, 62, 70);
+}
+
+.contacts::-webkit-scrollbar {
+    width: 0;
+}
+
+.contacts {
+    scrollbar-width: none;
+}
+
+.contact {
+    height: 50px;
+    width: 98%;
+    border-radius: 5px;
+    padding: 10px;
+    display: flex;
+    box-sizing: border-box;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 15px;
+    gap: 5%;
+}
+
+.contact:hover {
+    background-color: rgba(225, 225, 225, 0.1);
+    cursor: pointer;
+}
+
+.contact_image_container {
+    height: 40px;
+    width: 40px;
+}
+
+.contact_image_container img {
+    z-index: 1;
+    position: relative;
+    margin: auto;
+    width: 100%;
+    border-radius: 50%;
+    height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/*
+width: +- 7%, depending on contacts.
+Channels: 76%
+Contacts: 69%
+*/
+
 .chat {
     margin-top: 1.5%;
     height: 95%;
-    width: 76%;
-    display: flex;
+    width: 69%;
+    display: none; /*Previously flex*/
     flex-direction: column;
 }
 

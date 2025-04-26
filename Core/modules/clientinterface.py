@@ -30,6 +30,9 @@ class Clientinterface:
             "GroupCreate": self.__group_create,
             "GroupDelete": self.__group_delete,
             "GroupEdit": self.__group_edit, #Not fully implemented yet.
+
+            "DisplayChannels": self.__channels_get,
+            "DisplayMessages": self.__messages_get,
         }
 
     async def __total_interpreter(self, data: str, socket: WebSocket):
@@ -134,7 +137,7 @@ class Clientinterface:
     async def __group_create(self, data: dict):
         id, client_id, name, icon_path, desc = int(data["id"]), int(data["client_id"]), data["name"], data["icon_path"], data["desc"]
         preset_id, preset_name = await self.dmp.create_group(name, client_id, id, icon_path, desc)
-        return {"request": "DisplayGroup", 
+        return {"request": "DisplayCreatedGroup", 
                 "id": id, 
                 "owner_id": client_id, 
                 "name": name, 
@@ -176,6 +179,55 @@ class Clientinterface:
                 if not check: return {"request": "Error", "info": "CANTEDIT", "object": "GROUP"}
             else: return {"request": "Error", "info": "GROUP_EDIT"}
         else: return {"request": "Error", "info": "NOTFOUND", "object": "GROUP"}
+
+    async def __channels_get(self, data: dict):
+        group_id = int(data["id"])
+        group = await self.dmp.fetch_group_by_id(group_id)
+        if group is not None:
+            channels = [{"id": channel.id, "name": channel.name, "group_id": group_id} for channel in group.channels]
+            if channels is not None:
+                channel = await self.dmp.fetch_channel_by_id(channels[0].id)
+                messet = [{"id": message.id, 
+                           "icon_path": message.client.icon_path, 
+                           "content": message.content, 
+                           "author_name": message.client.username, 
+                           "author_id": message.client.id, 
+                           "channel_id": channel.id, 
+                           "group_id": group_id
+                        } for message in channel.messages]
+                messet.reverse()
+            return {"request": "DisplayChannels",
+                    "group_id": group_id,
+                    "channels": channels,
+                    "messet": messet
+                }
+        else: return {"request": "Error", "info": "NOTFOUND", "object": "GROUP"}
+
+    async def __messages_get(self, data: dict):
+        channel_id, already_loaded = int(data["id"]), int(data["already_loaded"])
+        channel = await self.dmp.fetch_channel_by_id(channel_id)
+        if channel is not None:
+            index = - (already_loaded + 50)
+            unloaded_messages = channel.messages[index:]
+            if not unloaded_messages:
+                to_load = channel.messages
+            else:
+                to_load = unloaded_messages
+            messet = [{"id": message.id, 
+                        "icon_path": message.client.icon_path, 
+                        "content": message.content, 
+                        "author_name": message.client.username, 
+                        "author_id": message.client.id, 
+                        "channel_id": channel.id, 
+                        "group_id": channel.group.id
+                        } for message in to_load]
+            messet.reverse()
+            return {"request": "DisplayMessages",  
+                    "channel_id": channel_id,
+                    "messet": messet
+                }
+        else: return {"request": "Error", "info": "NOTFOUND", "object": "CHANNEL"}
+
 
     def router_tasks(self):
         @self.router.websocket("/listener")
