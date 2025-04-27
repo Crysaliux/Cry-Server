@@ -31,8 +31,9 @@ class Clientinterface:
             "GroupDelete": self.__group_delete,
             "GroupEdit": self.__group_edit, #Not fully implemented yet.
 
-            "DisplayChannels": self.__channels_get,
-            "DisplayMessages": self.__messages_get,
+            "ChannelsFetch": self.__channels_get,
+            "MessagesRecentFetch": self.__messages_get_recent,
+            "MessagesScrollHistoryFetch": self.__messages_get_scroll_history,
         }
 
     async def __total_interpreter(self, data: str, socket: WebSocket):
@@ -186,47 +187,58 @@ class Clientinterface:
         if group is not None:
             channels = [{"id": channel.id, "name": channel.name, "group_id": group_id} for channel in group.channels]
             if channels is not None:
-                channel = await self.dmp.fetch_channel_by_id(channels[0].id)
-                messet = [{"id": message.id, 
-                           "icon_path": message.client.icon_path, 
-                           "content": message.content, 
-                           "author_name": message.client.username, 
-                           "author_id": message.client.id, 
-                           "channel_id": channel.id, 
-                           "group_id": group_id
-                        } for message in channel.messages]
-                messet.reverse()
-            return {"request": "DisplayChannels",
-                    "group_id": group_id,
-                    "channels": channels,
-                    "messet": messet
-                }
+                messages = await self.dmp.fetch_recent_messages(channels[0].id)
+                recent_messages = [{"id": message.id, 
+                                "icon_path": message.client.icon_path, 
+                                "content": message.content, 
+                                "author_name": message.client.username, 
+                                "author_id": message.client.id, 
+                                "channel_id": channels[0].id, 
+                                "group_id": message.group.id
+                                } for message in messages]
+                return {"request": "DisplayChannels",
+                        "group_id": group_id,
+                        "channels": channels,
+                        "recent_messages": messages
+                    }
+            else: return {"request": "NoChannels", "group_id": group_id}
         else: return {"request": "Error", "info": "NOTFOUND", "object": "GROUP"}
 
-    async def __messages_get(self, data: dict):
-        channel_id, already_loaded = int(data["id"]), int(data["already_loaded"])
-        channel = await self.dmp.fetch_channel_by_id(channel_id)
-        if channel is not None:
-            index = - (already_loaded + 50)
-            unloaded_messages = channel.messages[index:]
-            if not unloaded_messages:
-                to_load = channel.messages
-            else:
-                to_load = unloaded_messages
-            messet = [{"id": message.id, 
+    async def __messages_get_recent(self, data: dict):
+        channel_id = int(data["id"])
+        messages = await self.dmp.fetch_recent_messages(channel_id)
+        if messages is not None:
+            recent_messages = [{"id": message.id, 
                         "icon_path": message.client.icon_path, 
                         "content": message.content, 
                         "author_name": message.client.username, 
                         "author_id": message.client.id, 
-                        "channel_id": channel.id, 
-                        "group_id": channel.group.id
-                        } for message in to_load]
-            messet.reverse()
-            return {"request": "DisplayMessages",  
+                        "channel_id": channel_id, 
+                        "group_id": message.group.id
+                        } for message in messages]
+            return {"request": "DisplayMessages",
                     "channel_id": channel_id,
-                    "messet": messet
+                    "messages": recent_messages
                 }
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "CHANNEL"}
+        else: return {"request": "NoMessages", "channel_id": channel_id}
+
+    async def __messages_get_scroll_history(self, data: dict):
+        channel_id, last_loaded_timestamp = int(data["id"]), data["last_loaded_timestamp"]
+        messages = await self.dmp.fetch_message_history(channel_id, last_loaded_timestamp)
+        if messages is not None:
+            old_messages = [{"id": message.id, 
+                        "icon_path": message.client.icon_path, 
+                        "content": message.content, 
+                        "author_name": message.client.username, 
+                        "author_id": message.client.id, 
+                        "channel_id": channel_id, 
+                        "group_id": message.group.id
+                        } for message in messages]
+            return {"request": "DisplayOldMessages",  
+                    "channel_id": channel_id,
+                    "messages": old_messages
+                }
+        else: return {"request": "EndOfChannel", "channel_id": channel_id}
 
 
     def router_tasks(self):
@@ -254,7 +266,31 @@ class Clientinterface:
                     raise HTTPException(status_code=400)
             except:
                 raise HTTPException(status_code=400)
-            return JSONResponse(content={}, status_code=201)
+            client = await self.dmp.fetch_client_by_id(creds.id)
+            groups = [
+                {
+                    "id": group.id,
+                    "icon_path": group.icon_path
+                } for group in client.groups
+            ]
+            privates = [
+                {
+                    "id": private.id,
+                    "icon_path": private.icon_path,
+                    "username": private.username
+                } for private in client.privates
+            ]
+
+            co_privates = [
+                {
+                    "id": co_private.id,
+                    "icon_path": co_private.icon_path,
+                    "username": co_private.username
+                } for co_private in client.co_privates
+            ]
+
+            contacts = privates + co_privates
+            return JSONResponse(content={"groups": groups, "contacts": contacts}, status_code=201)
         
         @self.router.get("/{id}", response_class=HTMLResponse)
         async def plain(request: Request, id: int):
@@ -263,7 +299,7 @@ class Clientinterface:
                 return self.templates.TemplateResponse("Clientinterface/client.html", 
                                                        {"request": request, 
                                                         "id": id, 
-                                                        "icon": sketchy_client.icon_path, 
+                                                        "icon_path": sketchy_client.icon_path, 
                                                         "username": sketchy_client.username, 
                                                         "addr": f"ws://{self.addr[0]}:{self.addr[1]}/client/listener",
                                                     })

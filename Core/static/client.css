@@ -132,14 +132,22 @@ body, html {
     height: 60px;
     width: 60px;
     border-radius: 10px;
-    background-color: rgb(0, 173, 181);
+    background-color: rgba(0, 173, 181, 1);
+}
+
+.creategroup:hover {
+    background-color: rgba(0, 173, 181, 0.5);
 }
 
 .dms {
     height: 60px;
     width: 60px;
     border-radius: 10px;
-    background-color: rgb(0, 173, 181);
+    background-color: rgba(0, 173, 181, 1);
+}
+
+.dms:hover {
+    background-color: rgba(0, 173, 181, 0.5);
 }
 
 .overlayicon {
@@ -262,8 +270,11 @@ body, html {
     height: 30px;
     width: 98%;
     border-radius: 10px;
-    background-color: rgb(0, 173, 181);
+    background-color: rgba(0, 173, 181, 1);
+}
 
+.createchannel:hover {
+    background-color: rgba(0, 173, 181, 0.5);
 }
 
 .contacts {

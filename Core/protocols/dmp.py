@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Boolean, DateTime, insert, select, update, delete, Table, Column, Integer
+from sqlalchemy import ForeignKey, String, Boolean, DateTime, insert, select, update, delete, Table, Column, Integer, func, desc
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from datetime import datetime
@@ -130,6 +130,7 @@ class Message(Base):
     channel_id: Mapped[int] = mapped_column(ForeignKey('channel.id'))
 
     content: Mapped[str] = mapped_column(String(1024))
+    sent_at: Mapped[datetime] = mapped_column(default=func.now())
     id : Mapped[int] = mapped_column(primary_key=True)
 
     channel: Mapped["Channel"] = relationship("Channel", back_populates="messages", foreign_keys=[channel_id])
@@ -363,7 +364,7 @@ class DMP:
         return group
     
     async def fetch_channel_by_id(self, id: int):
-        fetch_query = select(Channel).options(selectinload(Channel.messages)).where(Channel.id == id)
+        fetch_query = select(Channel).where(Channel.id == id)
         async with self.session() as session:
             async with session.begin():
                 channel = await session.execute(fetch_query)
@@ -377,3 +378,22 @@ class DMP:
                 message = await session.execute(fetch_query)
                 message = message.scalars().first()
         return message
+
+    async def fetch_recent_messages(self, channel_id: int):
+        fetch_query = select(Message).where(Message.channel.id == channel_id).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
+        async with self.session() as session:
+            async with session.begin():
+                messages = await session.execute(fetch_query)
+                messages = messages.scalars().all()
+        messages.reverse()
+        return messages
+    
+    async def fetch_message_history(self, channel_id: int, last_loaded_timestamp: str):
+        timestamp = datetime.strptime(last_loaded_timestamp, "%Y-%m-%d %H:%M:%S")
+        fetch_query = select(Message).where(Message.channel.id == channel_id, Message.sent_at < timestamp).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
+        async with self.session() as session:
+            async with session.begin():
+                messages = await session.execute(fetch_query)
+                messages = messages.scalars().all()
+        messages.reverse()
+        return messages

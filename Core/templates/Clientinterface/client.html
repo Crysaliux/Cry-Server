@@ -14,19 +14,11 @@
     </head>
     <body>
         <div class="container">
-            <div class="clientoverlay" id="clientoverlay">
-                <div class="overlayicon">
-                    <img src="test.jpg">
-                </div>
-                <div class="extra">
-                    <div class="name names_headers">{{ username }}</div>
-                    <div class="settings"></div>
-                </div>
-            </div>
+            <div class="clientoverlay" id="clientoverlay"></div>
 
             <div class="actionoverlay" id="actionoverlay">
-                <div class="creategroup"></div>
-                <div class="dms"></div>
+                <div class="creategroup" id="creategroup"></div>
+                <div class="dms" id="dms"></div>
             </div>
 
             <div class="contactoverlay" id="contactoverlay">
@@ -34,47 +26,26 @@
                     <div class="contacticon">
                         <img src="">
                     </div>
-                    <div class="contactusername names_headers">Silly member fjejfeifjeifjeifjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj</div>
+                    <div class="contactusername names_headers">Silly Member</div>
                 </div>
                 <div class="contactbio userinput">
                     <div class="aboutme subheaders">About me</div>
-                    ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Praesent fringilla sagittis fringilla. Cras ullamcorper vulputate consectetur. Fusce iaculis elit metus, ac congue elit maximus quis. Integer at tempus massa, ac lacinia tortor. Quisque ac egestas magna, sed gravida ex. Cras consectetur tristique vulputate. Nunc quis aliquam sapien. Phasellus tempor quam placerat, efficitur justo ut, interdum leo.
+                    Some bio goes here
                 </div>
             </div>
 
-            <div class="groupoverlay" id="groupoverlay">
-                <div class="groupname names_headers"><b>Great group</b></div>
-            </div>
+            <div class="groupoverlay" id="groupoverlay"></div>
 
             <div class="groups" id="groups"></div>
 
             <div class="channels" id="channels">
-                {% for channel in channels}
-                <div class="channel names_headers" id="{{ channel.id }}"># - {{channel.name}}</div>
-                {% endfor %}
                 <div class="createchannel"></div>
             </div>
 
             <div class="contacts" id="contacts"></div>
 
             <div class="chat" id="chat">
-                <div class="messages" id="messages">
-                    {% for message in messages %}
-                    <div class="message" id="{{ message.id }}">
-                        <div class="usericon">
-                            <img src="{{ message.icon_path }}">
-                        </div>
-                        <div class="messagebody">
-                            <div class="messageuser names_headers">
-                                {{ message.username }}
-                            </div>
-                            <div class="content userinput">
-                                {{ message.content }}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+                <div class="messages" id="messages"></div>
                 <div class="input">
                     <div class="textarea">
                         <textarea class="text userinput" id="inputarea" placeholder="Start chatting..."></textarea>
@@ -107,7 +78,39 @@
             const channels_all = document.querySelectorAll('.channel');
             const messages_all = document.querySelectorAll('.message');
 
+            var current_group = 'none';
+            var current_channel = 'none';
+
             const conn = new WebSocket(`${ws_addr}`);
+
+            /*
+            Message:
+
+            <div class="message" id=" message.id ">
+                <div class="usericon">
+                    <img src=" message.icon_path ">
+                </div>
+                <div class="messagebody">
+                    <div class="messageuser names_headers">
+                         message.username 
+                    </div>
+                    <div class="content userinput">
+                         message.content 
+                    </div>
+                </div>
+            </div>
+
+            Groupoverlay:
+
+            <div class="groupoverlay" id="groupoverlay">
+                <div class="groupname names_headers"><b>Great group</b></div>
+            </div>
+
+            Channel:
+
+            <div class="channel names_headers" id=" channel.id "># - Name</div>
+            
+            */
 
             /*
             ON LOAD:
@@ -116,7 +119,7 @@
             Empty - ?;
             */
 
-            async function preload(preload_set) {
+            function preload(preload_set) {
                 preload_set.groups.forEach(group => {
                     const group_class = document.createElement('div');
                     group_class.className = 'group';
@@ -160,7 +163,8 @@
                     window.location.href = '/auth/login';
                 } else {
                     const data = await response.json();
-                    await preload(data);
+                    await conn.send(client_id);
+                    preload(data);
                 }
             }
 
@@ -190,44 +194,68 @@
             */
 
             groups_all.forEach(group => {
-                group.addEventListener('click', function() {
-                    if (channels.style.display === 'none') {
+                group.addEventListener('click', async function() {
+                    const previous_channel = document.getElementById(current_channel);
+                    if (current_group === 'none') {
+                        contacts.style.display === 'none';
                         channels.style.display = '';
+                        contactoverlay.style.display = 'none';
+                        if (chat.style.display === 'none') {
+                            chat.style.display = 'flex';
+                        }
                     }
-                    if (chat.style.display === 'none') {
-                        chat.style.display = 'flex';
-                    }
-                    await conn.send(``);
-                });
-            });
+                    groupoverlay.style.display = 'flex';
+                    groupoverlay.innerHTML = `<div class="groupname names_headers"><b>${this.dataset.name}</b></div>`
+                    channels.innerHTML = '';
+                    messages.innerHTML = '';
 
-            contacts_all.forEach(group => {
-                group.addEventListener('click', function() {
-                    //To be implemented!
+                    await conn.send(`{"request": "ChannelsFetch", "id": "${this.id}"}`);
                 });
             });
 
             channels_all.forEach(channel => {
-                group.addEventListener('click', function() {
-                    const previous = document.getElementById(current_channel_id);
+                channel.addEventListener('click', async function() {
+                    const previous = document.getElementById(current_channel);
+                    messages.innerHTML = '';
                     previous.style.backgroundColor = 'none';
                     this.style.backgroundColor = 'rgba(225, 225, 225, 0.2)';
-                    current_channel_id = this.id;
+                    current_channel = this.id;
+                    await conn.send(`{"request": "MessagesRecentFetch", "id": "${this.id}"}`);
                 });
             });
 
-            messages_all.forEach(group => {
-                group.addEventListener('click', function() {
-                    //To be implemented!
+            contacts_all.forEach(contact => {
+                contact.addEventListener('click', async function() {
+                    const previous = document.getElementById(current_channel);
+                    if (chat.style.display === 'none') {
+                        chat.style.display = 'flex';
+                    }
+                    if (groupoverlay.style.display !== 'none') {
+                        groupoverlay.style.display === 'none';
+                    }
+                    messages.innerHTML = '';
+                    previous.style.backgroundColor = 'none';
+                    this.style.backgroundColor = 'rgba(225, 225, 225, 0.2)';
+                    current_channel = this.id;
+                    await conn.send(`{"request": "PrivateMessagesFetch", "id": "${this.id}"}`);
                 });
             });
 
+            document.getElementById("dms").onclick = async function (event) {
+                if (current_group !== 'none') {
+                    groupoverlay.style.display === 'none'
+                    channels.style.display === 'none';
+                    contacts.style.display === '';
+                    chat.style.display === 'none';
+                    messages.innerHTML = '';
+                    await conn.send(`{"request": "PrivateChannelsFetch", "id": "${client_id}"}`);
+                }
+            };
 
-
-            /*const ws_addr = {{ addr|tojson }};
-            const client_id = {{ id|tojson }};
-            const client_icon_path = {{ icon|tojson }};
-            const client_username = {{ username|tojson }};
+            /*const ws_addr =  ;
+            const client_id =   ;
+            const client_icon_path =   ;
+            const client_username =  ;
 
             const token = localStorage.getItem('ATK');
 
@@ -240,7 +268,7 @@
             const channels_all = document.querySelectorAll('.channel');
             
             //PRELOADED DATA!
-            const preloaded_data = {{ preloaded|tojson }};
+            const preloaded_data = ;
             //CURRENT VIEW
             var current_group_id = '';
             var current_channel_id = '';
