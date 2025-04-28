@@ -14,6 +14,35 @@
     </head>
     <body>
         <div class="container">
+            <div class="modaloverlay" id="create_group">
+                <div class="names_headers modalheader">New group</div>
+                <div class="modalimageselect" id="group_icon_select"></div>
+                <textarea class="modalfield userinput" id="group_name" placeholder="Your new group's name" maxlength="30">{{ username }}'s group</textarea>
+                <textarea class="modalfield userinput longmodalinput" id="group_desc" placeholder="Your new group's description" maxlength="500"></textarea>
+                <div class="modalsubmitcancel">
+                    <button class="modalcancel subheaders"><u>Cancel</u></button>
+                    <button class="modalsubmit subheaders" id="submit_create_group">Create group</button>
+                </div>
+            </div>
+
+            <div class="modaloverlay" id="create_channel">
+                <div class="names_headers modalheader">New channel</div>
+                <textarea class="modalfield userinput" id="channel_name" placeholder="New channel's name" maxlength="30"></textarea>
+                <div class="modalsubmitcancel">
+                    <button class="modalcancel subheaders"><u>Cancel</u></button>
+                    <button class="modalsubmit subheaders" id="submit_create_channel">Create channel</button>
+                </div>
+            </div>
+
+            <div class="modaloverlay" id="add_friend">
+                <div class="names_headers modalheader">Add new friend</div>
+                <textarea class="modalfield userinput" id="client_username" placeholder="Their username" maxlength="30"></textarea>
+                <div class="modalsubmitcancel">
+                    <button class="modalcancel subheaders"><u>Cancel</u></button>
+                    <button class="modalsubmit subheaders" id="submit_add_friend">Send friend request</button>
+                </div>
+            </div>
+
             <div class="clientoverlay" id="clientoverlay"></div>
 
             <div class="actionoverlay" id="actionoverlay">
@@ -38,9 +67,7 @@
 
             <div class="groups" id="groups"></div>
 
-            <div class="channels" id="channels">
-                <div class="createchannel"></div>
-            </div>
+            <div class="channels" id="channels"></div>
 
             <div class="contacts" id="contacts"></div>
 
@@ -77,6 +104,20 @@
             const contacts_all = document.querySelectorAll('.contact');
             const channels_all = document.querySelectorAll('.channel');
             const messages_all = document.querySelectorAll('.message');
+            const long_modal_inputs = document.querySelectorAll('.longmodalinput');
+
+            const group_modal = document.getElementById('create_group');
+            const channel_modal = document.getElementById('create_channel');
+            const friend_modal = document.getElementById('add_friend');
+
+            const group_trigger = document.getElementById('submit_create_group');
+            const group_name = document.getElementById('group_name');
+            const group_desc = document.getElementById('group_desc');
+
+            const channel_trigger = document.getElementById('submit_create_channel');
+            const friend_trigger = document.getElementById('submit_add_friend');
+
+            const modal_cancel = document.querySelectorAll('.modalcancel');
 
             var current_group = 'none';
             var current_channel = 'none';
@@ -126,6 +167,7 @@
                     group_class.id = group.id;
                     group_class.innerHTML = `<img class="groupicon" src="${group.icon_path}">`;
                     groups.appendChild(group_class);
+                    group_class.addEventListener('click', group_listener);
                 });
 
                 preload_set.contacts.forEach(contact => {
@@ -138,6 +180,7 @@
                     </div>
                     <div class="contactname names_headers">${contact.username}</div>`;
                     contacts.appendChild(contact_class);
+                    group_class.addEventListener('click', contact_listener);
                 });
 
                 clientoverlay.innerHTML = `
@@ -193,64 +236,99 @@
             Active listeners
             */
 
-            groups_all.forEach(group => {
-                group.addEventListener('click', async function() {
-                    const previous_channel = document.getElementById(current_channel);
-                    if (current_group === 'none') {
-                        contacts.style.display === 'none';
-                        channels.style.display = '';
-                        contactoverlay.style.display = 'none';
-                        if (chat.style.display === 'none') {
-                            chat.style.display = 'flex';
-                        }
-                    }
-                    groupoverlay.style.display = 'flex';
-                    groupoverlay.innerHTML = `<div class="groupname names_headers"><b>${this.dataset.name}</b></div>`
-                    channels.innerHTML = '';
-                    messages.innerHTML = '';
+            async function group_listener(event) {
+                const previous_channel = document.getElementById(current_channel);
+                contacts.style.display = 'none';
+                channels.style.display = 'unset';
+                contactoverlay.style.display = 'none';
+                groupoverlay.style.display = 'flex';
+                chat.style.display = 'flex';
 
-                    await conn.send(`{"request": "ChannelsFetch", "id": "${this.id}"}`);
-                });
-            });
+                groupoverlay.innerHTML = `<div class="groupname names_headers"><b>${this.dataset.name}</b></div>`;
+                channels.innerHTML = '<div class="createchannel"></div>';
+                messages.innerHTML = '';
+                await conn.send(`{"request": "ChannelsFetch", "id": "${this.id}"}`);
+                current_group = group.id;
+            }
 
-            channels_all.forEach(channel => {
-                channel.addEventListener('click', async function() {
-                    const previous = document.getElementById(current_channel);
-                    messages.innerHTML = '';
-                    previous.style.backgroundColor = 'none';
-                    this.style.backgroundColor = 'rgba(225, 225, 225, 0.2)';
-                    current_channel = this.id;
-                    await conn.send(`{"request": "MessagesRecentFetch", "id": "${this.id}"}`);
-                });
-            });
+            async function channel_listener() {
+                const previous = document.getElementById(current_channel);
+                messages.innerHTML = '';
+                previous.style.backgroundColor = 'none';
+                this.style.backgroundColor = 'rgba(225, 225, 225, 0.2)';
+                current_channel = this.id;
+                await conn.send(`{"request": "MessagesRecentFetch", "id": "${this.id}"}`);
+                current_channel = channel.id;
+            }
 
-            contacts_all.forEach(contact => {
-                contact.addEventListener('click', async function() {
-                    const previous = document.getElementById(current_channel);
-                    if (chat.style.display === 'none') {
-                        chat.style.display = 'flex';
-                    }
-                    if (groupoverlay.style.display !== 'none') {
-                        groupoverlay.style.display === 'none';
-                    }
-                    messages.innerHTML = '';
-                    previous.style.backgroundColor = 'none';
-                    this.style.backgroundColor = 'rgba(225, 225, 225, 0.2)';
-                    current_channel = this.id;
-                    await conn.send(`{"request": "PrivateMessagesFetch", "id": "${this.id}"}`);
-                });
-            });
+            async function contact_listener() {
+                const previous = document.getElementById(current_channel);
+                chat.style.display = 'flex';
+                groupoverlay.style.display = 'none';
+                messages.innerHTML = '';
+                previous.style.backgroundColor = 'none';
+                this.style.backgroundColor = 'rgba(225, 225, 225, 0.2)';
+                current_channel = this.id;
+                await conn.send(`{"request": "PrivateMessagesFetch", "id": "${this.id}"}`);
+            }
 
             document.getElementById("dms").onclick = async function (event) {
                 if (current_group !== 'none') {
-                    groupoverlay.style.display === 'none'
-                    channels.style.display === 'none';
-                    contacts.style.display === '';
-                    chat.style.display === 'none';
+                    groupoverlay.style.display = 'none'
+                    channels.style.display = 'none';
+                    contacts.style.display = 'unset';
+                    chat.style.display = 'none';
                     messages.innerHTML = '';
                     await conn.send(`{"request": "PrivateChannelsFetch", "id": "${client_id}"}`);
+                    current_group = 'none';
                 }
             };
+
+            document.getElementById("creategroup").onclick = async function (event) {
+                group_modal.style.display = 'unset';
+            };
+
+            modal_cancel.forEach(cancel => {
+                cancel.addEventListener('click', function() {
+                    group_modal.style.display = 'none';
+                });
+            });
+
+            group_trigger.onclick = async function (event) {
+                const group_class = document.createElement('div');
+                group_class.className = 'group';
+                group_class.id = await get_id();
+                group_class.dataset.name = group_name.value;
+                group_class.dataset.desc = group_desc.value;
+                group_class.innerHTML = `<img class="groupicon" src="">`;
+                groups.appendChild(group_class);
+                group_class.addEventListener('click', group_listener);
+                group_modal.style.display = 'none';
+
+                contacts.style.display = 'none';
+                channels.style.display = 'unset';
+                contactoverlay.style.display = 'none';
+                chat.style.display = 'flex';
+                groupoverlay.style.display = 'flex';
+                groupoverlay.innerHTML = `<div class="groupname names_headers"><b>${group_name.value}</b></div>`;
+                channels.innerHTML = '<div class="createchannel"></div>';
+                messages.innerHTML = '';
+                current_group = group_class.id;
+
+                group_name.value = `${username}'s group`;
+                group_desc.value = '';
+            };
+
+            /*
+            Extra elements
+            */
+
+            long_modal_inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = `${this.scrollHeight}px`;
+                });
+            });
 
             /*const ws_addr =  ;
             const client_id =   ;
