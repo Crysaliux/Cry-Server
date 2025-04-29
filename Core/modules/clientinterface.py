@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTML
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from ast import literal_eval
+import json
 import jwt
 
 class GrabCreds(BaseModel):
@@ -42,7 +43,7 @@ class Clientinterface:
             func = self.operations[request]
             response = await func(data)
             if response is not None:
-                await socket.send_text(response)
+                await socket.send_text(json.dumps(response))
 
     async def __message_send(self, data: dict):
         id, icon_path, content, author_name, author_id, channel_id, group_id = int(data["id"]), data["icon_path"], data["content"], data["author_name"], int(data["author_id"]), int(data["channel_id"]), int(data["group_id"])
@@ -90,8 +91,10 @@ class Clientinterface:
     async def __channel_create(self, data: dict):
         id, name, group_id, client_id, private, co_client_id  = int(data["id"]), data["name"], int(data["group_id"]), int(data["client_id"]), data["private"], int(data["co_client_id"])
         client = await self.dmp.fetch_client_by_id(client_id)
+        group = self.dmp.fetch_group_by_id(group_id)
         if not private:
-            allowed = any(role.CHANNEL_CREATE for role in client.roles if role.group.id == group_id)
+            if group.owner.id == client_id: allowed = True
+            else: allowed = any(role.CHANNEL_CREATE for role in client.roles if role.group.id == group_id)
         else:
             co_client = self.dmp.fetch_client_by_id(co_client_id)
             if not client in co_client.blocked:
@@ -99,10 +102,11 @@ class Clientinterface:
             else: return {"request": "Error", "info": "USERBLOCKED"}
         if allowed:
             if not private:
-                group = self.dmp.fetch_group_by_id(group_id)
                 await self.cmp.channel_broadcast_creation(id, name, group)
+                return {"request": "ChannelCreateAccepted", "id": id, "name": name, "group_id": group_id}
             else:
                 await self.dmp.private_channel_broadcast_creation(id, name, client_id, co_client_id)
+                return {"request": "PrivateChannelCreateAccepted", "id": id, "name": name, "group_id": group_id, "co_client_id": co_client_id}
         else: return {"request": "Error", "info": "CHANNEL_CREATE"}
 
     async def __channel_delete(self, data: dict):
@@ -187,7 +191,7 @@ class Clientinterface:
         if group is not None:
             channels = [{"id": channel.id, "name": channel.name, "group_id": group_id} for channel in group.channels]
             if channels is not None:
-                messages = await self.dmp.fetch_recent_messages(channels[0].id)
+                messages = await self.dmp.fetch_recent_messages(channels[0]["id"])
                 recent_messages = [{"id": message.id, 
                                 "icon_path": message.client.icon_path, 
                                 "content": message.content, 

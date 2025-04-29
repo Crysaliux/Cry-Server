@@ -380,7 +380,7 @@ class DMP:
         return message
 
     async def fetch_recent_messages(self, channel_id: int):
-        fetch_query = select(Message).where(Message.channel.id == channel_id).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
+        fetch_query = select(Message).where(Message.channel_id == channel_id).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
         async with self.session() as session:
             async with session.begin():
                 messages = await session.execute(fetch_query)
@@ -390,7 +390,7 @@ class DMP:
     
     async def fetch_message_history(self, channel_id: int, last_loaded_timestamp: str):
         timestamp = datetime.strptime(last_loaded_timestamp, "%Y-%m-%d %H:%M:%S")
-        fetch_query = select(Message).where(Message.channel.id == channel_id, Message.sent_at < timestamp).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
+        fetch_query = select(Message).where(Message.channel_id == channel_id, Message.sent_at < timestamp).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
         async with self.session() as session:
             async with session.begin():
                 messages = await session.execute(fetch_query)

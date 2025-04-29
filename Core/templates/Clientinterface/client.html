@@ -18,7 +18,7 @@
                 <div class="names_headers modalheader">New group</div>
                 <div class="modalimageselect" id="group_icon_select"></div>
                 <textarea class="modalfield userinput" id="group_name" placeholder="Your new group's name" maxlength="30">{{ username }}'s group</textarea>
-                <textarea class="modalfield userinput longmodalinput" id="group_desc" placeholder="Your new group's description" maxlength="500"></textarea>
+                <textarea class="modalfield userinput longmodalinput" id="group_desc" placeholder="Your new group's description" maxlength="300"></textarea>
                 <div class="modalsubmitcancel">
                     <button class="modalcancel subheaders"><u>Cancel</u></button>
                     <button class="modalsubmit subheaders" id="submit_create_group">Create group</button>
@@ -67,7 +67,9 @@
 
             <div class="groups" id="groups"></div>
 
-            <div class="channels" id="channels"></div>
+            <div class="channels" id="channels">
+                <div class="createchannel" id="createchannel"></div>
+            </div>
 
             <div class="contacts" id="contacts"></div>
 
@@ -94,6 +96,7 @@
             const contactoverlay = document.getElementById('contactoverlay');
             const groupoverlay = document.getElementById('groupoverlay');
             const chat = document.getElementById('chat');
+            const inputarea = document.getElementById('inputarea');
 
             const groups = document.getElementById('groups');
             const channels = document.getElementById('channels');
@@ -115,7 +118,10 @@
             const group_desc = document.getElementById('group_desc');
 
             const channel_trigger = document.getElementById('submit_create_channel');
+            const channel_name = document.getElementById('channel_name');
+
             const friend_trigger = document.getElementById('submit_add_friend');
+            const friend_username = document.getElementById('client_username');
 
             const modal_cancel = document.querySelectorAll('.modalcancel');
 
@@ -245,20 +251,18 @@
                 chat.style.display = 'flex';
 
                 groupoverlay.innerHTML = `<div class="groupname names_headers"><b>${this.dataset.name}</b></div>`;
-                channels.innerHTML = '<div class="createchannel"></div>';
                 messages.innerHTML = '';
                 await conn.send(`{"request": "ChannelsFetch", "id": "${this.id}"}`);
-                current_group = group.id;
+                current_group = this.id;
             }
 
             async function channel_listener() {
                 const previous = document.getElementById(current_channel);
                 messages.innerHTML = '';
-                previous.style.backgroundColor = 'none';
+                previous.style.backgroundColor = 'unset';
                 this.style.backgroundColor = 'rgba(225, 225, 225, 0.2)';
                 current_channel = this.id;
                 await conn.send(`{"request": "MessagesRecentFetch", "id": "${this.id}"}`);
-                current_channel = channel.id;
             }
 
             async function contact_listener() {
@@ -288,6 +292,10 @@
                 group_modal.style.display = 'unset';
             };
 
+            document.getElementById("createchannel").onclick = async function (event) {
+                channel_modal.style.display = 'unset';
+            };
+
             modal_cancel.forEach(cancel => {
                 cancel.addEventListener('click', function() {
                     group_modal.style.display = 'none';
@@ -311,12 +319,28 @@
                 chat.style.display = 'flex';
                 groupoverlay.style.display = 'flex';
                 groupoverlay.innerHTML = `<div class="groupname names_headers"><b>${group_name.value}</b></div>`;
-                channels.innerHTML = '<div class="createchannel"></div>';
                 messages.innerHTML = '';
                 current_group = group_class.id;
 
-                group_name.value = `${username}'s group`;
+                group_name.value = `${client_username}'s group`;
                 group_desc.value = '';
+                await conn.send(`{"request": "GroupCreate", "id": "${group_class.id}", "client_id": "${client_id}", "name": "${group_name.value}", "icon_path": "", "desc": "${group_desc.value}"}`);
+            };
+
+            channel_trigger.onclick = async function (event) {
+                const channel_class = document.createElement('div');
+                channel_class.className = 'channel names_headers';
+                channel_class.id = await get_id();
+                channel_class.dataset.name = channel_name.value;
+                channel_class.innerText = `# - ${channel_name.value}`;
+                channels.appendChild(channel_class);
+                channel_class.addEventListener('click', channel_listener);
+                channel_modal.style.display = 'none';
+
+                chat.style.display = 'flex';
+                messages.innerHTML = '';
+                current_channel = channel_class.id;
+                await conn.send(`{"request": "ChannelCreate", "id": "${channel_class.id}", "name": "${channel_name.value}", "group_id": "${current_group}", "client_id": "${client_id}", "private": False, "co_client_id": 0}`);
             };
 
             /*
@@ -329,6 +353,37 @@
                     this.style.height = `${this.scrollHeight}px`;
                 });
             });
+
+            inputarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = `${this.scrollHeight}px`;
+            });
+
+            /*
+            Requests listener
+            */
+
+            conn.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.request === 'Error') {
+                    console.log(`Vyrn error: ${data.info}`);
+                }
+
+                if (data.request === 'DisplayChannels') {
+                    if (current_group === data.group_id) {
+                        channels.innerHTML = '<div class="createchannel" id="createchannel"></div>';
+                        data.channels.forEach(channel => {
+                            channel_class.className = 'channel names_headers';
+                            channel_class.id = channel.id;
+                            channel_class.dataset.name = channel.name;
+                            channel_class.innerText = `# - ${channel.name}`;
+                            channels.appendChild(channel_class);
+                            channel_class.addEventListener('click', channel_listener);
+                        });
+                    }
+                }
+            }
+            
 
             /*const ws_addr =  ;
             const client_id =   ;
