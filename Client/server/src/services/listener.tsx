@@ -1,12 +1,11 @@
-import React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Group } from "../components/groups";
 import { Channel } from "../components/channels";
 import { Message } from "../components/messages";
 
-type SocketData = Group | Channel | Message
+type SocketData = Group | Channel | Message;
 
-export const Listener = (addr: string) => {
+export const Listener = (addr: string, group_id: string | undefined, channel_id: string | undefined) => {
     const [groups, SetGroups] = useState<Group[]>([]);
     const [channels, SetChannels] = useState<Channel[]>([]);
     const [messages, SetMessages] = useState<Message[]>([]);
@@ -25,16 +24,20 @@ export const Listener = (addr: string) => {
                         SetGroups((previous) => [...previous, data as Group]);
                         break;
                     case 'channel':
-                        SetChannels((previous) => [...previous, data as Channel]);
+                        if (data.group_id === group_id) {
+                            SetChannels((previous) => [...previous, data as Channel]);
+                        }
                         break;
                     case 'message':
-                        SetMessages((previous) => [...previous, data as Message]);
+                        if (data.channel_id === channel_id) {
+                            SetMessages((previous) => [...previous, data as Message]);
+                        }
                         break;
                     default:
                         console.warn(`Unknown object: ${data}`);
                 }
             } catch (error) {
-                console.error(`Failed to parse API data: ${error}`)
+                console.error(`Failed to parse API data: ${error}`);
             }
         };
 
@@ -49,8 +52,10 @@ export const Listener = (addr: string) => {
         return () => {
             socket.close();
             console.log('Client disconected');
+            SetChannels([]);
+            SetMessages([]);
         };
-    }, [addr]);
+    }, [addr, group_id, channel_id]);
 
     const SendRequest = (data: SocketData) => {
         if (socketReference.current && socketReference.current.readyState === WebSocket.OPEN) {
@@ -64,5 +69,5 @@ export const Listener = (addr: string) => {
         }
     };
 
-    return { groups, channels, messages, SendRequest }
+    return { groups, channels, messages, SendRequest };
 };

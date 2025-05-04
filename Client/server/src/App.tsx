@@ -1,7 +1,9 @@
 import React from 'react';
+import { Listener } from 'services/listener';
 import './App.css'
 
 const App: React.FC = () => (
+    <Listener addr="ws://somehost">
         <div id="container">
             <div id="overlays">
                 <div id="client-overlay"></div>
@@ -19,6 +21,7 @@ const App: React.FC = () => (
                 <div id="group-settings-popup-widget" className="popup-widget"></div>
             </div>
         </div>
+    </Listener>
 );
 
 export default App;
