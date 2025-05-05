@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { Contact } from "../components/contacts";
 import { Group } from "../components/groups";
 import { Channel } from "../components/channels";
 import { Message } from "../components/messages";
 
-type SocketData = Group | Channel | Message;
+type SocketData = Contact | Group | Channel | Message;
 
-export const Listener = (addr: string, group_id: string | undefined, channel_id: string | undefined) => {
+export const Listener = (addr: string, current_group_id: string | null, current_channel_id: string | null) => {
+    const [contacts, SetContacts] = useState<Contact[]>([]);
     const [groups, SetGroups] = useState<Group[]>([]);
     const [channels, SetChannels] = useState<Channel[]>([]);
     const [messages, SetMessages] = useState<Message[]>([]);
@@ -20,17 +22,19 @@ export const Listener = (addr: string, group_id: string | undefined, channel_id:
                 const data: SocketData = JSON.parse(event.data);
 
                 switch(data.type) {
+                    case 'contact':
+                        SetContacts((previous) => [...previous, data as Contact]);
+                        break;
                     case 'group':
                         SetGroups((previous) => [...previous, data as Group]);
                         break;
                     case 'channel':
-                        if (data.group_id === group_id) {
-                            SetChannels((previous) => [...previous, data as Channel]);
-                        }
+                        SetChannels((previous) => [...previous, data as Channel]);
                         break;
                     case 'message':
-                        if (data.channel_id === channel_id) {
-                            SetMessages((previous) => [...previous, data as Message]);
+                        SetMessages((previous) => [...previous, data as Message]);
+                        if (data.channel_id !== current_channel_id) {
+                            
                         }
                         break;
                     default:

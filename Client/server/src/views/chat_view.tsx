@@ -5,6 +5,11 @@ import { Group } from "../components/groups";
 import { Channel } from "../components/channels";
 import { Message } from "../components/messages";
 
+/*
+Total redirect.
+Group + Channels + Chat displayed.
+*/
+
 const ChatView: React.FC = () =>  {
     const { group_id, channel_id } = useParams<{ group_id: string | undefined; channel_id: string | undefined}>();
     const { groups, channels, messages, SendRequest } = Listener("ws://somehost/listener", group_id, channel_id);
