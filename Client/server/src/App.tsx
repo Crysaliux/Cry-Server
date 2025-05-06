@@ -1,19 +1,46 @@
 import React, { useState } from 'react';
 import { Routes, Route, BrowserRouter, useNavigate } from 'react-router-dom';
+import { Contact } from "components/contacts";
+import { Group } from "components/groups";
+import { Channel } from "components/channels";
+import { Message } from "components/messages";
 import { Listener } from 'services/listener';
 import { GroupView } from 'views/group_view';
-import { Message } from "components/messages";
 import './App.css'
 
 const App: React.FC = () => {
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
     const [current_channel_id, SetCurrentChannelId] = useState<string | null>(null);
-    const [unread_messages, AddUnreadMessages] = useState<Message[]>([]);
-    const { groups, contacts, channels, messages } = Listener("ws://somehost/listener", current_group_id, current_channel_id);
+    
+    const [contacts, SetContacts] = useState<Contact[]>([]);
+    const [groups, SetGroups] = useState<Group[]>([]);
+    const [channels, SetChannels] = useState<Channel[]>([]);
+    const [messages, SetMessages] = useState<Message[]>([]);
+
+    const SendRequest = Listener("ws://somehost/listener", SetContacts, SetGroups, SetChannels, SetMessages);
     const navigate = useNavigate();
+    
+    /*
+    Objects are edited upon receiving an update request from the API.
+    MESSAGE_EDIT,
+    CHANNEL_EDIT,
+    GROUP_EDIT,
+    */
 
     const HandleGroupNavigation = (id: string | number) => {
         navigate(`/${id}`);
+    };
+
+    const MessageEdit = (data: Message, new_data: Partial<Message>) => {
+        SetMessages((previous) => previous.map((message) => message.id === data.id ? { ...message, ...new_data } : message));
+    };
+
+    const ChannelEdit = (data: Channel, new_data: Partial<Channel>) => {
+        SetChannels((previous) => previous.map((channel) => channel.id === data.id ? { ...channel, ...new_data } : channel));
+    };
+
+    const GroupEdit = (data: Group, new_data: Partial<Group>) => {
+        SetGroups((previous) => previous.map((group) => group.id === data.id ? { ...group, ...new_data } : group));
     };
 
     return (

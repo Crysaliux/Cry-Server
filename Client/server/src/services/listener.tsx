@@ -1,16 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { Contact } from "../components/contacts";
-import { Group } from "../components/groups";
-import { Channel } from "../components/channels";
-import { Message } from "../components/messages";
+import { useEffect, useRef, useState, Dispatch, SetStateAction } from "react";
+import { Contact } from "components/contacts";
+import { Group } from "components/groups";
+import { Channel } from "components/channels";
+import { Message } from "components/messages";
 
 type SocketData = Contact | Group | Channel | Message;
 
-export const Listener = (addr: string, current_group_id: string | null, current_channel_id: string | null) => {
-    const [contacts, SetContacts] = useState<Contact[]>([]);
-    const [groups, SetGroups] = useState<Group[]>([]);
-    const [channels, SetChannels] = useState<Channel[]>([]);
-    const [messages, SetMessages] = useState<Message[]>([]);
+export const Listener = (addr: string, set_contacts: Dispatch<SetStateAction<Contact[]>>, set_groups: Dispatch<SetStateAction<Group[]>>, set_channels: Dispatch<SetStateAction<Channel[]>>, set_messages: Dispatch<SetStateAction<Message[]>>) => {
     const socketReference = useRef<WebSocket | null>(null);
 
     useEffect(() => {
@@ -23,19 +19,16 @@ export const Listener = (addr: string, current_group_id: string | null, current_
 
                 switch(data.type) {
                     case 'contact':
-                        SetContacts((previous) => [...previous, data as Contact]);
+                        set_contacts((previous) => [...previous, data as Contact]);
                         break;
                     case 'group':
-                        SetGroups((previous) => [...previous, data as Group]);
+                        set_groups((previous) => [...previous, data as Group]);
                         break;
                     case 'channel':
-                        SetChannels((previous) => [...previous, data as Channel]);
+                        set_channels((previous) => [...previous, data as Channel]);
                         break;
                     case 'message':
-                        SetMessages((previous) => [...previous, data as Message]);
-                        if (data.channel_id !== current_channel_id) {
-                            
-                        }
+                        set_messages((previous) => [...previous, data as Message]);
                         break;
                     default:
                         console.warn(`Unknown object: ${data}`);
@@ -56,10 +49,8 @@ export const Listener = (addr: string, current_group_id: string | null, current_
         return () => {
             socket.close();
             console.log('Client disconected');
-            SetChannels([]);
-            SetMessages([]);
         };
-    }, [addr, group_id, channel_id]);
+    }, [addr, set_contacts, set_groups, set_channels, set_messages]);
 
     const SendRequest = (data: SocketData) => {
         if (socketReference.current && socketReference.current.readyState === WebSocket.OPEN) {
@@ -73,5 +64,5 @@ export const Listener = (addr: string, current_group_id: string | null, current_
         }
     };
 
-    return { groups, channels, messages, SendRequest };
+    return SendRequest;
 };
