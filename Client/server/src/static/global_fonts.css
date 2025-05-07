@@ -1,0 +1,29 @@
+/*
+FONT STYLES
+*/
+
+.big {
+    color: white;
+    font-size: 130%;
+}
+
+.medium {
+    color: white;
+    font-size: 120%;
+}
+
+.small {
+    color: white;
+    font-size: 100%;
+}
+
+/*
+EXTRA
+*/
+
+.nocopy {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}

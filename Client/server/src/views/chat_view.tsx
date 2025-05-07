@@ -4,6 +4,7 @@ import { Listener } from "../services/listener";
 import { Group } from "../components/groups";
 import { Channel } from "../components/channels";
 import { Message } from "../components/messages";
+import '../static/client_interface.css';
 
 /*
 Total redirect.

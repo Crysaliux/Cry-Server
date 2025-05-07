@@ -4,12 +4,18 @@ import { Contact } from "components/contacts";
 import { Group } from "components/groups";
 import { Channel } from "components/channels";
 import { Message } from "components/messages";
+import { Member } from "components/members";
 import { Listener } from 'services/listener';
-import { GroupView } from 'views/group_view';
-import './App.css'
+import GroupsView from 'views/groups_view';
+import ChannelsView from 'views/channels_view';
+import ChannelView from 'views/channel_view';
+import ActionBarView from 'views/action_bar_view';
+import '../static/client_interface.css';
 
 const App: React.FC = () => {
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
+    const [current_group_members, SetCurrentGroupMembers] = useState<Member[]>([]);
+
     const [current_channel_id, SetCurrentChannelId] = useState<string | null>(null);
     
     const [contacts, SetContacts] = useState<Contact[]>([]);
@@ -26,10 +32,6 @@ const App: React.FC = () => {
     CHANNEL_EDIT,
     GROUP_EDIT,
     */
-
-    const HandleGroupNavigation = (id: string | number) => {
-        navigate(`/${id}`);
-    };
 
     const MessageEdit = (data: Message, new_data: Partial<Message>) => {
         SetMessages((previous) => previous.map((message) => message.id === data.id ? { ...message, ...new_data } : message));
@@ -51,34 +53,41 @@ const App: React.FC = () => {
                     <div id="modal-overlay"></div>
                 </div>
                 <div id="widgets">
+
                     <div id="header-widget" className="widget"></div>
+                    
                     <div id="groups-widget" className="widget">
-                        {groups.map((group) => (
-                            <div className="group" key={group.id} data-owner_id={group.owner_id} data-desc={group.desc} onClick={() => HandleGroupNavigation(group.id)}>
-                                <img src={group.icon_path}></img>
-                            </div>
-                        ))}
+                        <GroupsView groups={groups}/>
                         <div id="groups-widget-action-bar">
-                            <div id="action-bar-addgroup"></div>
-                            <div id="action-bar-dms"></div>
+                            <ActionBarView />
                         </div>
                     </div>
-                    <div id="channels-contacts-widget" className="widget"></div>
-                    <div id="chat-widget" className="widget"></div>
-                    <div id="members-contact-widget" className="widget"></div>
+
+                    <div id="channels-contacts-widget" className="widget">
+                        <Routes>
+                            <Route path="/" element={<ContactsView />} />
+                            <Route path="/:group_id" element={<ChannelsView channels={channels}/>} />
+                        </Routes>
+                    </div>
+
+                    <div id="chat-widget" className="widget">
+                        <Routes>
+                            <Route path="/:contact_id" element={<ContactView />} />
+                            <Route path="/:group_id/:channel_id" element={<ChannelView messages={messages}/>} />
+                        </Routes>
+                    </div>
+
+                    <div id="members-contact-widget" className="widget">
+                        <Routes>
+                            <Route path="/:group_id" element={<MembersInfoView />} />
+                        </Routes>
+                    </div>
+
                     <div id="member-info-popup-widget" className="popup-widget"></div>
                     <div id="client-info-popup-widget" className="popup-widget"></div>
                     <div id="channel-settings-popup-widget" className="popup-widget"></div>
                     <div id="group-settings-popup-widget" className="popup-widget"></div>
                 </div>
-                <Routes>
-                    <Route path="/:group_id" element={<GroupView />}>
-                        <Route path="/:channel_id" element={<Channel />} />
-                    </Route>
-                    <Route path="/" element={<Contacts />}>
-                        <Route path="/:contact_id" element={<Contact />} />
-                    </Route>
-                </Routes>
             </div>
         </BrowserRouter>
     );
