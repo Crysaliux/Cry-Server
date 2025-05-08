@@ -6,3 +6,8 @@ export interface Group {
     name: string;
     desc: string;
 }
+
+export interface ToRemoveGroup {
+    type: 'group_remove';
+    id: number | string;
+}

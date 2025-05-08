@@ -4,3 +4,8 @@ export interface Channel {
     group_id: number | string;
     name: string;
 }
+
+export interface ToRemoveChannel {
+    type: 'channel_remove';
+    id: number | string;
+}

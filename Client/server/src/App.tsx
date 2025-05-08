@@ -23,7 +23,7 @@ const App: React.FC = () => {
     const [channels, SetChannels] = useState<Channel[]>([]);
     const [messages, SetMessages] = useState<Message[]>([]);
 
-    const SendRequest = Listener("ws://somehost/listener", SetContacts, SetGroups, SetChannels, SetMessages);
+    const SendRequest = Listener("ws://somehost/listener", contacts, groups, channels, messages, SetContacts, SetGroups, SetChannels, SetMessages);
     const navigate = useNavigate();
     
     /*

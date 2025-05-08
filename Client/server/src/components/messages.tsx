@@ -9,3 +9,8 @@ export interface Message {
     content: string;
     unread: boolean;
 }
+
+export interface ToRemoveMessage {
+    type: 'message_remove';
+    id: number | string;
+}
