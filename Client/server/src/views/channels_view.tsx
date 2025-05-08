@@ -1,18 +1,20 @@
-import React from "react";
+import React, { Dispatch } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Channel } from "../components/channels";
 import '../static/client_interface.css';
 
 interface ChannelsViewProperties {
     channels: Channel[];
+    set_current_channel_id: Dispatch<React.SetStateAction<string | null>>;
 }
 
-const ChannelsView: React.FC<ChannelsViewProperties> = ({ channels }) => {
+const ChannelsView: React.FC<ChannelsViewProperties> = ({ channels, set_current_channel_id }) => {
     const group_id = useParams<{ group_id: string}>();
     const navigate = useNavigate();
     const RelatedChannels = channels.filter(channel => channel.group_id === group_id);
     
     const HandleChannelNavigation = (id: string | number) => {
+        set_current_channel_id(`${id}`);
         navigate(`/${group_id}/${id}`);
     };
 

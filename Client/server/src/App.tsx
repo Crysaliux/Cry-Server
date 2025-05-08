@@ -10,40 +10,21 @@ import GroupsView from 'views/groups_view';
 import ChannelsView from 'views/channels_view';
 import ChannelView from 'views/channel_view';
 import ActionBarView from 'views/action_bar_view';
+import MembersInfoView from 'views/members_info_view';
 import '../static/client_interface.css';
 
 const App: React.FC = () => {
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
-    const [current_group_members, SetCurrentGroupMembers] = useState<Member[]>([]);
-
     const [current_channel_id, SetCurrentChannelId] = useState<string | null>(null);
-    
+
+    const [current_group_members, SetCurrentGroupMembers] = useState<Member[]>([]);
     const [contacts, SetContacts] = useState<Contact[]>([]);
     const [groups, SetGroups] = useState<Group[]>([]);
     const [channels, SetChannels] = useState<Channel[]>([]);
     const [messages, SetMessages] = useState<Message[]>([]);
 
-    const SendRequest = Listener("ws://somehost/listener", contacts, groups, channels, messages, SetContacts, SetGroups, SetChannels, SetMessages);
+    const SendRequest = Listener("ws://somehost/listener", contacts, groups, channels, messages, current_group_id, SetContacts, SetGroups, SetChannels, SetMessages, SetCurrentGroupMembers);
     const navigate = useNavigate();
-    
-    /*
-    Objects are edited upon receiving an update request from the API.
-    MESSAGE_EDIT,
-    CHANNEL_EDIT,
-    GROUP_EDIT,
-    */
-
-    const MessageEdit = (data: Message, new_data: Partial<Message>) => {
-        SetMessages((previous) => previous.map((message) => message.id === data.id ? { ...message, ...new_data } : message));
-    };
-
-    const ChannelEdit = (data: Channel, new_data: Partial<Channel>) => {
-        SetChannels((previous) => previous.map((channel) => channel.id === data.id ? { ...channel, ...new_data } : channel));
-    };
-
-    const GroupEdit = (data: Group, new_data: Partial<Group>) => {
-        SetGroups((previous) => previous.map((group) => group.id === data.id ? { ...group, ...new_data } : group));
-    };
 
     return (
         <BrowserRouter>
@@ -57,7 +38,7 @@ const App: React.FC = () => {
                     <div id="header-widget" className="widget"></div>
                     
                     <div id="groups-widget" className="widget">
-                        <GroupsView groups={groups}/>
+                        <GroupsView groups={groups} set_current_group_id={SetCurrentGroupId} />
                         <div id="groups-widget-action-bar">
                             <ActionBarView />
                         </div>
@@ -66,20 +47,20 @@ const App: React.FC = () => {
                     <div id="channels-contacts-widget" className="widget">
                         <Routes>
                             <Route path="/" element={<ContactsView />} />
-                            <Route path="/:group_id" element={<ChannelsView channels={channels}/>} />
+                            <Route path="/:group_id" element={<ChannelsView channels={channels} set_current_channel_id={SetCurrentChannelId} />} />
                         </Routes>
                     </div>
 
                     <div id="chat-widget" className="widget">
                         <Routes>
                             <Route path="/:contact_id" element={<ContactView />} />
-                            <Route path="/:group_id/:channel_id" element={<ChannelView messages={messages}/>} />
+                            <Route path="/:group_id/:channel_id" element={<ChannelView messages={messages} />} />
                         </Routes>
                     </div>
 
                     <div id="members-contact-widget" className="widget">
                         <Routes>
-                            <Route path="/:group_id" element={<MembersInfoView />} />
+                            <Route path="/:group_id" element={<MembersInfoView members={current_group_members} />} />
                         </Routes>
                     </div>
 

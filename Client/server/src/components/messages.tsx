@@ -10,7 +10,13 @@ export interface Message {
     unread: boolean;
 }
 
+//ServerRequests
+
 export interface ToRemoveMessage {
     type: 'message_remove';
     id: number | string;
 }
+
+/*
+Updates are handled automatically when client receives partial representation of an initial interface (Message)
+*/

@@ -6,7 +6,13 @@ export interface Member {
     status: string;
 }
 
+//ServerRequests
+
 export interface ToRemoveMember {
     type: 'member_remove';
     id: number | string;
 }
+
+/*
+Updates are handled automatically when client receives partial representation of an initial interface (Member)
+*/

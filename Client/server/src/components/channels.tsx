@@ -5,7 +5,13 @@ export interface Channel {
     name: string;
 }
 
+//ServerRequests
+
 export interface ToRemoveChannel {
     type: 'channel_remove';
     id: number | string;
 }
+
+/*
+Updates are handled automatically when client receives partial representation of an initial interface (Channel)
+*/

@@ -1,13 +1,35 @@
-import { useEffect, useRef, useState, Dispatch, SetStateAction } from "react";
-import { Contact, ToRemoveContact } from "components/contacts";
-import { Group, ToRemoveGroup } from "components/groups";
-import { Channel, ToRemoveChannel } from "components/channels";
-import { Message, ToRemoveMessage } from "components/messages";
+import { useEffect, useRef, useState, Dispatch, SetStateAction, use } from "react";
+import { Contact, ToRemoveContact } from "../components/contacts";
+import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/groups";
+import { Channel, ToRemoveChannel } from "../components/channels";
+import { Message, ToRemoveMessage } from "../components/messages";
+import { Member } from "../components/members"
 
-type SocketData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage;
+type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers;
+type ClientRequestData = ToRequestGroupMembers;
 
-export const Listener = (addr: string, contacts: Contact[], groups: Group[], channels: Channel[], messages: Message[], set_contacts: Dispatch<SetStateAction<Contact[]>>, set_groups: Dispatch<SetStateAction<Group[]>>, set_channels: Dispatch<SetStateAction<Channel[]>>, set_messages: Dispatch<SetStateAction<Message[]>>) => {
+export const Listener = (
+    addr: string,
+    contacts: Contact[],
+    groups: Group[],
+    channels: Channel[],
+    messages: Message[],
+    current_group_id: string | null,
+    set_contacts: Dispatch<SetStateAction<Contact[]>>,
+    set_groups: Dispatch<SetStateAction<Group[]>>,
+    set_channels: Dispatch<SetStateAction<Channel[]>>,
+    set_messages: Dispatch<SetStateAction<Message[]>>,
+    set_current_group_members: Dispatch<SetStateAction<Member[]>>,
+) => {
     const socketReference = useRef<WebSocket | null>(null);
+
+    /*
+    Objects are automatically updated upon receiving a partial instance of themselves from the API.
+    CONTACT_EDIT,
+    MESSAGE_EDIT,
+    CHANNEL_EDIT,
+    GROUP_EDIT,
+    */
 
     useEffect(() => {
         const socket = new WebSocket(addr);
@@ -15,7 +37,7 @@ export const Listener = (addr: string, contacts: Contact[], groups: Group[], cha
 
         socket.onmessage = (event: MessageEvent) => {
             try {
-                const data: SocketData = JSON.parse(event.data);
+                const data: ServerRequestData = JSON.parse(event.data);
 
                 switch(data.type) {
                     case 'contact':
@@ -82,6 +104,11 @@ export const Listener = (addr: string, contacts: Contact[], groups: Group[], cha
                         }
                         break;
 
+                    case 'group_load_members':
+                        if (current_group_id === data.id) {
+                            set_current_group_members(data.members as Member[]);
+                        }
+
                     default:
                         console.warn(`Unknown object: ${data}`);
                 }
@@ -105,7 +132,7 @@ export const Listener = (addr: string, contacts: Contact[], groups: Group[], cha
 
     }, []);
 
-    const SendRequest = (data: SocketData) => {
+    const SendRequest = (data: ClientRequestData) => {
         if (socketReference.current && socketReference.current.readyState === WebSocket.OPEN) {
             try {
                 socketReference.current.send(JSON.stringify(data));
@@ -116,6 +143,12 @@ export const Listener = (addr: string, contacts: Contact[], groups: Group[], cha
           console.warn('Connection closed!');
         }
     };
+
+    useEffect(() => {
+        if (current_group_id !== null) {
+            SendRequest({ type: 'group_request_members', id: current_group_id } as ToRequestGroupMembers);
+        }
+    }, [current_group_id]);
 
     return SendRequest;
 };

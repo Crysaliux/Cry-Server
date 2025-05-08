@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Dispatch } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Group } from "../components/groups";
 import '../static/client_interface.css';
 
 interface GroupsViewProperties {
     groups: Group[];
+    set_current_group_id: Dispatch<React.SetStateAction<string | null>>;
 }
 
-const GroupsView: React.FC<GroupsViewProperties> = ({ groups }) => {
+const GroupsView: React.FC<GroupsViewProperties> = ({ groups, set_current_group_id }) => {
     const navigate = useNavigate();
 
     const HandleGroupNavigation = (id: string | number) => {
+        set_current_group_id(`${id}`);
         navigate(`/${id}`);
     };
 
