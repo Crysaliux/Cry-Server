@@ -6,7 +6,7 @@ import { Message, ToRemoveMessage } from "../components/messages";
 import { Member } from "../components/members"
 
 type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers;
-type ClientRequestData = ToRequestGroupMembers;
+type ClientRequestData = ToRequestGroupMembers | Group | Channel;
 
 export const Listener = (
     addr: string,
@@ -15,11 +15,15 @@ export const Listener = (
     channels: Channel[],
     messages: Message[],
     current_group_id: string | null,
+    group_to_create: Group | null,
+    channel_to_create: Channel | null,
     set_contacts: Dispatch<SetStateAction<Contact[]>>,
     set_groups: Dispatch<SetStateAction<Group[]>>,
     set_channels: Dispatch<SetStateAction<Channel[]>>,
     set_messages: Dispatch<SetStateAction<Message[]>>,
     set_current_group_members: Dispatch<SetStateAction<Member[]>>,
+    set_group_to_create: Dispatch<SetStateAction<Group | null>>,
+    set_channel_to_create: Dispatch<SetStateAction<Channel | null>>
 ) => {
     const socketReference = useRef<WebSocket | null>(null);
 
@@ -149,6 +153,20 @@ export const Listener = (
             SendRequest({ type: 'group_request_members', id: current_group_id } as ToRequestGroupMembers);
         }
     }, [current_group_id]);
+
+    useEffect(() => {
+        if (group_to_create !== null) {
+            SendRequest(group_to_create as Group);
+            set_group_to_create(null);
+        }
+    }, [group_to_create]);
+
+    useEffect(() => {
+        if (channel_to_create !== null) {
+            SendRequest(channel_to_create as Channel);
+            set_channel_to_create(null);
+        }
+    }, [channel_to_create]);
 
     return SendRequest;
 };

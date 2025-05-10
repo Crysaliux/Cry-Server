@@ -1,11 +1,11 @@
-import React, { Dispatch } from "react";
+import React, { Dispatch, SetStateAction } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Channel } from "../components/channels";
 import '../static/client_interface.css';
 
 interface ChannelsViewProperties {
     channels: Channel[];
-    set_current_channel_id: Dispatch<React.SetStateAction<string | null>>;
+    set_current_channel_id: Dispatch<SetStateAction<string | null>>;
 }
 
 const ChannelsView: React.FC<ChannelsViewProperties> = ({ channels, set_current_channel_id }) => {

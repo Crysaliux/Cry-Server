@@ -371,8 +371,17 @@ MEMBER INFO POPUP
 }
 
 /*
-MODAL OVERLAYS
+MODALS
 */
+
+#modal-blur-overlay {
+    height: 100%;
+    width: 100%;
+    position: fixed;
+    z-index: 500;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
 
 .modal {
     height: auto;
@@ -412,6 +421,27 @@ MODAL OVERLAYS
     flex-direction: row;
     gap: 20%;
     justify-content: center;
+}
+
+/*
+GROUP MODAL OVERLAY
+*/
+
+#group-modal-icon {
+    height: 80px;
+    width: 80px;
+    border-radius: 10px;
+    background-image: url('');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: rgb(88, 81, 81);
+}
+
+#group-modal-icon-input {
+    height: 100%;
+    width: 100%;
+    opacity: 0;
 }
 
 /*

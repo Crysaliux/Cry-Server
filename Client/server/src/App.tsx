@@ -28,19 +28,19 @@ const App: React.FC = () => {
     const [group_modal_status, SetGroupModalStatus] = useState<boolean>(false);
     const [channel_modal_status, SetChannelModalStatus] = useState<boolean>(false);
 
-    const SendRequest = Listener("ws://somehost/listener", contacts, groups, channels, messages, current_group_id, SetContacts, SetGroups, SetChannels, SetMessages, SetCurrentGroupMembers);
+    const [group_to_create, SetGroupToCreate] = useState<Group | null>(null);
+    const [channel_to_create, SetChannelToCreate] = useState<Channel | null>(null);
+
+    const SendRequest = Listener("ws://somehost/listener", contacts, groups, channels, messages, current_group_id, group_to_create, channel_to_create, SetContacts, SetGroups, SetChannels, SetMessages, SetCurrentGroupMembers, SetGroupToCreate, SetChannelToCreate);
     const navigate = useNavigate();
 
     return (
         <BrowserRouter>
             <div id="container">
-                <div id="overlays">
-                    <div id="client-overlay"></div>
-                    <div id="modal-overlay">
-                        <GroupModalView group_modal_status={group_modal_status} />
-                        <ChannelModalView channel_modal_status={channel_modal_status} />
-                    </div>
-                </div>
+
+                <GroupModalView group_modal_status={group_modal_status} set_group_modal_status={SetGroupModalStatus} />
+                <ChannelModalView channel_modal_status={channel_modal_status} set_channel_modal_status={SetChannelModalStatus} />
+
                 <div id="widgets">
 
                     <div id="header-widget" className="widget"></div>
