@@ -11,7 +11,9 @@ import ChannelsView from 'views/channels_view';
 import ChannelView from 'views/channel_view';
 import ActionBarView from 'views/action_bar_view';
 import MembersInfoView from 'views/members_info_view';
-import '../static/client_interface.css';
+import GroupModalView from 'views/group_modal_view';
+import ChannelModalView from 'views/channel_modal_view';
+import 'static/client_interface.css';
 
 const App: React.FC = () => {
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
@@ -23,6 +25,9 @@ const App: React.FC = () => {
     const [channels, SetChannels] = useState<Channel[]>([]);
     const [messages, SetMessages] = useState<Message[]>([]);
 
+    const [group_modal_status, SetGroupModalStatus] = useState<boolean>(false);
+    const [channel_modal_status, SetChannelModalStatus] = useState<boolean>(false);
+
     const SendRequest = Listener("ws://somehost/listener", contacts, groups, channels, messages, current_group_id, SetContacts, SetGroups, SetChannels, SetMessages, SetCurrentGroupMembers);
     const navigate = useNavigate();
 
@@ -31,7 +36,10 @@ const App: React.FC = () => {
             <div id="container">
                 <div id="overlays">
                     <div id="client-overlay"></div>
-                    <div id="modal-overlay"></div>
+                    <div id="modal-overlay">
+                        <GroupModalView group_modal_status={group_modal_status} />
+                        <ChannelModalView channel_modal_status={channel_modal_status} />
+                    </div>
                 </div>
                 <div id="widgets">
 
@@ -40,7 +48,7 @@ const App: React.FC = () => {
                     <div id="groups-widget" className="widget">
                         <GroupsView groups={groups} set_current_group_id={SetCurrentGroupId} />
                         <div id="groups-widget-action-bar">
-                            <ActionBarView />
+                            <ActionBarView set_group_modal_status={SetGroupModalStatus} />
                         </div>
                     </div>
 

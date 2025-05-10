@@ -1,0 +1,83 @@
+/*
+FONT STYLES
+*/
+
+.big {
+    color: white;
+    font-size: 130%;
+}
+
+.medium {
+    color: white;
+    font-size: 120%;
+}
+
+.small {
+    color: white;
+    font-size: 100%;
+}
+
+/*
+EXTRA
+*/
+
+.nocopy {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/*
+BUTTON STYLES
+*/
+
+.blue {
+    background-color: rgba(0, 0, 255, 1);
+}
+
+.blue:hover {
+    background-color: rgba(0, 0, 255, 0.5)
+}
+
+.red {
+    background-color: rgba(255, 0, 0, 1);
+}
+
+.red:hover {
+    background-color: (255, 0, 0, 0.5);
+}
+
+.white {
+    background-color: rgba(255, 255, 255, 1);
+}
+
+.white:hover {
+    background-color: rgba(255, 255, 255, 0.5);;
+}
+
+.green {
+    background-color: rgba(0, 128, 0, 1);
+}
+
+.green:hover {
+    background-color: rgba(0, 128, 0, 0.5);
+}
+
+.grey {
+    background-color: rgba(128, 128, 128, 1);
+}
+
+.grey:hover {
+    background-color: rgba(128, 128, 128, 0.5);
+}
+
+.underlined {
+    background: none;
+    text-decoration: underline;
+    color: rgba(255, 255, 255, 1);
+}
+
+.underlined:hover {
+    color: rgba(255, 255, 255, 0.5);
+}
