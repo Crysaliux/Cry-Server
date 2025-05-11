@@ -1,4 +1,5 @@
 import React, { Dispatch, SetStateAction } from "react";
+import '../static/client_interface.css';
 
 interface ErrorViewProperties {
     error: string | null;

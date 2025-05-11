@@ -27,7 +27,7 @@ class Authentication:
         encoded = jwt.encode(encdat, self.access_key, algorithm=self.algorithm)
         return encoded
 
-    def router_tasks(self):
+    def router_tasks(self): #To be completely refactored.
         @self.router.post("/submit/signup", response_class=HTMLResponse)
         async def sign_up(request: Request, form: SignUp):
             created, id = await self.dmp.create_client(form.username, form.email, self.hasher.hash(form.password))
@@ -43,11 +43,3 @@ class Authentication:
                 raise HTTPException(status_code=400, detail=f"Wrong password or mail, please try again!")
             token = self.__create_token({"id": client.id, "username": client.username})
             return JSONResponse(content={"redirect": f"/client/{client.id}", "token": token}, status_code=201)
-        
-        @self.router.get("/signup", response_class=HTMLResponse)
-        async def sign_up(request: Request):
-            return self.templates.TemplateResponse("Auth/signup.html", {"request": request})
-
-        @self.router.get("/login", response_class=HTMLResponse)
-        async def sign_up(request: Request):
-            return self.templates.TemplateResponse("Auth/login.html", {"request": request})

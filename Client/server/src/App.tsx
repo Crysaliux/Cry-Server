@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
 import { Routes, Route, BrowserRouter, useNavigate } from 'react-router-dom';
-import { Contact } from "components/contacts";
-import { Group } from "components/groups";
-import { Channel } from "components/channels";
-import { Message } from "components/messages";
-import { Member } from "components/members";
-import { Listener } from 'services/listener';
-import GroupsView from 'views/groups_view';
-import ChannelsView from 'views/channels_view';
-import ChannelView from 'views/channel_view';
-import ActionBarView from 'views/action_bar_view';
-import MembersInfoView from 'views/members_info_view';
-import GroupModalView from 'views/group_modal_view';
-import ChannelModalView from 'views/channel_modal_view';
-import ErrorView from 'views/error_view';
-import 'static/client_interface.css';
+import { Contact } from "./components/contacts";
+import { Group } from "./components/groups";
+import { Channel } from "./components/channels";
+import { Message } from "./components/messages";
+import { Member } from "./components/members";
+import { Listener } from './services/listener';
+import GroupsView from './views/groups_view';
+import ChannelsView from './views/channels_view';
+import ChannelView from './views/channel_view';
+import ActionBarView from './views/action_bar_view';
+import MembersInfoView from './views/members_info_view';
+import GroupModalView from './views/group_modal_view';
+import ChannelModalView from './views/channel_modal_view';
+import ErrorView from './views/error_view';
 
 const App: React.FC = () => {
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
