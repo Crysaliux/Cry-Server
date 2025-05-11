@@ -12,6 +12,11 @@ export interface ToRemoveChannel {
     id: number | string;
 }
 
+export interface ChannelCreationStatus {
+    type: 'channel_creation_status';
+    status: boolean;
+}
+
 /*
 Updates are handled automatically when client receives partial representation of an initial interface (Channel)
 */

@@ -22,6 +22,11 @@ export interface ToLoadGroupMembers {
     members: Member[];
 }
 
+export interface GroupCreationStatus {
+    type: 'group_creation_status';
+    status: boolean;
+}
+
 //ClientRequests
 
 export interface ToRequestGroupMembers {

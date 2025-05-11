@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use } from "react";
 import { Contact, ToRemoveContact } from "../components/contacts";
-import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/groups";
-import { Channel, ToRemoveChannel } from "../components/channels";
+import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers, GroupCreationStatus } from "../components/groups";
+import { Channel, ToRemoveChannel, ChannelCreationStatus } from "../components/channels";
 import { Message, ToRemoveMessage } from "../components/messages";
 import { Member } from "../components/members"
 
-type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers;
+type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | GroupCreationStatus | ChannelCreationStatus;
 type ClientRequestData = ToRequestGroupMembers | Group | Channel;
 
 export const Listener = (
@@ -23,7 +23,10 @@ export const Listener = (
     set_messages: Dispatch<SetStateAction<Message[]>>,
     set_current_group_members: Dispatch<SetStateAction<Member[]>>,
     set_group_to_create: Dispatch<SetStateAction<Group | null>>,
-    set_channel_to_create: Dispatch<SetStateAction<Channel | null>>
+    set_channel_to_create: Dispatch<SetStateAction<Channel | null>>,
+    set_group_modal_status: Dispatch<SetStateAction<boolean>>,
+    set_channel_modal_status: Dispatch<SetStateAction<boolean>>,
+    set_error: Dispatch<SetStateAction<string | null>>
 ) => {
     const socketReference = useRef<WebSocket | null>(null);
 
@@ -112,6 +115,29 @@ export const Listener = (
                         if (current_group_id === data.id) {
                             set_current_group_members(data.members as Member[]);
                         }
+                        break;
+
+                    case 'group_creation_status':
+                        if (group_to_create) {
+                            if (data.status === true) {
+                                set_group_to_create(null);
+                                set_group_modal_status(false);
+                            } else {
+                                set_error("Application error. Group can't be created");
+                            }
+                        }
+                        break;
+
+                    case 'channel_creation_status':
+                        if (channel_to_create) {
+                            if (data.status === true) {
+                                set_channel_to_create(null);
+                                set_channel_modal_status(false);
+                            } else {
+                                set_error("Application error. Channel can't be created");
+                            }
+                        }
+                        break;
 
                     default:
                         console.warn(`Unknown object: ${data}`);
@@ -157,14 +183,12 @@ export const Listener = (
     useEffect(() => {
         if (group_to_create !== null) {
             SendRequest(group_to_create as Group);
-            set_group_to_create(null);
         }
     }, [group_to_create]);
 
     useEffect(() => {
         if (channel_to_create !== null) {
             SendRequest(channel_to_create as Channel);
-            set_channel_to_create(null);
         }
     }, [channel_to_create]);
 

@@ -6,13 +6,14 @@ interface GroupModalViewProperties {
     group_modal_status: boolean;
     set_group_modal_status: Dispatch<SetStateAction<boolean>>;
     set_group_to_create: Dispatch<SetStateAction<Group | null>>;
+    set_error: Dispatch<SetStateAction<string | null>>;
 }
 
 interface APIResponse {
     url: string | null;
 }
 
-const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status, set_group_modal_status, set_group_to_create }) => {
+const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status, set_group_modal_status, set_group_to_create, set_error }) => {
     const [selected_icon_path, SetSelectedIconPath] = useState<string>('');
     const GroupModalIconReference = useRef<HTMLDivElement>(null);
     const GroupModalNameReference = useRef<HTMLTextAreaElement>(null);
@@ -41,9 +42,11 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status
                  if (data.url !== null) {
                     const full_path = `https://somehost/client/${data.url}`;
                     SetSelectedIconPath(full_path);
-                 } //Error notifications to be implemented! (No data received from server.)
+                 } else {
+                    set_error('Application error. No data has been received.');
+                 }
             } catch (error) {
-                //Error notifications to be implemented! (Can't send data to server.)
+                set_error("Application error. Can't connect to the API server.");
             }
         }
     };
@@ -51,18 +54,20 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status
     const CreateGroup = () => {
         if (GroupModalNameReference.current && GroupModalDescReference.current) {
             if (selected_icon_path === '') {
-                SetSelectedIconPath('https://somehost/client/basic_group_image.png')
+                SetSelectedIconPath('https://somehost/client/basic_group_image.png');
             }
 
             const NewGroup: Group = {
-            type: 'group',
-            id: crypto.randomUUID(),
-            owner_id: 55555, //To be implemented!
-            icon_path: selected_icon_path,
-            name: GroupModalNameReference.current.value,
-            desc: GroupModalDescReference.current.value
-        };
+                type: 'group',
+                id: crypto.randomUUID(),
+                owner_id: 55555, //To be implemented!
+                icon_path: selected_icon_path,
+                name: GroupModalNameReference.current.value,
+                desc: GroupModalDescReference.current.value
+            };
             set_group_to_create(NewGroup);
+        } else {
+            set_error("Ooops! Group name and description can't be left blank!");
         }
     };
 

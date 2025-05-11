@@ -13,6 +13,7 @@ import ActionBarView from 'views/action_bar_view';
 import MembersInfoView from 'views/members_info_view';
 import GroupModalView from 'views/group_modal_view';
 import ChannelModalView from 'views/channel_modal_view';
+import ErrorView from 'views/error_view';
 import 'static/client_interface.css';
 
 const App: React.FC = () => {
@@ -31,15 +32,36 @@ const App: React.FC = () => {
     const [group_to_create, SetGroupToCreate] = useState<Group | null>(null);
     const [channel_to_create, SetChannelToCreate] = useState<Channel | null>(null);
 
-    const SendRequest = Listener("ws://somehost/listener", contacts, groups, channels, messages, current_group_id, group_to_create, channel_to_create, SetContacts, SetGroups, SetChannels, SetMessages, SetCurrentGroupMembers, SetGroupToCreate, SetChannelToCreate);
+    const [error, SetError] = useState<string | null>(null);
+
+    const SendRequest = Listener(
+        "ws://somehost/listener",
+        contacts,
+        groups, 
+        channels, 
+        messages, 
+        current_group_id, 
+        group_to_create, 
+        channel_to_create, 
+        SetContacts, 
+        SetGroups, 
+        SetChannels, 
+        SetMessages, 
+        SetCurrentGroupMembers, 
+        SetGroupToCreate, 
+        SetChannelToCreate, 
+        SetGroupModalStatus, 
+        SetChannelModalStatus, 
+        SetError
+    );
     const navigate = useNavigate();
 
     return (
         <BrowserRouter>
             <div id="container">
-
-                <GroupModalView group_modal_status={group_modal_status} set_group_modal_status={SetGroupModalStatus} />
-                <ChannelModalView channel_modal_status={channel_modal_status} set_channel_modal_status={SetChannelModalStatus} />
+                <ErrorView error={error} set_error={SetError} />
+                <GroupModalView group_modal_status={group_modal_status} set_group_modal_status={SetGroupModalStatus} set_group_to_create={SetGroupToCreate} set_error={SetError} />
+                <ChannelModalView channel_modal_status={channel_modal_status} set_channel_modal_status={SetChannelModalStatus} set_channel_to_create={SetChannelToCreate} current_group_id={current_group_id} set_error={SetError} />
 
                 <div id="widgets">
 
