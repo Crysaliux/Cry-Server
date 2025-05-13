@@ -315,6 +315,8 @@ POPUP WIDGETS
     min-height: 200px;
     width: 15%;
     overflow: hidden;
+
+    display: none;
 }
 
 #client-info-popup-widget {

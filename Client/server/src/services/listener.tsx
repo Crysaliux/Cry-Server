@@ -3,7 +3,7 @@ import { Contact, ToRemoveContact } from "../components/contacts";
 import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers, GroupCreationStatus } from "../components/groups";
 import { Channel, ToRemoveChannel, ChannelCreationStatus } from "../components/channels";
 import { Message, ToRemoveMessage } from "../components/messages";
-import { Member } from "../components/members"
+import { Member } from "../components/members";
 
 type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | GroupCreationStatus | ChannelCreationStatus;
 type ClientRequestData = ToRequestGroupMembers | Group | Channel;
@@ -17,6 +17,7 @@ export const Listener = (
     current_group_id: string | null,
     group_to_create: Group | null,
     channel_to_create: Channel | null,
+    clinet_id: number | string,
     set_contacts: Dispatch<SetStateAction<Contact[]>>,
     set_groups: Dispatch<SetStateAction<Group[]>>,
     set_channels: Dispatch<SetStateAction<Channel[]>>,
@@ -41,6 +42,10 @@ export const Listener = (
     useEffect(() => {
         const socket = new WebSocket(addr);
         socketReference.current = socket;
+
+        socket.onopen = () => {
+            socket.send(JSON.stringify(clinet_id));
+        }
 
         socket.onmessage = (event: MessageEvent) => {
             try {

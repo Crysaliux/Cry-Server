@@ -8,8 +8,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
 from .protocols.dmp import DMP
 from .protocols.cmp import CMP
-from .modules.authentication import Authentication
-from .modules.clientinterface import Clientinterface
+from .api_modules.authentication import Authentication
+from .api_modules.clientinterface import Clientinterface
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from itertools import takewhile

@@ -12,6 +12,12 @@ export interface ToRemoveContact {
     id: number | string;
 }
 
+export interface ContactCreationStatus {
+    type: 'contact_creation_status';
+    status: boolean;
+    error: string | null;
+}
+
 /*
 Updates are handled automatically when client receives partial representation of an initial interface (Contact)
 */

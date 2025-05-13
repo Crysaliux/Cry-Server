@@ -17,6 +17,12 @@ export interface ToRemoveMessage {
     id: number | string;
 }
 
+export interface MessageCreationStatus {
+    type: 'message_creation_status';
+    status: boolean;
+    error: string | null;
+}
+
 /*
 Updates are handled automatically when client receives partial representation of an initial interface (Message)
 */

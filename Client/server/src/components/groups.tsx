@@ -25,6 +25,7 @@ export interface ToLoadGroupMembers {
 export interface GroupCreationStatus {
     type: 'group_creation_status';
     status: boolean;
+    error: string | null;
 }
 
 //ClientRequests

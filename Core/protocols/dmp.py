@@ -26,6 +26,7 @@ class Client(Base):
     __tablename__ = "client"
 
     username: Mapped[str] = mapped_column(String(10))
+    displayname: Mapped[str] = mapped_column(String(20))
     email: Mapped[str] = mapped_column(String(30))
     password: Mapped[str] = mapped_column()
     bio: Mapped[str] = mapped_column(String(200), nullable=True)
@@ -163,44 +164,50 @@ class DMP:
     """
     
     async def create_client(self, username: str, email: str, password: str):
-        created = False
-        id = None
-        check_query = select(Client).where(Client.email == email)
-        async with self.session() as session:
-            async with session.begin():
-                check = await session.execute(check_query)
-                check = check.scalars().first()
-                if check is None:
-                    id = self.id()
-                    create_query = Client(username=username, email=email, password=password, id=id)
-                    session.add(create_query)
-                    await session.commit()
-                    created = True
-        return created, id
+        try:
+            created = False
+            id = None
+            check_query = select(Client).where(Client.email == email)
+            async with self.session() as session:
+                async with session.begin():
+                    check = await session.execute(check_query)
+                    check = check.scalars().first()
+                    if check is None:
+                        id = self.id()
+                        create_query = Client(username=username, email=email, password=password, id=id)
+                        session.add(create_query)
+                        await session.commit()
+                        created = True
+            return created, id
+        except: return False
     
     async def delete_client(self, id: int):
-        deleted = False
-        client_delete = delete(Client).where(Client.id == id).returning(Client.id)
-        async with self.session() as session:
-            async with session.begin():
-                check_id = await session.execute(client_delete)
-                if check_id == id:
-                    deleted = True
-        return deleted
+        try:
+            deleted = False
+            client_delete = delete(Client).where(Client.id == id).returning(Client.id)
+            async with self.session() as session:
+                async with session.begin():
+                    check_id = await session.execute(client_delete)
+                    if check_id == id:
+                        deleted = True
+            return deleted
+        except: return False
     
     async def block_client(self, id: int, blocked_client_id: int):
-        blocked = True
-        check_query = select(Client).where(Client.id == blocked_client_id)
-        async with self.session() as session: 
-            async with session.begin():
-                check = await session.execute(check_query)
-                check = check.scalars().first()
-                if check is not None:
-                    create_query = Block(client_id=id, blocked_client_id=blocked_client_id, id=self.id())
-                    session.add(create_query)
-                    await session.commit()
-                    blocked = True
-        return blocked
+        try:
+            blocked = True
+            check_query = select(Client).where(Client.id == blocked_client_id)
+            async with self.session() as session: 
+                async with session.begin():
+                    check = await session.execute(check_query)
+                    check = check.scalars().first()
+                    if check is not None:
+                        create_query = Block(client_id=id, blocked_client_id=blocked_client_id, id=self.id())
+                        session.add(create_query)
+                        await session.commit()
+                        blocked = True
+            return blocked
+        except: return False
 
     """
     create_group
@@ -209,41 +216,47 @@ class DMP:
     """
     
     async def create_group(self, name: str, client_id: int, id: int, icon_path: str = None, desc: str = None):
-        group_create_query = Group(owner_id=client_id, name=name, icon_path=icon_path, desc=desc, id=id)
-        preset_id, preset_name = self.id(), f"{name}'s"
-        channel_create_query = Channel(group_id=id, name=preset_name, id=preset_id)
-        async with self.session() as session:
-            async with session.begin():
-                session.add(group_create_query)
-                session.add(channel_create_query)
-                await session.commit()
-        return preset_id, preset_name
+        try:
+            group_create_query = Group(owner_id=client_id, name=name, icon_path=icon_path, desc=desc, id=id)
+            preset_id, preset_name = self.id(), f"{name}'s"
+            channel_create_query = Channel(group_id=id, name=preset_name, id=preset_id)
+            async with self.session() as session:
+                async with session.begin():
+                    session.add(group_create_query)
+                    session.add(channel_create_query)
+                    await session.commit()
+            return True
+        except: return False
     
     async def join_group(self, client_id: int, group_id: int):
-        joined = False
-        fetch_client = select(Client).where(Client.id == client_id)
-        fetch_group = select(Group).options(selectinload(Group.members)).where(Group.id == group_id)
-        async with self.session() as session:
-            async with session.begin():
-                client = await session.execute(fetch_client)
-                client = client.scalars().first()
-                group = await session.execute(fetch_group)
-                group = group.scalars().first()
-                if client is not None and group is not None and client not in group.members:
-                    group.members.append(client)
-                    await session.commit()
-                    joined = True
-        return joined, group.id
+        try:
+            joined = False
+            fetch_client = select(Client).where(Client.id == client_id)
+            fetch_group = select(Group).options(selectinload(Group.members)).where(Group.id == group_id)
+            async with self.session() as session:
+                async with session.begin():
+                    client = await session.execute(fetch_client)
+                    client = client.scalars().first()
+                    group = await session.execute(fetch_group)
+                    group = group.scalars().first()
+                    if client is not None and group is not None and client not in group.members:
+                        group.members.append(client)
+                        await session.commit()
+                        joined = True
+            return joined
+        except: return False
     
     async def delete_group(self, id: int):
-        deleted = False
-        group_delete = delete(Group).where(Group.id == id).returning(Group.id)
-        async with self.session() as session:
-            async with session.begin():
-                check_id = await session.execute(group_delete)
-                if check_id == id:
-                    deleted = True
-        return deleted
+        try:
+            deleted = False
+            group_delete = delete(Group).where(Group.id == id).returning(Group.id)
+            async with self.session() as session:
+                async with session.begin():
+                    check_id = await session.execute(group_delete)
+                    if check_id == id:
+                        deleted = True
+            return deleted
+        except: return False
     
     """
     create_channel
@@ -251,25 +264,29 @@ class DMP:
     """
     
     async def create_channel(self, client_id: int, name: str, id: int, group_id: int = None, private: bool = False, co_client_id: int = None):
-        created = False
-        async with self.session() as session:
-            async with session.begin():
-                if not private: create_query = Channel(group_id=group_id, name=name, id=id)
-                else: create_query = Channel(client_id=client_id, co_client_id=co_client_id, name=name, id=id)
-                session.add(create_query)
-                await session.commit()
-                created = True
-        return created
+        try:
+            created = False
+            async with self.session() as session:
+                async with session.begin():
+                    if not private: create_query = Channel(group_id=group_id, name=name, id=id)
+                    else: create_query = Channel(client_id=client_id, co_client_id=co_client_id, name=name, id=id)
+                    session.add(create_query)
+                    await session.commit()
+                    created = True
+            return created
+        except: return False
     
     async def delete_channel(self, id: int):
-        deleted = False
-        channel_delete = delete(Channel).where(Channel.id == id).returning(Channel.id)
-        async with self.session() as session:
-            async with session.begin():
-                check_id = await session.execute(channel_delete)
-                if check_id == id:
-                    deleted = True
-        return deleted
+        try:
+            deleted = False
+            channel_delete = delete(Channel).where(Channel.id == id).returning(Channel.id)
+            async with self.session() as session:
+                async with session.begin():
+                    check_id = await session.execute(channel_delete)
+                    if check_id == id:
+                        deleted = True
+            return deleted
+        except: return False
     
     """
     create_role
@@ -277,51 +294,59 @@ class DMP:
     """
     
     async def create_role(self, name: str, rank_index: int, group_id: int, id: int, **permissions):
-        role_create_query = Role(name=name, rank_index=rank_index, group_id=group_id, permissions=permissions, id=id, **permissions)
-        async with self.session() as session:
-            async with session.begin():
-                session.add(role_create_query)
-                await session.commit()
-        return id
+        try:
+            role_create_query = Role(name=name, rank_index=rank_index, group_id=group_id, id=id, **permissions)
+            async with self.session() as session:
+                async with session.begin():
+                    session.add(role_create_query)
+                    await session.commit()
+            return True
+        except: return False
     
     async def delete_role(self, id: int):
-        deleted = False
-        role_delete = delete(Role).where(Role.id == id).returning(Role.id)
-        async with self.session() as session:
-            async with session.begin():
-                check_id = await session.execute(role_delete)
-                if check_id == id:
-                    deleted = True
-        return deleted
+        try:
+            deleted = False
+            role_delete = delete(Role).where(Role.id == id).returning(Role.id)
+            async with self.session() as session:
+                async with session.begin():
+                    check_id = await session.execute(role_delete)
+                    if check_id == id:
+                        deleted = True
+            return deleted
+        except: return False
     
     """
     save_message
     delete_message
     """
     
-    async def save_message(self, client_id: int, channel_id: int, content: str, id: int):
-        saved = False
-        fetch_channel = select(Channel).where(Channel.id == channel_id)
-        async with self.session() as session:
-            async with session.begin():
-                channel = await session.execute(fetch_channel)
-                channel = channel.scalars().first()
-                if channel is not None:
-                    create_query = Message(client_id=client_id, group_id=channel.group.id, channel_id=channel.id, content=content, id=id)
-                    session.add(create_query)
-                    await session.commit()
-                    saved=True
-        return saved
+    async def save_message(self, client_id: int, group_id: int, channel_id: int, content: str, id: int):
+        try:
+            saved = False
+            fetch_channel = select(Channel).where(Channel.id == channel_id)
+            async with self.session() as session:
+                async with session.begin():
+                    channel = await session.execute(fetch_channel)
+                    channel = channel.scalars().first()
+                    if channel is not None:
+                        create_query = Message(client_id=client_id, group_id=group_id, channel_id=channel_id, content=content, id=id)
+                        session.add(create_query)
+                        await session.commit()
+                        saved=True
+            return saved
+        except: return False
     
     async def delete_message(self, id: int):
-        deleted = False
-        message_delete = delete(Message).where(Message.id == id).returning(Message.id)
-        async with self.session() as session:
-            async with session.begin():
-                check_id = await session.execute(message_delete)
-                if check_id == id:
-                    deleted = True
-        return deleted
+        try:
+            deleted = False
+            message_delete = delete(Message).where(Message.id == id).returning(Message.id)
+            async with self.session() as session:
+                async with session.begin():
+                    check_id = await session.execute(message_delete)
+                    if check_id == id:
+                        deleted = True
+            return deleted
+        except: return False
     
     """
     fetch_client_by_mail
@@ -332,68 +357,82 @@ class DMP:
     """
     
     async def fetch_client_by_mail(self, email: str):
-        fetch_query = select(Client).where(Client.email == email)
-        async with self.session() as session:
-            async with session.begin():
-                client = await session.execute(fetch_query)
-                client = client.scalars().first()
-        return client
+        try:
+            fetch_query = select(Client).where(Client.email == email)
+            async with self.session() as session:
+                async with session.begin():
+                    client = await session.execute(fetch_query)
+                    client = client.scalars().first()
+            return client
+        except: return False
     
     async def fetch_client_by_id(self, id: int):
-        fetch_query = select(Client).options(selectinload(Client.groups),
-                                             selectinload(Client.roles),
-                                             selectinload(Client.blocked),
-                                             selectinload(Client.privates),
-                                             selectinload(Client.co_privates)
-                                        ).where(Client.id == id)
-        async with self.session() as session:
-            async with session.begin():
-                client = await session.execute(fetch_query)
-                client = client.scalars().first()
-        return client
+        try:
+            fetch_query = select(Client).options(selectinload(Client.groups),
+                                                 selectinload(Client.roles),
+                                                 selectinload(Client.blocked),
+                                                 selectinload(Client.privates),
+                                                 selectinload(Client.co_privates)
+                                            ).where(Client.id == id)
+            async with self.session() as session:
+                async with session.begin():
+                    client = await session.execute(fetch_query)
+                    client = client.scalars().first()
+            return client
+        except: return False
     
     async def fetch_group_by_id(self, id: int):
-        fetch_query = select(Group).options(selectinload(Group.channels),
-                                            selectinload(Group.members),
-                                            selectinload(Group.messages)
-                                        ).where(Group.id == id)
-        async with self.session() as session:
-            async with session.begin():
-                group = await session.execute(fetch_query)
-                group = group.scalars().first()
-        return group
+        try:
+            fetch_query = select(Group).options(selectinload(Group.channels),
+                                                selectinload(Group.members),
+                                                selectinload(Group.messages)
+                                            ).where(Group.id == id)
+            async with self.session() as session:
+                async with session.begin():
+                    group = await session.execute(fetch_query)
+                    group = group.scalars().first()
+            return group
+        except: return False
     
     async def fetch_channel_by_id(self, id: int):
-        fetch_query = select(Channel).where(Channel.id == id)
-        async with self.session() as session:
-            async with session.begin():
-                channel = await session.execute(fetch_query)
-                channel = channel.scalars().first()
-        return channel
+        try:
+            fetch_query = select(Channel).where(Channel.id == id)
+            async with self.session() as session:
+                async with session.begin():
+                    channel = await session.execute(fetch_query)
+                    channel = channel.scalars().first()
+            return channel
+        except: return False
     
     async def fetch_message_by_id(self, id: int):
-        fetch_query = select(Message).where(Message.id == id)
-        async with self.session() as session:
-            async with session.begin():
-                message = await session.execute(fetch_query)
-                message = message.scalars().first()
-        return message
+        try:
+            fetch_query = select(Message).where(Message.id == id)
+            async with self.session() as session:
+                async with session.begin():
+                    message = await session.execute(fetch_query)
+                    message = message.scalars().first()
+            return message
+        except: return False
 
     async def fetch_recent_messages(self, channel_id: int):
-        fetch_query = select(Message).where(Message.channel_id == channel_id).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
-        async with self.session() as session:
-            async with session.begin():
-                messages = await session.execute(fetch_query)
-                messages = messages.scalars().all()
-        messages.reverse()
-        return messages
+        try:
+            fetch_query = select(Message).where(Message.channel_id == channel_id).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
+            async with self.session() as session:
+                async with session.begin():
+                    messages = await session.execute(fetch_query)
+                    messages = messages.scalars().all()
+            messages.reverse()
+            return messages
+        except: return False
     
     async def fetch_message_history(self, channel_id: int, last_loaded_timestamp: str):
-        timestamp = datetime.strptime(last_loaded_timestamp, "%Y-%m-%d %H:%M:%S")
-        fetch_query = select(Message).where(Message.channel_id == channel_id, Message.sent_at < timestamp).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
-        async with self.session() as session:
-            async with session.begin():
-                messages = await session.execute(fetch_query)
-                messages = messages.scalars().all()
-        messages.reverse()
-        return messages
+        try:
+            timestamp = datetime.strptime(last_loaded_timestamp, "%Y-%m-%d %H:%M:%S")
+            fetch_query = select(Message).where(Message.channel_id == channel_id, Message.sent_at < timestamp).order_by(desc(Message.sent_at), desc(Message.id)).limit(50)
+            async with self.session() as session:
+                async with session.begin():
+                    messages = await session.execute(fetch_query)
+                    messages = messages.scalars().all()
+            messages.reverse()
+            return messages
+        except: return False

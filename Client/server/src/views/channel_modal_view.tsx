@@ -19,6 +19,7 @@ const ChannelModalView: React.FC<ChannelModalViewProperties> = ({ channel_modal_
                 const NewChannel: Channel = {
                     type: 'channel',
                     id: crypto.randomUUID(),
+                    creator_id: 5555, //To be implemented!
                     group_id: current_group_id,
                     name: ChannelNameReference.current.value
                 };
@@ -39,7 +40,7 @@ const ChannelModalView: React.FC<ChannelModalViewProperties> = ({ channel_modal_
                         <div className="input_info medium nocopy">What should we call it?</div>
                         <textarea maxLength={30} className="modal_input_field short_input" ref={ChannelNameReference}></textarea>
                     </div>
-                    <div className="modal_choice" id="group-modal-choice">
+                    <div className="modal_choice" id="channel-modal-choice">
                         <button className="button blue small nocopy" onClick={CreateChannel}>Create Channel</button>
                         <button className="button underlined small nocopy" onClick={() => set_channel_modal_status(false)}>Cancel</button>
                     </div>

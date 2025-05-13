@@ -21,7 +21,7 @@ const ChannelsView: React.FC<ChannelsViewProperties> = ({ channels, set_current_
     return (
         <>
             {RelatedChannels.map(channel => (
-                <div className="channel medium nocopy" key={channel.id} data-group_id={group_id} data-name={channel.name} onClick={() => HandleChannelNavigation(channel.id)}># {channel.name}</div>
+                <div className="channel medium nocopy" key={channel.id} data-creator_id={channel.creator_id} data-group_id={group_id} data-name={channel.name} onClick={() => HandleChannelNavigation(channel.id)}># {channel.name}</div>
             ))}
         </>
     );

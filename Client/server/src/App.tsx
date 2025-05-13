@@ -16,6 +16,9 @@ import ChannelModalView from './views/channel_modal_view';
 import ErrorView from './views/error_view';
 
 const App: React.FC = () => {
+    const client_id = 555;
+    const [client_name, SetClientName] = useState<string>("test");
+
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
     const [current_channel_id, SetCurrentChannelId] = useState<string | null>(null);
 
@@ -34,7 +37,7 @@ const App: React.FC = () => {
     const [error, SetError] = useState<string | null>(null);
 
     const SendRequest = Listener(
-        "ws://somehost/listener",
+        "ws://26.102.83.29:8080/client/api",
         contacts,
         groups, 
         channels, 
@@ -42,6 +45,7 @@ const App: React.FC = () => {
         current_group_id, 
         group_to_create, 
         channel_to_create, 
+        client_id,
         SetContacts, 
         SetGroups, 
         SetChannels, 
@@ -52,8 +56,9 @@ const App: React.FC = () => {
         SetGroupModalStatus, 
         SetChannelModalStatus, 
         SetError
-    );
-    const navigate = useNavigate();
+    ); 
+    //element={<ContactView />}
+    //element={<ContactsView />}
 
     return (
         <BrowserRouter>
@@ -75,14 +80,14 @@ const App: React.FC = () => {
 
                     <div id="channels-contacts-widget" className="widget">
                         <Routes>
-                            <Route path="/" element={<ContactsView />} />
+                            <Route path="/" />
                             <Route path="/:group_id" element={<ChannelsView channels={channels} set_current_channel_id={SetCurrentChannelId} />} />
                         </Routes>
                     </div>
 
                     <div id="chat-widget" className="widget">
                         <Routes>
-                            <Route path="/:contact_id" element={<ContactView />} />
+                            <Route path="/:contact_id" />
                             <Route path="/:group_id/:channel_id" element={<ChannelView messages={messages} />} />
                         </Routes>
                     </div>

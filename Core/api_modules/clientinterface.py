@@ -6,6 +6,42 @@ from ast import literal_eval
 import json
 import jwt
 
+"""
+    type: 'group';
+    id: number | string;
+    owner_id: number | string;
+    icon_path: string;
+    name: string;
+    desc: string;
+
+    async def create_group(self, name: str, client_id: int, id: int, icon_path: str = None, desc: str = None):
+    
+    type: 'channel';
+    id: number | string;
+    creator_id: number | string;
+    group_id: number | string;
+    name: string;
+
+    async def create_channel(self, client_id: int, name: str, id: int, group_id: int = None, private: bool = False, co_client_id: int = None):
+    
+    type: 'message';
+    id: number | string;
+    sender_id: number | string;
+    group_id: number | string;
+    channel_id: number | string;
+    sender_name: string;
+    sender_icon_path: string;
+    content: string;
+    unread: boolean;
+
+    async def save_message(self, client_id: int, channel_id: int, content: str, id: int):
+    
+    type: 'contact';
+    id: number | string;
+    co_client_id: number | string;
+    co_client_name: string;
+"""
+
 class GrabCreds(BaseModel):
     token: str
     id: int
@@ -21,232 +57,89 @@ class Clientinterface:
         self.algorithm = algorithm
         self.router = APIRouter()
 
-        self.operations = {
-            "MessageSend": self.__message_send,
-            "MessageDelete": self.__message_delete,
-            "MessageEdit": self.__message_edit, #Not fully implemented yet.
-            "ChannelCreate": self.__channel_create,
-            "ChannelDelete": self.__channel_delete,
-            "ChannelEdit": self.__channel_edit, #Not fully implemented yet.
-            "GroupCreate": self.__group_create,
-            "GroupDelete": self.__group_delete,
-            "GroupEdit": self.__group_edit, #Not fully implemented yet.
-
-            "ChannelsFetch": self.__channels_get,
-            "MessagesRecentFetch": self.__messages_get_recent,
-            "MessagesScrollHistoryFetch": self.__messages_get_scroll_history,
+        self.types = {
+            "contact": self.__on_contact,
+            "group": self.__on_group,
+            "channel": self.__on_channel,
+            "message": self.__on_message,
         }
 
-    async def __total_interpreter(self, data: str, socket: WebSocket):
-        request = data["request"]
-        if request in self.operations:
-            func = self.operations[request]
-            response = await func(data)
+    async def __total_interpreter(self, request: dict, socket: WebSocket, id: int):
+        if request["type"] in self.types: 
+            func = self.types[request["type"]]
+            response = await func(request, id)
             if response is not None:
                 await socket.send_text(json.dumps(response))
 
-    async def __message_send(self, data: dict):
-        id, icon_path, content, author_name, author_id, channel_id, group_id = int(data["id"]), data["icon_path"], data["content"], data["author_name"], int(data["author_id"]), int(data["channel_id"]), int(data["group_id"])
-        client = await self.dmp.fetch_client_by_id(author_id)
-        allowed = any(role.MESSAGE_SEND for role in client.roles if role.group.id == group_id)
-        if allowed:
-            await self.cmp.message_broadcast(id, icon_path, content, author_name, author_id, channel_id, group_id)
-            await self.dmp.save_message(author_id, channel_id, content, id)
-        else: return {"request": "Error", "info": "MESSAGE_SEND"}
-
-    async def __message_delete(self, data: dict):
-        id, client_id, channel_id, group_id = int(data["id"]), int(data["client_id"]), int(data["channel_id"]), int(data["group_id"])
-        message = await self.dmp.fetch_message_by_id(id)
-        if message is not None:
-            allowed = False
-            if message.client.id == client_id:
-                allowed = True
-            else:
-                client = await self.dmp.fetch_client_by_id(client_id)
-                allowed = any(role.MESSAGE_DELETE for role in client.roles if role.group.id == group_id)
-            if allowed:
-                await self.cmp.message_broadcast_removal(id, channel_id)
-                check = await self.dmp.delete_message(id)
-                if not check: return {"request": "Error", "info": "CANTREMOVE", "object": "MESSAGE"}
-            else: return {"request": "Error", "info": "MESSAGE_DELETE"}
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "MESSAGE"}
-        
-    async def __message_edit(self, data: dict):
-        id, client_id, channel_id, group_id, new_content = int(data["id"]), int(data["client_id"]), int(data["channel_id"]), int(data["group_id"]), data["new_content"]
-        message = await self.dmp.fetch_message_by_id(id)
-        if message is not None:
-            allowed = False
-            if message.client.id == client_id:
-                allowed = True
-            else:
-                client = await self.dmp.fetch_client_by_id(client_id)
-                allowed = any(role.MESSAGE_EDIT for role in client.roles if role.group.id == group_id)
-            if allowed:
-                await self.cmp.message_broadcast_edit(id, channel_id, new_content)
-                check = await self.dmp.edit_message(id, new_content)
-                if not check: return {"request": "Error", "info": "CANTEDIT", "object": "MESSAGE"}
-            else: return {"request": "Error", "info": "MESSAGE_EDIT"}
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "MESSAGE"}
-        
-    async def __channel_create(self, data: dict):
-        id, name, group_id, client_id, private, co_client_id  = int(data["id"]), data["name"], int(data["group_id"]), int(data["client_id"]), data["private"], int(data["co_client_id"])
-        client = await self.dmp.fetch_client_by_id(client_id)
-        group = self.dmp.fetch_group_by_id(group_id)
-        if not private:
-            if group.owner.id == client_id: allowed = True
-            else: allowed = any(role.CHANNEL_CREATE for role in client.roles if role.group.id == group_id)
-        else:
-            co_client = self.dmp.fetch_client_by_id(co_client_id)
-            if not client in co_client.blocked:
-                allowed = True
-            else: return {"request": "Error", "info": "USERBLOCKED"}
-        if allowed:
-            if not private:
-                await self.cmp.channel_broadcast_creation(id, name, group)
-                return {"request": "ChannelCreateAccepted", "id": id, "name": name, "group_id": group_id}
-            else:
-                await self.dmp.private_channel_broadcast_creation(id, name, client_id, co_client_id)
-                return {"request": "PrivateChannelCreateAccepted", "id": id, "name": name, "group_id": group_id, "co_client_id": co_client_id}
-        else: return {"request": "Error", "info": "CHANNEL_CREATE"}
-
-    async def __channel_delete(self, data: dict):
-        id, client_id, group_id, private, co_client_id = int(data["id"]), int(data["client_id"]), int(data["group_id"]), data["private"], int(data["co_client_id"])
-        channel = await self.dmp.fetch_channel_by_id(id)
-        if channel is not None:
-            if not private:
-                client = await self.dmp.fetch_client_by_id(client_id)
-                allowed = any(role.CHANNEL_DELETE for role in client.roles if role.group.id == group_id)
-                if allowed:
-                    group = self.dmp.fetch_group_by_id(group_id)
-                    await self.cmp.channel_broadcast_removal(id, group)
-            else:
-                await self.cmp.private_channel_broadcast_removal(id, co_client_id)
-                check = await self.dmp.delete_channel(id)
-                if not check: return {"request": "Error", "info": "CANTREMOVE", "object": "CHANNEl"}
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "CHANNEl"}
-        
-    async def __channel_edit(self, data: dict):
-        id, client_id, group_id, new_name = int(data["id"]), int(data["client_id"]), int(data["group_id"]), data["new_name"]
-        channel = await self.dmp.fetch_channel_by_id(id)
-        if channel is not None:
-            client = await self.dmp.fetch_client_by_id(client_id)
-            allowed = any(role.CHANNEL_EDIT for role in client.roles if role.group.id == group_id)
-            if allowed:
-                group = self.dmp.fetch_group_by_id(group_id)
-                await self.cmp.channel_broadcast_edit(id, new_name, group)
-                check = await self.dtp.edit_channel(id, new_name)
-                if not check: return {"request": "Error", "info": "CANTEDIT", "object": "CHANNEl"}
-            else: return {"request": "Error", "info": "CHANNEL_EDIT"}
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "CHANNEl"}
-        
-    async def __group_create(self, data: dict):
-        id, client_id, name, icon_path, desc = int(data["id"]), int(data["client_id"]), data["name"], data["icon_path"], data["desc"]
-        preset_id, preset_name = await self.dmp.create_group(name, client_id, id, icon_path, desc)
-        return {"request": "DisplayCreatedGroup", 
-                "id": id, 
-                "owner_id": client_id, 
-                "name": name, 
-                "icon_path": icon_path, 
-                "desc": desc, 
-                "preset_id": preset_id, 
-                "preset_name": preset_name
-            }
+    async def __on_group(self, request: dict, client_id: int):
+        id, owner_id, icon_path, name, desc = int(request["id"]), int(request["owner_id"]), request["icon_path"], request["name"], request["desc"]
+        status = await self.dmp.create_group(name, owner_id, id, icon_path, desc)
+        if status: return {
+            "type": "group",
+            "id": id,
+            "owner_id": owner_id,
+            "icon_path": icon_path,
+            "name": name,
+            "desc": desc,
+        }, {"type": "group_creation_status", "status": True, "error": None}
+        else: return {"type": "group_creation_status", "status": False, "error": "Can't create group"}
     
-    async def __group_delete(self, data: dict):
-        id, client_id = int(data["id"]), int(data["client_id"])
-        group = await self.dmp.fetch_group_by_id(id)
-        if group is not None:
-            if group.owner.id == client_id:
-                await self.cmp.group_broadcast_removal(id, group)
-                check = await self.dtp.delete_group(id)
-                if not check: return {"request": "Error", "info": "CANTREMOVE", "object": "GROUP"}
-            else: return {"request": "Error", "info": "GROUP_DELETE"}
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "GROUP"}
-        
-    async def __group_edit(self, data: dict):
-        id, client_id, new_name, new_icon_path, new_desc = int(data["id"]), int(data["client_id"]), data["new_name"], data["new_icon_path"], data["mew_desc"]
-        to_update = {}
-        if new_name is not None: to_update["name"] = new_name
-        if new_icon_path is not None: to_update["icon_path"] = new_icon_path
-        if new_desc is not None: to_update["desc"] = new_desc
-
-        group = await self.dmp.fetch_group_by_id(id)
-        if group is not None:
-            allowed = False
-            if group.owner.id == client_id:
-                allowed = True
-            else:
-                client = await self.dmp.fetch_client_by_id(client_id)
-                allowed = any(role.GROUP_EDIT for role in client.roles if role.group.id == id)
-            if allowed:
-                await self.cmp.group_broadcast_edit(id, group, **to_update)
-                check = await self.dtp.edit_group(id, **to_update)
-                if not check: return {"request": "Error", "info": "CANTEDIT", "object": "GROUP"}
-            else: return {"request": "Error", "info": "GROUP_EDIT"}
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "GROUP"}
-
-    async def __channels_get(self, data: dict):
-        group_id = int(data["id"])
+    async def __on_channel(self, request: dict, client_id: int):
+        id, creator_id, group_id, name = int(request["id"]), int(request["creator_id"]), int(request["group_id"]), request["name"]
         group = await self.dmp.fetch_group_by_id(group_id)
-        if group is not None:
-            channels = [{"id": channel.id, "name": channel.name, "group_id": group_id} for channel in group.channels]
-            if channels is not None:
-                messages = await self.dmp.fetch_recent_messages(channels[0]["id"])
-                recent_messages = [{"id": message.id, 
-                                "icon_path": message.client.icon_path, 
-                                "content": message.content, 
-                                "author_name": message.client.username, 
-                                "author_id": message.client.id, 
-                                "channel_id": channels[0].id, 
-                                "group_id": message.group.id
-                                } for message in messages]
-                return {"request": "DisplayChannels",
-                        "group_id": group_id,
-                        "channels": channels,
-                        "recent_messages": messages
-                    }
-            else: return {"request": "NoChannels", "group_id": group_id}
-        else: return {"request": "Error", "info": "NOTFOUND", "object": "GROUP"}
-
-    async def __messages_get_recent(self, data: dict):
-        channel_id = int(data["id"])
-        messages = await self.dmp.fetch_recent_messages(channel_id)
-        if messages is not None:
-            recent_messages = [{"id": message.id, 
-                        "icon_path": message.client.icon_path, 
-                        "content": message.content, 
-                        "author_name": message.client.username, 
-                        "author_id": message.client.id, 
-                        "channel_id": channel_id, 
-                        "group_id": message.group.id
-                        } for message in messages]
-            return {"request": "DisplayMessages",
-                    "channel_id": channel_id,
-                    "messages": recent_messages
+        if group != False and group is not None:
+            status = await self.dmp.create_channel(creator_id, name, id, group_id)
+            if status:
+                request =  {
+                    "type": "channel",
+                    "id": id,
+                    "creator_id": creator_id,
+                    "group_id": group_id,
+                    "name": name,
                 }
-        else: return {"request": "NoMessages", "channel_id": channel_id}
+                await self.cmp.broadcast(request, group.members)
+                return request, {"type": "channel_creation_status", "status": True, "error": None}
+            else: return {"type": "channel_creation_status", "status": False, "error": "Can't create channel"}
 
-    async def __messages_get_scroll_history(self, data: dict):
-        channel_id, last_loaded_timestamp = int(data["id"]), data["last_loaded_timestamp"]
-        messages = await self.dmp.fetch_message_history(channel_id, last_loaded_timestamp)
-        if messages is not None:
-            old_messages = [{"id": message.id, 
-                        "icon_path": message.client.icon_path, 
-                        "content": message.content, 
-                        "author_name": message.client.username, 
-                        "author_id": message.client.id, 
-                        "channel_id": channel_id, 
-                        "group_id": message.group.id
-                        } for message in messages]
-            return {"request": "DisplayOldMessages",  
+    async def __on_message(self, request: dict, client_id: int):
+        id, sender_id, group_id, channel_id, sender_name, sender_icon_path, content = int(request["id"]), int(request["sender_id"]), int(request["group_id"]), int(request["channel_id"]), request["sender_name"], request["sender_icon_path"], request["content"]
+        group = await self.dmp.fetch_group_by_id(group_id)
+        if group != False and group is not None:
+            status = await self.dmp.save_message(sender_id, group_id, channel_id, content, id)
+            if status: 
+                request = {
+                    "type": "message",
+                    "id": id,
+                    "sender_id": sender_name,
+                    "group_id": group_id,
                     "channel_id": channel_id,
-                    "messages": old_messages
+                    "sender_name": sender_name,
+                    "sender_icon_path": sender_icon_path,
+                    "content": content,
+                    "unred": True,
                 }
-        else: return {"request": "EndOfChannel", "channel_id": channel_id}
+                await self.cmp.broadcast(request, group.members)
+                return request, {"type": "message_creation_status", "status": True, "error": None}
+            else: return {"type": "message_creation_status", "status": False, "error": "Can't send message."}
 
+    async def __on_contact(self, request: dict, client_id: int):
+        id, co_client_id, co_client_name = int(request["id"]), int(request["co_client_id"]), request["co_client_name"]
+        status = await self.dmp.create_channel(client_id, co_client_name, id, private=True, co_client_id=co_client_id)
+        if status: 
+            request = {
+                "type": "contact",
+                "id": id,
+                "co_client_id": co_client_id,
+                "co_client_name": co_client_name,
+            }
+            request_status = await self.cmp.notify(request, co_client_id)
+            if not request_status:
+                return {"type": "contact_creation_status", "status": False, "error": "An unexpected error occured while sending friend request."}
+            return request, {"type": "contact_creation_status", "status": True, "error": None}
+        else: return {"type": "contact_creation_status", "status": False, "error": "Can't friend user."}
 
     def router_tasks(self):
-        @self.router.websocket("/listener")
+        @self.router.websocket("/api")
         async def listener(websocket: WebSocket):
             await websocket.accept()
             id = int(await websocket.receive_text())
@@ -254,7 +147,7 @@ class Clientinterface:
             try:
                 while True:
                     data = await websocket.receive_text()
-                    await self.__total_interpreter(literal_eval(data), websocket)
+                    await self.__total_interpreter(literal_eval(data), websocket, id)
             except WebSocketDisconnect:
                 await self.cmp.disconnect(id)
 
