@@ -1,10 +1,13 @@
-from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter
+from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from ast import literal_eval
+from PIL import Image
+import aiofiles
 import json
 import jwt
+import io
 
 """
     type: 'group';
@@ -47,12 +50,15 @@ class GrabCreds(BaseModel):
     id: int
 
 class Clientinterface:
-    def __init__(self, hasher, dmp, cmp, algorithm, access_key, addr: tuple, tepmlates: Jinja2Templates):
+    def __init__(self, hasher, dmp, cmp, storage_images_path: str, storage_files_path: str, max_image_size: int, algorithm, access_key, addr: tuple, tepmlates: Jinja2Templates):
         self.addr = addr
         self.access_key = access_key
         self.hasher = hasher
         self.dmp = dmp
         self.cmp = cmp
+        self.storage_images_path = storage_images_path
+        self.storage_files_path = storage_files_path
+        self.max_image_size = max_image_size
         self.templates = tepmlates
         self.algorithm = algorithm
         self.router = APIRouter()
@@ -143,6 +149,7 @@ class Clientinterface:
         async def listener(websocket: WebSocket):
             await websocket.accept()
             id = int(await websocket.receive_text())
+            print(id)
             await self.cmp.connect(id, {"socket": websocket})
             try:
                 while True:
@@ -189,19 +196,19 @@ class Clientinterface:
             contacts = privates + co_privates
             return JSONResponse(content={"groups": groups, "contacts": contacts}, status_code=201)
         
-        @self.router.get("/{id}", response_class=HTMLResponse)
-        async def plain(request: Request, id: int):
-            sketchy_client = await self.dmp.fetch_client_by_id(id)
-            if sketchy_client is not None:
-                return self.templates.TemplateResponse("Clientinterface/client.html", 
-                                                       {"request": request, 
-                                                        "id": id, 
-                                                        "icon_path": sketchy_client.icon_path, 
-                                                        "username": sketchy_client.username, 
-                                                        "addr": f"ws://{self.addr[0]}:{self.addr[1]}/client/listener",
-                                                    })
-            raise HTTPException(status_code=400)
-        
-        @self.router.post("/get_id", response_class=HTMLResponse)
-        async def get_id(request: Request):
-            return JSONResponse(content={"message_id": f"{self.dmp.id()}"}, status_code=201)
+        @self.router.post("/upload_group_icon", response_class=HTMLResponse)
+        async def upload(request: Request, index: str = Form(...), session_id: str = Form(...), file: UploadFile = File(...)):
+            if file.content_type.startswith("image/"):
+                filename = f"{session_id}$${index}.jpg"
+                save_to = f"{self.storage_images_path}/Group/{filename}"
+                try:
+                    image = Image.open(io.BytesIO(await file.read()))
+                    if image.width > self.max_image_size:
+                        ratio = self.max_image_size / image.width
+                        image = image.resize((self.max_image_size, int(image.height * ratio)), Image.Resampling.LANCZOS)
+                    if image.mode in ('RGBA', 'LA'): image = image.covert('RGB')
+                    image.save(save_to, 'JPEG', quality=100)
+                except:
+                    return JSONResponse(content={}, status_code=201)
+                image_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Group/{filename}"
+                return JSONResponse(content={"url": image_url}, status_code=201) #Implement auto-clear for unused images!

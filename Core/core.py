@@ -16,6 +16,7 @@ from itertools import takewhile
 from datetime import datetime
 from random import uniform
 from argon2 import PasswordHasher
+from pathlib import Path
 import subprocess
 import threading
 import asyncio
@@ -35,8 +36,12 @@ class Core(FastAPI):
         self.sv_port = port
         self.dmp = DMP()
         self.cmp = CMP()
+        self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
+        self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
         self.templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
         self.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")), name="static")
+        self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
+        self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
         
         self.server_access_key = str(uuid.uuid4())
         self.algorithm = "HS256" 
@@ -44,18 +49,37 @@ class Core(FastAPI):
         self.hasher = PasswordHasher()
         self.oauth2 = OAuth2PasswordBearer(tokenUrl="token")
 
+        self.max_image_size = 500
+
         self.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
-            )
+        )
 
-        self.auth = Authentication(dmp=self.dmp, tepmlates=self.templates, hasher=self.hasher, algorithm=self.algorithm, access_key=self.server_access_key)
+        self.auth = Authentication(
+            dmp=self.dmp, 
+            tepmlates=self.templates, 
+            hasher=self.hasher, 
+            algorithm=self.algorithm, 
+            access_key=self.server_access_key
+        )
         self.auth.router_tasks()
 
-        self.client = Clientinterface(cmp=self.cmp, addr=(self.sv_host, self.sv_port), dmp=self.dmp, tepmlates=self.templates, hasher=self.hasher, algorithm=self.algorithm, access_key=self.server_access_key)
+        self.client = Clientinterface(
+            cmp=self.cmp,
+            addr=(self.sv_host, self.sv_port),
+            dmp=self.dmp,
+            tepmlates=self.templates, 
+            hasher=self.hasher, 
+            algorithm=self.algorithm, 
+            storage_images_path=self.storage_images_path, 
+            storage_files_path=self.storage_files_path, 
+            max_image_size=self.max_image_size,
+            access_key=self.server_access_key
+        )
         self.client.router_tasks()
 
         self.include_router(self.auth.router, prefix="/auth")

@@ -43,10 +43,6 @@ export const Listener = (
         const socket = new WebSocket(addr);
         socketReference.current = socket;
 
-        socket.onopen = () => {
-            socket.send(JSON.stringify(clinet_id));
-        }
-
         socket.onmessage = (event: MessageEvent) => {
             try {
                 const data: ServerRequestData = JSON.parse(event.data);
@@ -154,6 +150,7 @@ export const Listener = (
 
         socket.onopen = () => {
             console.log('Client connected');
+            socket.send(JSON.stringify(clinet_id));
         };
 
         socket.onerror = (error) => {
