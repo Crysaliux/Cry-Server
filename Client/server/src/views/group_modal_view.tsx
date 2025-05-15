@@ -10,12 +10,8 @@ interface GroupModalViewProperties {
 }
 
 interface APIResponse {
+    success: boolean;
     url: string | null;
-}
-
-interface IconMemory {
-    current_path: string;
-    index: string;
 }
 
 const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status, set_group_modal_status, set_group_to_create, set_error }) => {
@@ -32,7 +28,6 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status
     }, [current_icon_path])
 
     const OnChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log('eeee')
         const icon = event.target.files?.[0];
         if (icon && icon.type.startsWith('image/')) {
             try {
@@ -40,14 +35,11 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status
                 formData.append('file', icon as File);
                 formData.append('index', crypto.randomUUID());
                 formData.append('session_id', session_id);
-
-                const response = await fetch('http://26.102.83.29:8080/client/upload_group_icon', {
+                const response = await fetch('http://localhost:8080/client/upload_group_icon', {
                     method: 'POST',
                     body: formData
                 });
-
                 const data: APIResponse = await response.json();
-
                 if (data.url !== null) {
                     SetCurrentIconPath(data.url);
                 } else {
@@ -59,16 +51,42 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status
         }
     };
 
-    const CreateGroup = () => {
+    const Selected = async () => {
+        try {
+            const formData = new FormData();
+            formData.append('session_id', session_id);
+            formData.append('set_path', current_icon_path);
+            const response = await fetch('http://localhost/client/group_icon_set', {
+                method: 'POST',
+                body: formData
+            });
+            const data: Partial<APIResponse> = await response.json();
+            if (data.success) {
+                return true;
+            } else {
+                set_error('Application error. No data has been received.');
+                return false;
+            }
+        } catch(error) {
+            set_error("Application error. Can't connect to the API server.");
+            return false;
+        }
+    };
+
+    const CreateGroup = async () => {
         if (GroupModalNameReference.current && GroupModalDescReference.current) {
             if (current_icon_path === '') {
                 SetCurrentIconPath('');
+            } else {
+                const status = await Selected();
+                if (!status) {
+                    SetCurrentIconPath('');
+                }
             }
-
             const NewGroup: Group = {
                 type: 'group',
-                id: crypto.randomUUID(),
-                owner_id: 55555, //To be implemented!
+                id: parseInt(crypto.randomUUID().replace(/\D/g, ''), 10),
+                owner_id: 5555, //To be implemented!
                 icon_path: current_icon_path,
                 name: GroupModalNameReference.current.value,
                 desc: GroupModalDescReference.current.value

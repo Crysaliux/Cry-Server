@@ -18,7 +18,7 @@ const ChannelModalView: React.FC<ChannelModalViewProperties> = ({ channel_modal_
             if (current_group_id !== null) {
                 const NewChannel: Channel = {
                     type: 'channel',
-                    id: crypto.randomUUID(),
+                    id: parseInt(crypto.randomUUID().replace(/\D/g, ''), 10),
                     creator_id: 5555, //To be implemented!
                     group_id: current_group_id,
                     name: ChannelNameReference.current.value

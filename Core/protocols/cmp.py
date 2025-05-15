@@ -28,4 +28,3 @@ class CMP:
                 await self.active_connections[id].send_text(json.dumps(request))
                 return True
             except: return False
-    

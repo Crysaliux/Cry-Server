@@ -8,6 +8,7 @@ import aiofiles
 import json
 import jwt
 import io
+import os
 
 """
     type: 'group';
@@ -50,7 +51,21 @@ class GrabCreds(BaseModel):
     id: int
 
 class Clientinterface:
-    def __init__(self, hasher, dmp, cmp, storage_images_path: str, storage_files_path: str, max_image_size: int, algorithm, access_key, addr: tuple, tepmlates: Jinja2Templates):
+    def __init__(
+            self, 
+            hasher, 
+            dmp, 
+            cmp, 
+            storage_images_path: str, 
+            storage_files_path: str, 
+            max_message_length: dict, 
+            max_image_size: int, 
+            max_file_size: dict, 
+            client_server_origin: str, 
+            algorithm, access_key, 
+            addr: tuple, 
+            tepmlates: Jinja2Templates
+        ):
         self.addr = addr
         self.access_key = access_key
         self.hasher = hasher
@@ -58,7 +73,10 @@ class Clientinterface:
         self.cmp = cmp
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
+        self.max_message_length = max_message_length
         self.max_image_size = max_image_size
+        self.max_file_size = max_file_size
+        self.client_server_origin = client_server_origin
         self.templates = tepmlates
         self.algorithm = algorithm
         self.router = APIRouter()
@@ -75,19 +93,22 @@ class Clientinterface:
             func = self.types[request["type"]]
             response = await func(request, id)
             if response is not None:
-                await socket.send_text(json.dumps(response))
+                if isinstance(response, tuple) and len(response) == 2:
+                    await socket.send_text(json.dumps(response[0]))
+                    await socket.send_text(json.dumps(response[1]))
+                else: await socket.send_text(json.dumps(response))
 
     async def __on_group(self, request: dict, client_id: int):
         id, owner_id, icon_path, name, desc = int(request["id"]), int(request["owner_id"]), request["icon_path"], request["name"], request["desc"]
         status = await self.dmp.create_group(name, owner_id, id, icon_path, desc)
-        if status: return {
+        if status: return ({
             "type": "group",
             "id": id,
             "owner_id": owner_id,
             "icon_path": icon_path,
             "name": name,
             "desc": desc,
-        }, {"type": "group_creation_status", "status": True, "error": None}
+        }, {"type": "group_creation_status", "status": True, "error": None})
         else: return {"type": "group_creation_status", "status": False, "error": "Can't create group"}
     
     async def __on_channel(self, request: dict, client_id: int):
@@ -104,7 +125,7 @@ class Clientinterface:
                     "name": name,
                 }
                 await self.cmp.broadcast(request, group.members)
-                return request, {"type": "channel_creation_status", "status": True, "error": None}
+                return (request, {"type": "channel_creation_status", "status": True, "error": None})
             else: return {"type": "channel_creation_status", "status": False, "error": "Can't create channel"}
 
     async def __on_message(self, request: dict, client_id: int):
@@ -125,7 +146,7 @@ class Clientinterface:
                     "unred": True,
                 }
                 await self.cmp.broadcast(request, group.members)
-                return request, {"type": "message_creation_status", "status": True, "error": None}
+                return (request, {"type": "message_creation_status", "status": True, "error": None})
             else: return {"type": "message_creation_status", "status": False, "error": "Can't send message."}
 
     async def __on_contact(self, request: dict, client_id: int):
@@ -141,7 +162,7 @@ class Clientinterface:
             request_status = await self.cmp.notify(request, co_client_id)
             if not request_status:
                 return {"type": "contact_creation_status", "status": False, "error": "An unexpected error occured while sending friend request."}
-            return request, {"type": "contact_creation_status", "status": True, "error": None}
+            return (request, {"type": "contact_creation_status", "status": True, "error": None})
         else: return {"type": "contact_creation_status", "status": False, "error": "Can't friend user."}
 
     def router_tasks(self):
@@ -149,7 +170,6 @@ class Clientinterface:
         async def listener(websocket: WebSocket):
             await websocket.accept()
             id = int(await websocket.receive_text())
-            print(id)
             await self.cmp.connect(id, {"socket": websocket})
             try:
                 while True:
@@ -159,7 +179,10 @@ class Clientinterface:
                 await self.cmp.disconnect(id)
 
         @self.router.post("/validate", response_class=HTMLResponse)
-        async def validation(request: Request, creds: GrabCreds):
+        async def validate(request: Request, creds: GrabCreds):
+            if request.headers.get('origin') != self.client_server_origin:
+                raise HTTPException(status_code=403, detail="Access forbidden.")
+
             if creds.token is None:
                 raise HTTPException(status_code=400)
             try:
@@ -197,10 +220,12 @@ class Clientinterface:
             return JSONResponse(content={"groups": groups, "contacts": contacts}, status_code=201)
         
         @self.router.post("/upload_group_icon", response_class=HTMLResponse)
-        async def upload(request: Request, index: str = Form(...), session_id: str = Form(...), file: UploadFile = File(...)):
+        async def upload_group_icon(request: Request, index: str = Form(...), session_id: str = Form(...), file: UploadFile = File(...)):
+            if request.headers.get('origin') != self.client_server_origin:
+                raise HTTPException(status_code=403, detail="Access forbidden.")
             if file.content_type.startswith("image/"):
-                filename = f"{session_id}$${index}.jpg"
-                save_to = f"{self.storage_images_path}/Group/{filename}"
+                filename = f"{index}.jpg"
+                save_to = f"{self.storage_images_path}/Dynamic/{filename}"
                 try:
                     image = Image.open(io.BytesIO(await file.read()))
                     if image.width > self.max_image_size:
@@ -210,5 +235,42 @@ class Clientinterface:
                     image.save(save_to, 'JPEG', quality=100)
                 except:
                     return JSONResponse(content={}, status_code=201)
-                image_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Group/{filename}"
+                image_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Dynamic/{filename}"
+                status = await self.dmp.save_dynamic(image_url, save_to, session_id, self.dmp.id())
+                if not status: return JSONResponse(content={"success": False}, status_code=201)
                 return JSONResponse(content={"url": image_url}, status_code=201) #Implement auto-clear for unused images!
+            return JSONResponse(content={"success": False}, status_code=201)
+        
+        @self.router.post("/group_icon_set", response_class=HTMLResponse)
+        async def group_icon_set(request: Request, session_id: int = Form(...), set_path: str = Form(...)):
+            if request.headers.get('origin') != self.client_server_origin:
+                raise HTTPException(status_code=403, detail="Access forbidden.")
+            dynamic_files = await self.dmp.fetch_dynamic_by_session_id(session_id, set_path)
+            if dynamic_files != False:
+                try:
+                    for dynamic in dynamic_files:
+                        os.remove(dynamic.inner_path)
+                        await self.dmp.delete_dynamic(dynamic.id)
+                except:
+                    return JSONResponse(content={"success": False}, status_code=201)
+            else: return JSONResponse(content={"success": False}, status_code=201)
+            return JSONResponse(content={"success": True}, status_code=201)
+        
+        @self.router.post("/upload_attachement", response_class=HTMLResponse)
+        async def upload_attachement(request: Request, index: str = Form(...), channel_id: str = Form(...), file: UploadFile = File(...)):
+            if request.headers.get('origin') != self.client_server_origin:
+                raise HTTPException(status_code=403, detail="Access forbidden.")
+            filename = f"{index}.{file.filename.split(".")[-1]}"
+            data = await file.read()
+            if file.content_type.startswith("image/"):
+                save_to = f"{self.storage_images_path}/Images/Attachements/{filename}"
+                file_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Attachements/{filename}"
+            else:
+                save_to = f"{self.storage_files_path}/Files/Attachements{filename}"
+                file_url = f"http://{self.addr[0]}:{self.addr[1]}/files/Attachements/{filename}"
+            try:
+                async with aiofiles.open(save_to, "wb") as buffer:
+                    await buffer.write(data)
+            except:
+                return JSONResponse(content={"success": False}, status_code=201)
+            return JSONResponse(content={"url": file_url}, status_code=201)

@@ -37,7 +37,7 @@ const App: React.FC = () => {
     const [error, SetError] = useState<string | null>(null);
 
     const SendRequest = Listener(
-        "ws://26.102.83.29:8080/client/api",
+        "ws://localhost:8080/client/api",
         contacts,
         groups, 
         channels, 

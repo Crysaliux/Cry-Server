@@ -36,6 +36,7 @@ class Core(FastAPI):
         self.sv_port = port
         self.dmp = DMP()
         self.cmp = CMP()
+        self.client_server_origin = "http://localhost:5173"
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
         self.templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
@@ -48,8 +49,10 @@ class Core(FastAPI):
         self.login_expiration = 24 #hours
         self.hasher = PasswordHasher()
         self.oauth2 = OAuth2PasswordBearer(tokenUrl="token")
-
-        self.max_image_size = 500
+        
+        self.max_message_length = {"default": 1024, "premium": 3000} #characters
+        self.max_image_size = 500 #pixels
+        self.max_file_size = {"default": 10, "premium": 30} #megabytes
 
         self.add_middleware(
             CORSMiddleware,
@@ -78,6 +81,9 @@ class Core(FastAPI):
             storage_images_path=self.storage_images_path, 
             storage_files_path=self.storage_files_path, 
             max_image_size=self.max_image_size,
+            max_file_size=self.max_file_size,
+            max_message_length=self.max_message_length,
+            client_server_origin=self.client_server_origin,
             access_key=self.server_access_key
         )
         self.client.router_tasks()

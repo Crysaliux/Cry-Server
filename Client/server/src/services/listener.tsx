@@ -120,22 +120,22 @@ export const Listener = (
 
                     case 'group_creation_status':
                         if (group_to_create) {
-                            if (data.status === true) {
-                                set_group_to_create(null);
-                                set_group_modal_status(false);
-                            } else {
+                            set_group_to_create(null);
+                            if (!data.status) {
                                 set_error("Application error. Group can't be created");
+                            } else {
+                                set_group_modal_status(false);
                             }
                         }
                         break;
 
                     case 'channel_creation_status':
                         if (channel_to_create) {
-                            if (data.status === true) {
-                                set_channel_to_create(null);
-                                set_channel_modal_status(false);
-                            } else {
+                            set_channel_to_create(null);
+                            if (!data.status) {
                                 set_error("Application error. Channel can't be created");
+                            } else {
+                                set_channel_modal_status(false);
                             }
                         }
                         break;

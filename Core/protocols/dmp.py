@@ -26,11 +26,11 @@ class Client(Base):
     __tablename__ = "client"
 
     username: Mapped[str] = mapped_column(String(10))
-    displayname: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(20))
     email: Mapped[str] = mapped_column(String(30))
     password: Mapped[str] = mapped_column()
     bio: Mapped[str] = mapped_column(String(200), nullable=True)
-    icon_path: Mapped[str] = mapped_column(String(20), nullable=True)
+    icon_path: Mapped[str] = mapped_column(String(100), nullable=True)
     id : Mapped[int] = mapped_column(primary_key=True)
 
     groups = relationship("Group", secondary=client_group_relationship, back_populates="members")
@@ -89,7 +89,7 @@ class Group(Base):
 
     name: Mapped[str] = mapped_column(String(10))
     desc: Mapped[str] = mapped_column(String(100), nullable=True)
-    icon_path: Mapped[str] = mapped_column(String(20), nullable=True)
+    icon_path: Mapped[str] = mapped_column(String(100), nullable=True)
     id : Mapped[int] = mapped_column(primary_key=True)
 
     members = relationship("Client", secondary=client_group_relationship, back_populates="groups")
@@ -119,6 +119,7 @@ class Channel(Base):
     co_client: Mapped["Client"] = relationship("Client", back_populates="co_privates", foreign_keys=[co_client_id])
 
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="channel", foreign_keys="Message.channel_id")
+    attachements: Mapped[List["Attachement"]] = relationship("Attachement", back_populates="channel", foreign_keys="Attachement.channel_id")
 
     def __repr__(self) -> str:
         return f"Channel(name={self.name!r}, personal={self.personal!r}, id={self.id!r})"
@@ -140,6 +141,32 @@ class Message(Base):
 
     def __repr__(self) -> str:
         return f"Message(content={self.content!r}, id={self.id!r})"
+    
+class Attachement(Base):
+    __tablename__ = "attachement"
+
+    channel_id: Mapped[int] = mapped_column(ForeignKey('channel.id'))
+
+    path: Mapped[str] = mapped_column(String(50))
+    inner_path: Mapped[str] = mapped_column(String(50))
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    channel: Mapped["Channel"] = relationship("Channel", back_populates="attachements", foreign_keys=[channel_id])
+
+    def __repr__(self) -> str:
+        return f"Attachement(path={self.path!r}, inner_path={self.inner_path!r}, id={self.id!r})"
+
+class Dynamic(Base):
+    __tablename__ = "dynamic"
+    
+    path: Mapped[str] = mapped_column(String(50))
+    inner_path: Mapped[str] = mapped_column(String(50))
+    session_id: Mapped[str] = mapped_column(String(50))
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    def __repr__(self) -> str:
+        return f"Dynamic(path={self.path!r}, inner_path={self.inner_path!r}, session_id={self.session_id!r}, id={self.id!r})"
+
     
 class DMP:
     def __init__(self):
@@ -163,18 +190,16 @@ class DMP:
     delete_client
     """
     
-    async def create_client(self, username: str, email: str, password: str):
+    async def create_client(self, name: str, username: str, email: str, password: str, id: int):
         try:
             created = False
-            id = None
             check_query = select(Client).where(Client.email == email)
             async with self.session() as session:
                 async with session.begin():
                     check = await session.execute(check_query)
                     check = check.scalars().first()
                     if check is None:
-                        id = self.id()
-                        create_query = Client(username=username, email=email, password=password, id=id)
+                        create_query = Client(name=name, username=username, email=email, password=password, id=id)
                         session.add(create_query)
                         await session.commit()
                         created = True
@@ -347,13 +372,71 @@ class DMP:
                         deleted = True
             return deleted
         except: return False
+
+    """
+    save_attachement
+    delete_attachement
+    """
+
+    async def save_attachement(self, channel_id: int, path: str, inner_path: str, id: int):
+        try:
+            saved = False
+            fetch_channel = select(Channel).where(Channel.id == channel_id)
+            async with self.session() as session:
+                async with session.begin():
+                    channel = await session.execute(fetch_channel)
+                    channel = channel.scalars().first()
+                    if channel is not None:
+                        create_query = Attachement(channel_id=channel_id, path=path, inner_path=inner_path, id=id)
+                        session.add(create_query)
+                        await session.commit()
+                        saved=True
+            return saved
+        except: return False
     
+    async def delete_attachement(self, id: int):
+        try:
+            deleted = False
+            attachement_delete = delete(Attachement).where(Attachement.id == id).returning(Attachement.id)
+            async with self.session() as session:
+                async with session.begin():
+                    check_id = await session.execute(attachement_delete)
+                    if check_id == id:
+                        deleted = True
+            return deleted
+        except: return False
+
+    """
+    save_dynamic
+    clear_dynamic
+    """
+
+    async def save_dynamic(self, path: str, inner_path: str, session_id: int, id: int):
+        try:
+            async with self.session() as session:
+                async with session.begin():
+                    create_query = Dynamic(path=path, inner_path=inner_path, session_id=session_id, id=id)
+                    session.add(create_query)
+                    await session.commit()
+            return True
+        except: return False
+    
+    async def delete_dynamic(self, id: int):
+        try:
+            dynamic_delete = delete(Dynamic).where(Dynamic.id == id)
+            async with self.session() as session:
+                async with session.begin():
+                    await session.execute(dynamic_delete)
+            return True
+        except: return False
+
     """
     fetch_client_by_mail
     fetch_client_by_id
     fetch_group_by_id
     fetch_channel_by_id
     fetch_message_by_id
+    fetch_dynamic_by_session_id
     """
     
     async def fetch_client_by_mail(self, email: str):
@@ -435,4 +518,14 @@ class DMP:
                     messages = messages.scalars().all()
             messages.reverse()
             return messages
+        except: return False
+
+    async def fetch_dynamic_by_session_id(self, session_id: str, ignored_path: str):
+        try:
+            fetch_query = select(Dynamic).where(Dynamic.session_id == session_id, Dynamic.path != ignored_path)
+            async with self.session() as session:
+                async with session.begin():
+                    dynamic_files = await session.execute(fetch_query)
+                    dynamic_files = dynamic_files.scalars().first()
+            return dynamic_files
         except: return False
