@@ -121,10 +121,10 @@ export const Listener = (
                     case 'group_creation_status':
                         if (group_to_create) {
                             set_group_to_create(null);
-                            if (!data.status) {
-                                set_error("Application error. Group can't be created");
-                            } else {
+                            if (data.status) {
                                 set_group_modal_status(false);
+                            } else {
+                                set_error("Application error. Group can't be created");
                             }
                         }
                         break;
@@ -132,10 +132,10 @@ export const Listener = (
                     case 'channel_creation_status':
                         if (channel_to_create) {
                             set_channel_to_create(null);
-                            if (!data.status) {
-                                set_error("Application error. Channel can't be created");
-                            } else {
+                            if (data.status) {
                                 set_channel_modal_status(false);
+                            } else {
+                                set_error("Application error. Channel can't be created");
                             }
                         }
                         break;

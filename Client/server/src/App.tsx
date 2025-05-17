@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, createContext, Dispatch, SetStateAction, useMemo } from 'react';
 import { Routes, Route, BrowserRouter, useNavigate } from 'react-router-dom';
 import { Contact } from "./components/contacts";
 import { Group } from "./components/groups";
@@ -36,6 +36,62 @@ const App: React.FC = () => {
 
     const [error, SetError] = useState<string | null>(null);
 
+    interface GlobalProperties {
+        current_group_id: string | null;
+        set_current_group_id: Dispatch<SetStateAction<string | null>>;
+        current_channel_id: string | null;
+        set_current_channel_id: Dispatch<SetStateAction<string | null>>;
+        current_group_members: Member[];
+        set_current_group_members:  Dispatch<SetStateAction<Member[]>>;
+        contacts: Contact[];
+        set_contacts:  Dispatch<SetStateAction<Contact[]>>;
+        groups: Group[];
+        set_groups:  Dispatch<SetStateAction<Group[]>>;
+        channels: Channel[];
+        set_channels:  Dispatch<SetStateAction<Channel[]>>;
+        messages: Message[];
+        set_messages:  Dispatch<SetStateAction<Message[]>>;
+        group_modal_status: boolean;
+        set_group_modal_status:  Dispatch<SetStateAction<boolean>>;
+        channel_modal_status: boolean;
+        set_channel_modal_status:  Dispatch<SetStateAction<boolean>>;
+        group_to_create: Group | null;
+        set_group_to_create:  Dispatch<SetStateAction<Group | null>>;
+        channel_to_create: Channel | null;
+        set_channel_to_create:  Dispatch<SetStateAction<Channel | null>>;
+        error: string | null;
+        set_error:  Dispatch<SetStateAction<string | null>>;
+    }
+
+    const GlobalContext = createContext<GlobalProperties | undefined>(undefined);
+
+    const ActualCOntext = {
+        current_group_id,
+        SetCurrentGroupId,
+        current_channel_id,
+        SetCurrentChannelId,
+        current_group_members,
+        SetCurrentGroupMembers,
+        contacts,
+        SetContacts,
+        groups,
+        SetGroups,
+        channels,
+        SetChannels,
+        messages,
+        SetMessages,
+        group_modal_status,
+        SetGroupModalStatus,
+        channel_modal_status,
+        SetChannelModalStatus,
+        group_to_create,
+        SetGroupToCreate,
+        channel_to_create,
+        SetChannelToCreate,
+        error,
+        SetError
+    };
+
     const SendRequest = Listener(
         "ws://localhost:8080/client/api",
         contacts,
@@ -62,48 +118,50 @@ const App: React.FC = () => {
 
     return (
         <BrowserRouter>
-            <div id="container">
-                <ErrorView error={error} set_error={SetError} />
-                <GroupModalView group_modal_status={group_modal_status} set_group_modal_status={SetGroupModalStatus} set_group_to_create={SetGroupToCreate} set_error={SetError} />
-                <ChannelModalView channel_modal_status={channel_modal_status} set_channel_modal_status={SetChannelModalStatus} set_channel_to_create={SetChannelToCreate} current_group_id={current_group_id} set_error={SetError} />
+            <GlobalContext.Provider value={ActualCOntext}>
+                <div id="container">
+                    <ErrorView error={error} set_error={SetError} />
+                    <GroupModalView group_modal_status={group_modal_status} set_group_modal_status={SetGroupModalStatus} set_group_to_create={SetGroupToCreate} set_error={SetError} />
+                    <ChannelModalView channel_modal_status={channel_modal_status} set_channel_modal_status={SetChannelModalStatus} set_channel_to_create={SetChannelToCreate} current_group_id={current_group_id} set_error={SetError} />
 
-                <div id="widgets">
+                    <div id="widgets">
 
-                    <div id="header-widget" className="widget"></div>
+                        <div id="header-widget" className="widget"></div>
                     
-                    <div id="groups-widget" className="widget">
-                        <GroupsView groups={groups} set_current_group_id={SetCurrentGroupId} />
-                        <div id="groups-widget-action-bar">
-                            <ActionBarView set_group_modal_status={SetGroupModalStatus} />
+                        <div id="groups-widget" className="widget">
+                            <GroupsView groups={groups} set_current_group_id={SetCurrentGroupId} />
+                            <div id="groups-widget-action-bar">
+                                <ActionBarView set_group_modal_status={SetGroupModalStatus} />
+                            </div>
                         </div>
-                    </div>
 
-                    <div id="channels-contacts-widget" className="widget">
-                        <Routes>
-                            <Route path="/" />
-                            <Route path="/:group_id" element={<ChannelsView channels={channels} set_current_channel_id={SetCurrentChannelId} />} />
-                        </Routes>
-                    </div>
+                        <div id="channels-contacts-widget" className="widget">
+                            <Routes>
+                                <Route path="/" />
+                                <Route path="/:group_id" element={<ChannelsView channels={channels} set_current_channel_id={SetCurrentChannelId} />} />
+                            </Routes>
+                        </div>
 
-                    <div id="chat-widget" className="widget">
-                        <Routes>
-                            <Route path="/:contact_id" />
-                            <Route path="/:group_id/:channel_id" element={<ChannelView messages={messages} />} />
-                        </Routes>
-                    </div>
+                        <div id="chat-widget" className="widget">
+                            <Routes>
+                                <Route path="/:contact_id" />
+                                <Route path="/:group_id/:channel_id" element={<ChannelView messages={messages} />} />
+                            </Routes>
+                        </div>
 
-                    <div id="members-contact-widget" className="widget">
-                        <Routes>
-                            <Route path="/:group_id" element={<MembersInfoView members={current_group_members} />} />
-                        </Routes>
-                    </div>
+                        <div id="members-contact-widget" className="widget">
+                            <Routes>
+                                <Route path="/:group_id" element={<MembersInfoView members={current_group_members} />} />
+                            </Routes>
+                        </div>
 
-                    <div id="member-info-popup-widget" className="popup-widget"></div>
-                    <div id="client-info-popup-widget" className="popup-widget"></div>
-                    <div id="channel-settings-popup-widget" className="popup-widget"></div>
-                    <div id="group-settings-popup-widget" className="popup-widget"></div>
+                        <div id="member-info-popup-widget" className="popup-widget"></div>
+                        <div id="client-info-popup-widget" className="popup-widget"></div>
+                        <div id="channel-settings-popup-widget" className="popup-widget"></div>
+                        <div id="group-settings-popup-widget" className="popup-widget"></div>
+                    </div>
                 </div>
-            </div>
+            </GlobalContext.Provider>
         </BrowserRouter>
     );
 };
