@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { GlobalContext } from '../services/context_manager';
 import { Message } from "../components/messages";
 import '../static/client_interface.css';
 
-interface ChannelViewProperties {
-    messages: Message[];
-}
-
-const ChannelView: React.FC<ChannelViewProperties> = ({ messages }) => {
+const ChannelView: React.FC = () => {
     const { group_id, channel_id } = useParams<{ group_id: string, channel_id: string}>();
-    const RelatedMessages = messages.filter(message => message.channel_id === channel_id);
+    const context_data = useContext(GlobalContext);
+    if (!context_data) {
+        throw new Error("Context for groups_view can't be defined.");
+    }
+    const RelatedMessages = context_data.messages.filter(message => message.channel_id === channel_id);
     
     const InputReference = useRef<HTMLTextAreaElement>(null);
     const [input_content, SetInputContent] = useState<string>('');

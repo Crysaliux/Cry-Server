@@ -1,14 +1,17 @@
-import React, { useEffect, useState, Dispatch, SetStateAction } from "react";
+import React, { useEffect, useState, Dispatch, SetStateAction, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Group } from "../components/groups";
+import { GlobalContext } from '../services/context_manager';
 import '../static/client_interface.css';
 
 interface GroupsViewProperties {
-    groups: Group[];
     set_current_group_id: Dispatch<SetStateAction<string | null>>;
 }
 
-const GroupsView: React.FC<GroupsViewProperties> = ({ groups, set_current_group_id }) => {
+const GroupsView: React.FC<GroupsViewProperties> = ({ set_current_group_id }) => {
+    const context_data = useContext(GlobalContext);
+    if (!context_data) {
+        throw new Error("Context for groups_view can't be defined.");
+    }
     const navigate = useNavigate();
 
     const HandleGroupNavigation = (id: string | number) => {
@@ -18,7 +21,7 @@ const GroupsView: React.FC<GroupsViewProperties> = ({ groups, set_current_group_
 
     return (
         <>
-            {groups.map(group => (
+            {context_data.groups.map(group => (
                 <div className="group" key={group.id} data-owner_id={group.owner_id} data-desc={group.desc} onClick={() => HandleGroupNavigation(group.id)}>
                     <img src={group.icon_path}></img>
                 </div>

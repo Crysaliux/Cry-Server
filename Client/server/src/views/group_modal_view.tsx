@@ -1,9 +1,9 @@
-import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect } from "react";
+import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
+import { GlobalContext } from '../services/context_manager';
 import { Group } from "../components/groups";
 import '../static/client_interface.css';
 
 interface GroupModalViewProperties {
-    group_modal_status: boolean;
     set_group_modal_status: Dispatch<SetStateAction<boolean>>;
     set_group_to_create: Dispatch<SetStateAction<Group | null>>;
     set_error: Dispatch<SetStateAction<string | null>>;
@@ -14,7 +14,14 @@ interface APIResponse {
     url: string | null;
 }
 
-const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status, set_group_modal_status, set_group_to_create, set_error }) => {
+const GroupModalView: React.FC<GroupModalViewProperties> = ({ set_group_modal_status, set_group_to_create, set_error }) => {
+    const context_data = useContext(GlobalContext);
+    if (!context_data) {
+        throw new Error("Context for groups_view can't be defined.");
+    }
+    if (!context_data.group_modal_status) {
+        return null;
+    }
     const [current_icon_path, SetCurrentIconPath] = useState<string>('');
     const GroupModalIconReference = useRef<HTMLDivElement>(null);
     const GroupModalNameReference = useRef<HTMLTextAreaElement>(null);
@@ -97,33 +104,30 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ group_modal_status
         }
     };
 
-    if (group_modal_status) {
-        return (
-            <>
-                <div className="modal" id="group-modal">
-                    <div id="group-modal-icon" ref={GroupModalIconReference}>
-                        <input id="group-modal-icon-input" type="file" accept="image/png, image/jpeg" onChange={OnChange}></input>
-                    </div>
-                    <div className="modal_input" id="group-modal-name">
-                        <div className="input_info medium nocopy">What should we call your group?</div>
-                        <textarea maxLength={30} className="modal_input_field short_input" ref={GroupModalNameReference}></textarea>
-                    </div>
-                    <div className="modal_input" id="group-modal-description">
-                        <div className="input_info medium nocopy">What will this group be for?</div>
-                        <textarea maxLength={300} className="modal_input_field long_input" ref={GroupModalDescReference}></textarea>
-                    </div>
-                    <div className="modal_choice" id="group-modal-choice">
-                        <button className="button blue small nocopy" onClick={CreateGroup}>Create Group</button>
-                        <button className="button underlined small nocopy" onClick={() => set_group_modal_status(false)}>Cancel</button>
-                    </div>
-                </div>
 
-                <div id="modal-blur-overlay"></div>
-            </>
-        );
-    } else {
-        return null;
-    }
+    return (
+        <>
+            <div className="modal" id="group-modal">
+                <div id="group-modal-icon" ref={GroupModalIconReference}>
+                    <input id="group-modal-icon-input" type="file" accept="image/png, image/jpeg" onChange={OnChange}></input>
+                </div>
+                <div className="modal_input" id="group-modal-name">
+                    <div className="input_info medium nocopy">What should we call your group?</div>
+                    <textarea maxLength={30} className="modal_input_field short_input" ref={GroupModalNameReference}></textarea>
+                </div>
+                <div className="modal_input" id="group-modal-description">
+                    <div className="input_info medium nocopy">What will this group be for?</div>
+                    <textarea maxLength={300} className="modal_input_field long_input" ref={GroupModalDescReference}></textarea>
+                </div>
+                <div className="modal_choice" id="group-modal-choice">
+                    <button className="button blue small nocopy" onClick={CreateGroup}>Create Group</button>
+                    <button className="button underlined small nocopy" onClick={() => set_group_modal_status(false)}>Cancel</button>
+                </div>
+            </div>
+
+            <div id="modal-blur-overlay"></div>
+        </>
+    );
 };
 
 export default GroupModalView;

@@ -1,15 +1,15 @@
-import React from "react";
-import { Member } from "../components/members";
+import React, { useContext } from "react";
+import { GlobalContext } from '../services/context_manager';
 import '../static/client_interface.css';
 
-interface MembersInfoViewProperties {
-    members: Member[]
-}
-
-const MembersInfoView: React.FC<MembersInfoViewProperties> = ({ members }) => {
+const MembersInfoView: React.FC = () => {
+    const context_data = useContext(GlobalContext);
+    if (!context_data) {
+        throw new Error("Context for groups_view can't be defined.");
+    }
     return (
         <>
-            {members.map(member => (
+            {context_data.current_group_members.map(member => (
                 <div className="member" key={member.id} data-name={member.name} data-status={member.status}>
                     <img src={member.icon_path}></img>
                     <div className="member-username medium nocopy">{member.name}</div>

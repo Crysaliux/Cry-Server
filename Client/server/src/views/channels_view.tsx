@@ -1,17 +1,20 @@
-import React, { Dispatch, SetStateAction } from "react";
+import React, { Dispatch, SetStateAction, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Channel } from "../components/channels";
+import { GlobalContext } from '../services/context_manager';
 import '../static/client_interface.css';
 
 interface ChannelsViewProperties {
-    channels: Channel[];
     set_current_channel_id: Dispatch<SetStateAction<string | null>>;
 }
 
-const ChannelsView: React.FC<ChannelsViewProperties> = ({ channels, set_current_channel_id }) => {
+const ChannelsView: React.FC<ChannelsViewProperties> = ({ set_current_channel_id }) => {
     const group_id = useParams<{ group_id: string}>();
+    const context_data = useContext(GlobalContext);
+    if (!context_data) {
+        throw new Error("Context for groups_view can't be defined.");
+    }
     const navigate = useNavigate();
-    const RelatedChannels = channels.filter(channel => channel.group_id === group_id);
+    const RelatedChannels = context_data.channels.filter(channel => channel.group_id === group_id);
     
     const HandleChannelNavigation = (id: string | number) => {
         set_current_channel_id(`${id}`);

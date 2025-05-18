@@ -1,14 +1,18 @@
-import React, { Dispatch, SetStateAction } from "react";
+import React, { Dispatch, SetStateAction, useContext } from "react";
+import { GlobalContext } from '../services/context_manager';
 import '../static/client_interface.css';
 
 interface ErrorViewProperties {
-    error: string | null;
     set_error: Dispatch<SetStateAction<string | null>>;
 }
 
-const ErrorView: React.FC<ErrorViewProperties> = ({ error, set_error }) => {
+const ErrorView: React.FC<ErrorViewProperties> = ({ set_error }) => {
+    const context_data = useContext(GlobalContext);
+    if (!context_data) {
+        throw new Error("Context for groups_view can't be defined.");
+    }
 
-    if (error !== null) {
+    if (context_data.error !== null) {
         return (
             <>
             </>
