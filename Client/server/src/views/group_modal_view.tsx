@@ -3,24 +3,15 @@ import { GlobalContext } from '../services/context_manager';
 import { Group } from "../components/groups";
 import '../static/client_interface.css';
 
-interface GroupModalViewProperties {
-    set_group_modal_status: Dispatch<SetStateAction<boolean>>;
-    set_group_to_create: Dispatch<SetStateAction<Group | null>>;
-    set_error: Dispatch<SetStateAction<string | null>>;
-}
-
 interface APIResponse {
     success: boolean;
     url: string | null;
 }
 
-const GroupModalView: React.FC<GroupModalViewProperties> = ({ set_group_modal_status, set_group_to_create, set_error }) => {
+const GroupModalView: React.FC = () => {
     const context_data = useContext(GlobalContext);
     if (!context_data) {
         throw new Error("Context for groups_view can't be defined.");
-    }
-    if (!context_data.group_modal_status) {
-        return null;
     }
     const [current_icon_path, SetCurrentIconPath] = useState<string>('');
     const GroupModalIconReference = useRef<HTMLDivElement>(null);
@@ -50,10 +41,10 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ set_group_modal_st
                 if (data.url !== null) {
                     SetCurrentIconPath(data.url);
                 } else {
-                    set_error('Application error. No data has been received.');
+                    context_data.SetError('Application error. No data has been received.');
                 }
             } catch (error) {
-                set_error("Application error. Can't connect to the API server.");
+                context_data.SetError("Application error. Can't connect to the API server.");
             }
         }
     };
@@ -71,11 +62,11 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ set_group_modal_st
             if (data.success) {
                 return true;
             } else {
-                set_error('Application error. No data has been received.');
+                context_data.SetError('Application error. No data has been received.');
                 return false;
             }
         } catch(error) {
-            set_error("Application error. Can't connect to the API server.");
+            context_data.SetError("Application error. Can't connect to the API server.");
             return false;
         }
     };
@@ -98,34 +89,38 @@ const GroupModalView: React.FC<GroupModalViewProperties> = ({ set_group_modal_st
                 name: GroupModalNameReference.current.value,
                 desc: GroupModalDescReference.current.value
             };
-            set_group_to_create(NewGroup);
+            context_data.SetGroupToCreate(NewGroup);
         } else {
-            set_error("Ooops! Group name and description can't be left blank!");
+            context_data.SetError("Ooops! Group name and description can't be left blank!");
         }
     };
 
-
     return (
         <>
-            <div className="modal" id="group-modal">
-                <div id="group-modal-icon" ref={GroupModalIconReference}>
-                    <input id="group-modal-icon-input" type="file" accept="image/png, image/jpeg" onChange={OnChange}></input>
-                </div>
-                <div className="modal_input" id="group-modal-name">
-                    <div className="input_info medium nocopy">What should we call your group?</div>
-                    <textarea maxLength={30} className="modal_input_field short_input" ref={GroupModalNameReference}></textarea>
-                </div>
-                <div className="modal_input" id="group-modal-description">
-                    <div className="input_info medium nocopy">What will this group be for?</div>
-                    <textarea maxLength={300} className="modal_input_field long_input" ref={GroupModalDescReference}></textarea>
-                </div>
-                <div className="modal_choice" id="group-modal-choice">
-                    <button className="button blue small nocopy" onClick={CreateGroup}>Create Group</button>
-                    <button className="button underlined small nocopy" onClick={() => set_group_modal_status(false)}>Cancel</button>
-                </div>
-            </div>
+            {
+                context_data.group_modal_status ? 
+                <>
+                    <div className="modal" id="group-modal">
+                        <div id="group-modal-icon" ref={GroupModalIconReference}>
+                            <input id="group-modal-icon-input" type="file" accept="image/png, image/jpeg" onChange={OnChange}></input>
+                        </div>
+                        <div className="modal_input" id="group-modal-name">
+                            <div className="input_info medium nocopy">What should we call your group?</div>
+                            <textarea maxLength={30} className="modal_input_field short_input" ref={GroupModalNameReference}></textarea>
+                        </div>
+                        <div className="modal_input" id="group-modal-description">
+                            <div className="input_info medium nocopy">What will this group be for?</div>
+                            <textarea maxLength={300} className="modal_input_field long_input" ref={GroupModalDescReference}></textarea>
+                        </div>
+                        <div className="modal_choice" id="group-modal-choice">
+                            <button className="button blue small nocopy" onClick={CreateGroup}>Create Group</button>
+                            <button className="button underlined small nocopy" onClick={() => context_data.SetGroupModalStatus(false)}>Cancel</button>
+                        </div>
+                    </div>
 
-            <div id="modal-blur-overlay"></div>
+                    <div id="modal-blur-overlay"></div>
+                </> : null
+            }
         </>
     );
 };

@@ -3,11 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { GlobalContext } from '../services/context_manager';
 import '../static/client_interface.css';
 
-interface GroupsViewProperties {
-    set_current_group_id: Dispatch<SetStateAction<string | null>>;
-}
-
-const GroupsView: React.FC<GroupsViewProperties> = ({ set_current_group_id }) => {
+const GroupsView: React.FC = () => {
     const context_data = useContext(GlobalContext);
     if (!context_data) {
         throw new Error("Context for groups_view can't be defined.");
@@ -15,7 +11,7 @@ const GroupsView: React.FC<GroupsViewProperties> = ({ set_current_group_id }) =>
     const navigate = useNavigate();
 
     const HandleGroupNavigation = (id: string | number) => {
-        set_current_group_id(`${id}`);
+        context_data.SetCurrentGroupId(`${id}`);
         navigate(`/${id}`);
     };
 

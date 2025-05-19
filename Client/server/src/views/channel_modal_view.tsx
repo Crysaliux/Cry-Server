@@ -3,19 +3,10 @@ import { GlobalContext } from '../services/context_manager';
 import { Channel } from "../components/channels";
 import '../static/client_interface.css';
 
-interface ChannelModalViewProperties {
-    set_channel_modal_status: Dispatch<SetStateAction<boolean>>;
-    set_channel_to_create: Dispatch<SetStateAction<Channel | null>>;
-    set_error: Dispatch<SetStateAction<string | null>>;
-}
-
-const ChannelModalView: React.FC<ChannelModalViewProperties> = ({ set_channel_modal_status, set_channel_to_create, set_error }) => {
+const ChannelModalView: React.FC = () => {
     const context_data = useContext(GlobalContext);
     if (!context_data) {
         throw new Error("Context for groups_view can't be defined.");
-    }
-    if (!context_data.channel_modal_status) {
-        return null;
     }
     const ChannelNameReference = useRef<HTMLTextAreaElement>(null);
 
@@ -29,12 +20,12 @@ const ChannelModalView: React.FC<ChannelModalViewProperties> = ({ set_channel_mo
                     group_id: context_data.current_group_id,
                     name: ChannelNameReference.current.value
                 };
-                set_channel_to_create(NewChannel);
+                context_data.SetChannelToCreate(NewChannel);
             } else {
-                set_error("Unexpected application error. Group doen't exist.");
+                context_data.SetError("Unexpected application error. Group doen't exist.");
             }
         } else {
-            set_error('Channel name must be specified!');
+            context_data.SetError('Channel name must be specified!');
         }
     };
 
@@ -47,7 +38,7 @@ const ChannelModalView: React.FC<ChannelModalViewProperties> = ({ set_channel_mo
                 </div>
                 <div className="modal_choice" id="channel-modal-choice">
                     <button className="button blue small nocopy" onClick={CreateChannel}>Create Channel</button>
-                    <button className="button underlined small nocopy" onClick={() => set_channel_modal_status(false)}>Cancel</button>
+                    <button className="button underlined small nocopy" onClick={() => context_data.SetChannelModalStatus(false)}>Cancel</button>
                 </div>
             </div>
 

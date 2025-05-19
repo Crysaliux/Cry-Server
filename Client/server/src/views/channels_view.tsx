@@ -3,11 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { GlobalContext } from '../services/context_manager';
 import '../static/client_interface.css';
 
-interface ChannelsViewProperties {
-    set_current_channel_id: Dispatch<SetStateAction<string | null>>;
-}
-
-const ChannelsView: React.FC<ChannelsViewProperties> = ({ set_current_channel_id }) => {
+const ChannelsView: React.FC = () => {
     const group_id = useParams<{ group_id: string}>();
     const context_data = useContext(GlobalContext);
     if (!context_data) {
@@ -17,7 +13,7 @@ const ChannelsView: React.FC<ChannelsViewProperties> = ({ set_current_channel_id
     const RelatedChannels = context_data.channels.filter(channel => channel.group_id === group_id);
     
     const HandleChannelNavigation = (id: string | number) => {
-        set_current_channel_id(`${id}`);
+        context_data.SetCurrentChannelId(`${id}`);
         navigate(`/${group_id}/${id}`);
     };
 
