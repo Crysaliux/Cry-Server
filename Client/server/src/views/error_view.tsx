@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, useContext } from "react";
-import { GlobalContext } from '../services/context_manager';
+import { GlobalContext } from '../services/global_manager';
 import '../static/client_interface.css';
 
 const ErrorView: React.FC = () => {
@@ -18,4 +18,4 @@ const ErrorView: React.FC = () => {
     }
 };
 
-export default ErrorView;
+export default React.memo(ErrorView);

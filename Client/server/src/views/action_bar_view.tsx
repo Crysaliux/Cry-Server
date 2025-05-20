@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, useContext } from "react";
-import { GlobalContext } from '../services/context_manager';
+import { GlobalContext } from '../services/global_manager';
 import { useParams, useNavigate } from "react-router-dom";
 import '../static/client_interface.css';
 

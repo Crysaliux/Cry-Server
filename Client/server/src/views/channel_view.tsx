@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { GlobalContext } from '../services/context_manager';
+import { GlobalContext } from '../services/global_manager';
 import { Message } from "../components/messages";
 import '../static/client_interface.css';
 
@@ -55,4 +55,4 @@ const ChannelView: React.FC = () => {
     );
 };
 
-export default ChannelView;
+export default React.memo(ChannelView);

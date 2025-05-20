@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Dispatch, SetStateAction, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { GlobalContext } from '../services/context_manager';
+import { GlobalContext } from '../services/global_manager';
 import '../static/client_interface.css';
 
 const GroupsView: React.FC = () => {

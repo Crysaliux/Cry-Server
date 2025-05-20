@@ -1,5 +1,5 @@
 import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
-import { GlobalContext } from '../services/context_manager';
+import { GlobalContext } from '../services/global_manager';
 import { Group } from "../components/groups";
 import '../static/client_interface.css';
 
@@ -125,4 +125,4 @@ const GroupModalView: React.FC = () => {
     );
 };
 
-export default GroupModalView;
+export default React.memo(GroupModalView);

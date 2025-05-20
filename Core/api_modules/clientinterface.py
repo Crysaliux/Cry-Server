@@ -100,7 +100,7 @@ class Clientinterface:
 
     async def __on_group(self, request: dict, client_id: int):
         id, owner_id, icon_path, name, desc = int(request["id"]), int(request["owner_id"]), request["icon_path"], request["name"], request["desc"]
-        status = await self.dmp.create_group(name, owner_id, id, icon_path, desc)
+        status = await self.dmp.create_group(name, owner_id, id // 200, icon_path, desc) # // for test only!
         if status: return ({
             "type": "group",
             "id": id,

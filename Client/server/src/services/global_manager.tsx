@@ -1,4 +1,5 @@
-import React, { createContext, Dispatch, ReactNode, SetStateAction, useState } from "react";
+import React, { createContext, Dispatch, ReactNode, SetStateAction, useState, memo } from "react";
+import { Listener } from '../services/listener';
 import { Contact } from "../components/contacts";
 import { Group } from "../components/groups";
 import { Channel } from "../components/channels";
@@ -7,6 +8,8 @@ import { Member } from "../components/members";
 
 
 interface ContextGlobalProperties {
+    listener_addr: string | null;
+    SetListenerAddr: Dispatch<SetStateAction<string | null>>;
     client_id: number | null,
     SetClientId: Dispatch<SetStateAction<number | null>>;
     client_name: string | null,
@@ -43,9 +46,11 @@ interface ContextManagerProperties {
 
 export const GlobalContext = createContext<ContextGlobalProperties | undefined>(undefined);
 
-export const ContextManager: React.FC<ContextManagerProperties> = ({ children }) => {
+export const ContextManager: React.FC<ContextManagerProperties> = memo(({ children }) => {
     //GLOBAL PROPERTIES
-    const [client_id, SetClientId] = useState<number | null>(null);
+    const [listener_addr, SetListenerAddr] = useState<string | null>(null);
+
+    const [client_id, SetClientId] = useState<number | null>(1234);
     const [client_name, SetClientName] = useState<string | null>(null);
             
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
@@ -61,12 +66,14 @@ export const ContextManager: React.FC<ContextManagerProperties> = ({ children })
     const [channel_modal_status, SetChannelModalStatus] = useState<boolean>(false);
             
     const [group_to_create, SetGroupToCreate] = useState<Group | null>(null);
-    const [channel_to_create, SetChannelToCreate] = useState<Channel | null>(null);
+    const [channel_to_create, SetChannelToCreate] = useState<Channel | null>(null); //try implementing channel/group ID check instead. Single interface objects might not be the best solution.
             
     const [error, SetError] = useState<string | null>(null);
 
     return (
-        <GlobalContext.Provider value = {{ 
+        <GlobalContext.Provider value = {{
+            listener_addr,
+            SetListenerAddr,
             client_id,
             SetClientId,
             client_name,
@@ -99,4 +106,4 @@ export const ContextManager: React.FC<ContextManagerProperties> = ({ children })
             {children}
         </GlobalContext.Provider>
     );
-};
+});

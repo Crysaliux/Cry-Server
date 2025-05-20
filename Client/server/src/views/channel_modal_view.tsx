@@ -1,5 +1,5 @@
 import React, { useState, Dispatch, SetStateAction, useRef, useContext } from "react";
-import { GlobalContext } from '../services/context_manager';
+import { GlobalContext } from '../services/global_manager';
 import { Channel } from "../components/channels";
 import '../static/client_interface.css';
 
@@ -20,7 +20,7 @@ const ChannelModalView: React.FC = () => {
                     group_id: context_data.current_group_id,
                     name: ChannelNameReference.current.value
                 };
-                context_data.SetChannelToCreate(NewChannel);
+                context_data.SetChannelToCreate(NewChannel as Channel);
             } else {
                 context_data.SetError("Unexpected application error. Group doen't exist.");
             }
@@ -31,20 +31,25 @@ const ChannelModalView: React.FC = () => {
 
     return (
         <>
-            <div className="modal" id="channel-modal">
-                <div className="modal_input" id="channel-modal-name">
-                    <div className="input_info medium nocopy">What should we call it?</div>
-                    <textarea maxLength={30} className="modal_input_field short_input" ref={ChannelNameReference}></textarea>
-                </div>
-                <div className="modal_choice" id="channel-modal-choice">
-                    <button className="button blue small nocopy" onClick={CreateChannel}>Create Channel</button>
-                    <button className="button underlined small nocopy" onClick={() => context_data.SetChannelModalStatus(false)}>Cancel</button>
-                </div>
-            </div>
+            {
+                context_data.channel_modal_status ? 
+                <>
+                    <div className="modal" id="channel-modal">
+                        <div className="modal_input" id="channel-modal-name">
+                            <div className="input_info medium nocopy">What should we call it?</div>
+                            <textarea maxLength={30} className="modal_input_field short_input" ref={ChannelNameReference}></textarea>
+                        </div>
+                        <div className="modal_choice" id="channel-modal-choice">
+                            <button className="button blue small nocopy" onClick={CreateChannel}>Create Channel</button>
+                            <button className="button underlined small nocopy" onClick={() => context_data.SetChannelModalStatus(false)}>Cancel</button>
+                        </div>
+                    </div>
 
-            <div id="modal-blur-overlay"></div>
+                    <div id="modal-blur-overlay"></div>
+                </> : null
+            }
         </>
     );
 };
 
-export default ChannelModalView;
+export default React.memo(ChannelModalView);
