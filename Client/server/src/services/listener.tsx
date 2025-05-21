@@ -111,24 +111,19 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         break;
 
                     case 'group_creation_status':
-                        console.log(context_data.group_to_create);
                         context_data.SetGroupToCreate(null);
-                        if (data.status) {
-                            context_data.SetGroupModalStatus(false);
-                        } else {
+                        if (!data.status) {
                             context_data.SetError("Application error. Group can't be created");
                         }
+                        context_data.SetGroupModalStatus(false);
                         break;
 
                     case 'channel_creation_status':
-                        if (context_data.channel_to_create) {
-                            context_data.SetChannelToCreate(null);
-                            if (data.status) {
-                                context_data.SetChannelModalStatus(false);
-                            } else {
-                                context_data.SetError("Application error. Channel can't be created");
-                            }
+                        context_data.SetChannelToCreate(null);
+                        if (!data.status) {
+                            context_data.SetError("Application error. Channel can't be created");
                         }
+                        context_data.SetChannelModalStatus(false);
                         break;
 
                     default:

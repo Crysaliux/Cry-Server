@@ -1,3 +1,10 @@
+/*
+INTERFACE COLOURS:
+- main: 54, 58, 63
+- borders: 69, 81, 95
+- modals:  46, 55, 66
+*/
+
 body, html {
     margin: 0;
     padding: 0;
@@ -19,11 +26,11 @@ WIDGETS
     display: grid;
     grid-template-columns: repeat(25, 1fr);
     gap: 0.1vh;
-    background-color: rgb(211, 21, 46);
+    background-color: rgb(69, 81, 95);
 }
 
 .widget {
-    background-color: rgb(0, 0, 0);
+    background-color: rgb(54, 58, 63);
 }
 
 /*
@@ -136,7 +143,7 @@ GROUPS
 #action-bar-addgroup {
     height: 45px;
     width: 45px;
-    border-radius: 5px;
+    border-radius: 50%;
     background-color: rgba(31, 29, 29, 1);
 }
 
@@ -148,7 +155,7 @@ GROUPS
 #action-bar-dms {
     height: 45px;
     width: 45px;
-    border-radius: 5px;
+    border-radius: 50%;
     background-color: rgba(31, 29, 29, 1);
 }
 
@@ -400,7 +407,7 @@ MODALS
     padding: 20px;
     box-sizing: border-box;
     gap: 15px;
-    background-color: rgb(48, 45, 45);
+    background-color: rgb(46, 55, 66);
 }
 
 .modal_input {
@@ -444,6 +451,41 @@ GROUP MODAL OVERLAY
     height: 100%;
     width: 100%;
     opacity: 0;
+}
+
+/*
+ERROR OVERLAY
+*/
+
+#error {
+    height: auto;
+    width: 15%;
+    z-index: 2000;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    gap: 15px;
+    background-color: rgb(46, 55, 66);
+}
+
+#error-header {
+    height: auto;
+    width: 98%;
+}
+
+#error-ok {
+    width: 90%;
+}
+
+#error-ok-button {
+    width: 100%;
 }
 
 /*

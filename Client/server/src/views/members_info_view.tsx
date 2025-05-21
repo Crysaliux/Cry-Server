@@ -10,7 +10,7 @@ const MembersInfoView: React.FC = () => {
     return (
         <>
             {context_data.current_group_members.map(member => (
-                <div className="member" key={member.id} data-name={member.name} data-status={member.status}>
+                <div className="member border" key={member.id} data-name={member.name} data-status={member.status}>
                     <img src={member.icon_path}></img>
                     <div className="member-username medium nocopy">{member.name}</div>
                 </div>

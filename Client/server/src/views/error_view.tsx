@@ -8,14 +8,20 @@ const ErrorView: React.FC = () => {
         throw new Error("Context for groups_view can't be defined.");
     }
 
-    if (context_data.error !== null) {
-        return (
-            <>
-            </>
-        );
-    } else {
-        return null;
-    }
+    return (
+        <>
+            {   context_data.error ?
+                <>
+                    <div id="error" className="border">
+                        <div id="error-header" className="medium nocopy">{context_data.error}</div>
+                        <div id="error-ok">
+                            <button id="error-ok-button" className="button blue small nocopy" onClick={() => context_data.SetError(null)}>Ok</button>
+                        </div>
+                    </div>
+                </> : null
+            }
+        </>
+    );
 };
 
 export default React.memo(ErrorView);

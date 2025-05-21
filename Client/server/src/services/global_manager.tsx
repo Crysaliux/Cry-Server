@@ -1,5 +1,4 @@
 import React, { createContext, Dispatch, ReactNode, SetStateAction, useState, memo } from "react";
-import { Listener } from '../services/listener';
 import { Contact } from "../components/contacts";
 import { Group } from "../components/groups";
 import { Channel } from "../components/channels";

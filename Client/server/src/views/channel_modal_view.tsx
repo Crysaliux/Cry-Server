@@ -34,7 +34,7 @@ const ChannelModalView: React.FC = () => {
             {
                 context_data.channel_modal_status ? 
                 <>
-                    <div className="modal" id="channel-modal">
+                    <div className="modal border" id="channel-modal">
                         <div className="modal_input" id="channel-modal-name">
                             <div className="input_info medium nocopy">What should we call it?</div>
                             <textarea maxLength={30} className="modal_input_field short_input" ref={ChannelNameReference}></textarea>
