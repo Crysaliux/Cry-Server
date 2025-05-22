@@ -31,6 +31,8 @@ interface ContextGlobalProperties {
     SetMessages: Dispatch<SetStateAction<Message[]>>;
     display_modal: Modal | null;
     SetDisplayModal: Dispatch<SetStateAction<Modal | null>>;
+    modal_submit_request: Modal | null; 
+    SetModalSubmitRequest: Dispatch<SetStateAction<Modal | null>>;
     error: string | null;
     SetError: Dispatch<SetStateAction<string | null>>;
 }
@@ -58,6 +60,7 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
     const [messages, SetMessages] = useState<Message[]>([]);
             
     const [display_modal, SetDisplayModal] = useState<Modal | null>(null);
+    const [modal_submit_request, SetModalSubmitRequest] = useState<Modal | null>(null);
             
     const [error, SetError] = useState<string | null>(null);
 
@@ -85,6 +88,8 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
             SetMessages,
             display_modal,
             SetDisplayModal,
+            modal_submit_request,
+            SetModalSubmitRequest,
             error,
             SetError
         }}>

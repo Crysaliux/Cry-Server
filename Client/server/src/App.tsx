@@ -7,8 +7,7 @@ import ChannelsView from './views/channels_view';
 import ChannelView from './views/channel_view';
 import ActionBarView from './views/action_bar_view';
 import MembersInfoView from './views/members_info_view';
-import GroupModalView from './views/group_modal_view';
-import ChannelModalView from './views/channel_modal_view';
+import ModalView from './views/modal_view';
 import ErrorView from './views/error_view';
 
 const App: React.FC = () => {
@@ -21,8 +20,7 @@ const App: React.FC = () => {
                 <BrowserRouter>
                     <div id="container">
                         <ErrorView />
-                        <GroupModalView />
-                        <ChannelModalView />
+                        <ModalView />
 
                         <div id="widgets">
 

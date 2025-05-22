@@ -5,5 +5,8 @@
 
 export interface Field {
     type: 'field';
+    index: string;
+    header: string;
     input_length: string; // short / long
+    input: '';
 }

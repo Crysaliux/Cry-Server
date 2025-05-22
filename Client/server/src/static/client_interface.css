@@ -432,11 +432,7 @@ MODALS
     justify-content: center;
 }
 
-/*
-GROUP MODAL OVERLAY
-*/
-
-#group-modal-icon {
+.modal_image {
     height: 80px;
     width: 80px;
     border-radius: 10px;
@@ -447,7 +443,7 @@ GROUP MODAL OVERLAY
     background-color: rgb(88, 81, 81);
 }
 
-#group-modal-icon-input {
+.modal_image_input {
     height: 100%;
     width: 100%;
     opacity: 0;

@@ -113,7 +113,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
                     case 'modal_status':
                         if (!data.status) {
-                            context_data.SetError("Application error. Group can't be created");
+                            context_data.SetError("Application error. Couldn't create object");
                         }
                         break;
 
@@ -152,6 +152,15 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
           console.warn('Connection closed!');
         }
     };
+
+    useEffect(() => {
+        if (context_data.modal_submit_request) {
+            SendRequest(context_data.modal_submit_request as Modal);
+            context_data.SetDisplayModal(null);
+        }
+    }, [context_data.modal_submit_request])
+
+
     /*
     useEffect(() => {
         if (context_data.current_group_id) {

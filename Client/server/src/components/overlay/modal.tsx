@@ -1,11 +1,11 @@
 import { Field } from "./field";
 /*
-Modal types:
+Modal indexes:
 - group_creation
 - channel_creation
 - custom
 
-ModalResponse types:
+ModalResponse indexes:
 - group_modal_status
 - channel_modal_status
 - custom_modal_status
@@ -14,12 +14,16 @@ ModalResponse types:
 //ServerRequests
 
 export interface Modal {
-    type: string;
+    type: 'modal';
+    index: string;
     image_select: boolean;
+    image_select_path: string | null;
+    submit_colour: string;
     fields: Field[];
 }
 
 export interface ModalStatus {
-    type: string;
+    type: 'modal_status';
+    index: string;
     status: boolean;
 }
