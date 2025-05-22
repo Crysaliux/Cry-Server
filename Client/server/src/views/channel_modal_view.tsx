@@ -1,6 +1,6 @@
 import React, { useState, Dispatch, SetStateAction, useRef, useContext } from "react";
 import { GlobalContext } from '../services/global_manager';
-import { Channel } from "../components/channels";
+import { Channel } from "../components/interface/channels";
 import '../static/client_interface.css';
 
 const ChannelModalView: React.FC = () => {

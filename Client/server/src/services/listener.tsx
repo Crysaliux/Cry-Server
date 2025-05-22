@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext } from "react";
 import { GlobalContext } from '../services/global_manager';
-import { Contact, ToRemoveContact } from "../components/contacts";
-import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers, GroupCreationStatus } from "../components/groups";
-import { Channel, ToRemoveChannel, ChannelCreationStatus } from "../components/channels";
-import { Message, ToRemoveMessage } from "../components/messages";
-import { Member } from "../components/members";
+import { Contact, ToRemoveContact } from "../components/interface/contacts";
+import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/interface/groups";
+import { Channel, ToRemoveChannel } from "../components/interface/channels";
+import { Message, ToRemoveMessage } from "../components/interface/messages";
+import { Member } from "../components/interface/members";
+import { Modal, ModalStatus } from "../components/overlay/modal";
 
-type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | GroupCreationStatus | ChannelCreationStatus;
-type ClientRequestData = ToRequestGroupMembers | Group | Channel;
+type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | ModalStatus;
+type ClientRequestData = ToRequestGroupMembers | Modal;
 
 interface ListenerProperties {
     children: ReactNode;
@@ -110,20 +111,10 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         }
                         break;
 
-                    case 'group_creation_status':
-                        context_data.SetGroupToCreate(null);
+                    case 'modal_status':
                         if (!data.status) {
                             context_data.SetError("Application error. Group can't be created");
                         }
-                        context_data.SetGroupModalStatus(false);
-                        break;
-
-                    case 'channel_creation_status':
-                        context_data.SetChannelToCreate(null);
-                        if (!data.status) {
-                            context_data.SetError("Application error. Channel can't be created");
-                        }
-                        context_data.SetChannelModalStatus(false);
                         break;
 
                     default:
@@ -161,7 +152,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
           console.warn('Connection closed!');
         }
     };
-
+    /*
     useEffect(() => {
         if (context_data.current_group_id) {
             SendRequest({ type: 'group_request_members', id: context_data.current_group_id } as ToRequestGroupMembers);
@@ -179,6 +170,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             SendRequest(context_data.channel_to_create as Channel);
         }
     }, [context_data.channel_to_create]);
-
+    */
     return children;
 };

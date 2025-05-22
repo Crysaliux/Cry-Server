@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { GlobalContext } from '../services/global_manager';
-import { Message } from "../components/messages";
+import { Message } from "../components/interface/messages";
 import '../static/client_interface.css';
 
 const ChannelView: React.FC = () => {

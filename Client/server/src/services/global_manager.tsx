@@ -1,9 +1,11 @@
 import React, { createContext, Dispatch, ReactNode, SetStateAction, useState, memo } from "react";
-import { Contact } from "../components/contacts";
-import { Group } from "../components/groups";
-import { Channel } from "../components/channels";
-import { Message } from "../components/messages";
-import { Member } from "../components/members";
+import { Contact } from "../components/interface/contacts";
+import { Group } from "../components/interface/groups";
+import { Channel } from "../components/interface/channels";
+import { Message } from "../components/interface/messages";
+import { Member } from "../components/interface/members";
+import { Modal } from "../components/overlay/modal";
+import { Field } from "../components/overlay/field";
 
 
 interface ContextGlobalProperties {
@@ -27,14 +29,8 @@ interface ContextGlobalProperties {
     SetChannels: Dispatch<SetStateAction<Channel[]>>;
     messages: Message[];
     SetMessages: Dispatch<SetStateAction<Message[]>>;
-    group_modal_status: boolean;
-    SetGroupModalStatus: Dispatch<SetStateAction<boolean>>;
-    channel_modal_status: boolean;
-    SetChannelModalStatus: Dispatch<SetStateAction<boolean>>;
-    group_to_create: Group | null;
-    SetGroupToCreate: Dispatch<SetStateAction<Group | null>>;
-    channel_to_create: Channel | null;
-    SetChannelToCreate: Dispatch<SetStateAction<Channel | null>>;
+    display_modal: Modal | null;
+    SetDisplayModal: Dispatch<SetStateAction<Modal | null>>;
     error: string | null;
     SetError: Dispatch<SetStateAction<string | null>>;
 }
@@ -61,11 +57,7 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
     const [channels, SetChannels] = useState<Channel[]>([]);
     const [messages, SetMessages] = useState<Message[]>([]);
             
-    const [group_modal_status, SetGroupModalStatus] = useState<boolean>(false);
-    const [channel_modal_status, SetChannelModalStatus] = useState<boolean>(false);
-            
-    const [group_to_create, SetGroupToCreate] = useState<Group | null>(null);
-    const [channel_to_create, SetChannelToCreate] = useState<Channel | null>(null); //try implementing channel/group ID check instead. Single interface objects might not be the best solution.
+    const [display_modal, SetDisplayModal] = useState<Modal | null>(null);
             
     const [error, SetError] = useState<string | null>(null);
 
@@ -91,14 +83,8 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
             SetChannels,
             messages, 
             SetMessages,
-            group_modal_status, 
-            SetGroupModalStatus,
-            channel_modal_status, 
-            SetChannelModalStatus,
-            group_to_create, 
-            SetGroupToCreate,
-            channel_to_create,
-            SetChannelToCreate,
+            display_modal,
+            SetDisplayModal,
             error,
             SetError
         }}>

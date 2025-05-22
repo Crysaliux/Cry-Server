@@ -1,6 +1,6 @@
 import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
 import { GlobalContext } from '../services/global_manager';
-import { Group } from "../components/groups";
+import { Group } from "../components/interface/groups";
 import '../static/client_interface.css';
 
 interface APIResponse {
