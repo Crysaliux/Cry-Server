@@ -15,6 +15,7 @@ ModalResponse indexes:
 
 export interface Modal {
     type: 'modal';
+    id: number | string | null;
     index: string;
     image_select: boolean;
     image_select_path: string | null;
@@ -24,6 +25,6 @@ export interface Modal {
 
 export interface ModalStatus {
     type: 'modal_status';
-    index: string;
     status: boolean;
+    error: string | null;
 }

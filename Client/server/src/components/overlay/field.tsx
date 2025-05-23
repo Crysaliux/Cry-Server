@@ -8,5 +8,5 @@ export interface Field {
     index: string;
     header: string;
     input_length: string; // short / long
-    input: '';
+    input: string;
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
+import { useNavigate } from 'react-router-dom';
 import { GlobalContext } from '../services/global_manager';
 import { Contact, ToRemoveContact } from "../components/interface/contacts";
 import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/interface/groups";
@@ -26,6 +27,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         throw new Error("Context for groups_view can't be defined.");
     }
     const SocketReference = useRef<WebSocket | null>(null);
+    const navigate = useNavigate();
 
     /*
     Objects are automatically updated upon receiving a partial instance of themselves from the API.
@@ -56,6 +58,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         const check_group = context_data.groups.some(group => group.id === data.id);
                         if (!check_group) {
                             context_data.SetGroups(previous => [...previous, data as Group]);
+                            navigate(`/${data.id}`);
                         } else {
                             context_data.SetGroups(previous => previous.map((group) => group.id === data.id ? { ...group, ...data as Partial<Group> } : group));
                         }
@@ -115,7 +118,13 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
                     case 'modal_status':
                         if (!data.status) {
-                            context_data.SetError("Application error. Couldn't create object");
+                            if (data.error) {
+                                context_data.SetError(data.error);
+                            } else{
+                                context_data.SetError('Looks like our servers arent responding properly, maybe try again later');
+                            }
+                        } else {
+                            context_data.SetModalDisplayStatus(false);
                         }
                         break;
 
@@ -151,7 +160,8 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 console.error(`Can't send data to ${context_data.listener_addr}: ${error}`);
             }
         } else {
-          console.warn('Connection closed!');
+            console.warn('Connection closed!');
+            context_data.SetError('Odd, seems you cant connect to our servers, check if your internet is working or try again later');
         }
     };
 

@@ -16,8 +16,8 @@ const App: React.FC = () => {
 
     return (
         <ContextManager>
-            <Listener>
-                <BrowserRouter>
+            <BrowserRouter>
+                <Listener>
                     <div id="container">
                         <ErrorView />
                         <ModalView />
@@ -59,8 +59,8 @@ const App: React.FC = () => {
                             <div id="group-settings-popup-widget" className="popup-widget"></div>
                         </div>
                     </div>
-                </BrowserRouter>
-            </Listener>
+                </Listener>
+            </BrowserRouter>
         </ContextManager>
     );
 };

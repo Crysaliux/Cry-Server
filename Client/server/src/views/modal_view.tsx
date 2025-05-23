@@ -1,4 +1,5 @@
 import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
+import { customAlphabet } from "nanoid";
 import { GlobalContext } from '../services/global_manager';
 import { ListenerHatch } from "../services/listener";
 import { Modal } from "../components/overlay/modal";
@@ -24,6 +25,7 @@ const ModalView: React.FC = () => {
         ModalReference.current = context_data.current_modal.current;
     }
     const ModalImageReference = useRef<HTMLInputElement>(null);
+    const id_gen = customAlphabet('123456789', 32);
 
     if (ModalReference.current) {
         if (ModalReference.current.submit_colour !== '') {
@@ -42,7 +44,7 @@ const ModalView: React.FC = () => {
     const OnFieldChange = async (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         if (ModalReference.current) {
             ModalReference.current.fields = ModalReference.current.fields.map(
-                field => field.index === event.target.dataset.index ? { ...field, data: { input: event.target.value } } : field);
+                field => field.index === event.target.dataset.index ? { ...field, input: event.target.value } : field);
         }
     };
 
@@ -78,6 +80,7 @@ const ModalView: React.FC = () => {
                 if (submit_button_colour.current) {
                     submit_button_colour.current = `${ModalReference.current.submit_colour}_clicked`;
                 }
+                ModalReference.current.id = Number(id_gen());
                 listener_hatch.SendRequest(ModalReference.current);
             } else {
                 if (submit_button_colour.current) {
@@ -111,7 +114,7 @@ const ModalView: React.FC = () => {
                     {ModalReference.current.fields.map(field => (
                         <div className="modal_input" key={field.index}>
                             <div className="input_info medium nocopy">{field.header}</div>
-                            <textarea maxLength={EvaluateInputlength(field.input_length)} className='modal_input_field' onChange={OnFieldChange}></textarea>
+                            <textarea maxLength={EvaluateInputlength(field.input_length)} className='modal_input_field' onChange={OnFieldChange} data-index={field.index}></textarea>
                         </div>
                     ))}
                     <div className="modal_choice">

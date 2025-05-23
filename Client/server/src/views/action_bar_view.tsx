@@ -15,7 +15,8 @@ const ActionBarView: React.FC = () => {
     const CreateGroupModal = () => {
         const NewModal: Modal = {
             type: 'modal',
-            index: 'create_group',
+            id: null,
+            index: 'group',
             image_select: true,
             image_select_path: null,
             submit_colour: '',

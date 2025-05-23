@@ -81,11 +81,15 @@ class Clientinterface:
         self.algorithm = algorithm
         self.router = APIRouter()
 
-        self.types = {
+        self.types = { 
+            "modal": self.__on_modal,
+            "message": self.__on_message,
+        }
+
+        self.system_modal_types = {
             "contact": self.__on_contact,
             "group": self.__on_group,
             "channel": self.__on_channel,
-            "message": self.__on_message,
         }
 
     async def __total_interpreter(self, request: dict, socket: WebSocket, id: int):
@@ -98,35 +102,46 @@ class Clientinterface:
                     await socket.send_text(json.dumps(response[1]))
                 else: await socket.send_text(json.dumps(response))
 
+    async def __modal_interpreter(self, request: dict, client_id: int):
+        if request["index"] in self.system_modal_types:
+            func = self.system_modal_types[request["index"]]
+            response = await func(request, client_id)
+            if response is not None:
+                return response
+
+    async def __on_modal(self, request: dict, client_id: int):
+        response = await self.__modal_interpreter(request, client_id)
+        return response
+
     async def __on_group(self, request: dict, client_id: int):
-        id, owner_id, icon_path, name, desc = int(request["id"]), int(request["owner_id"]), request["icon_path"], request["name"], request["desc"]
-        status = await self.dmp.create_group(name, owner_id, id // 200, icon_path, desc) # // for test only!
+        id, image_select_path, name, desc = int(request["id"]), request["image_select_path"], request["fields"], next(_ for _ in request["fields"] if _["index"] == "name"), next(_ for _ in request["fields"] if _["index"] == "desc")
+        status = await self.dmp.create_group(name, client_id, id // 200, image_select_path, desc) # // for test only!
         if status: return ({
             "type": "group",
             "id": id,
-            "owner_id": owner_id,
-            "icon_path": icon_path,
+            "owner_id": client_id,
+            "icon_path": image_select_path,
             "name": name,
             "desc": desc,
-        }, {"type": "group_creation_status", "status": True, "error": None})
-        else: return {"type": "group_creation_status", "status": False, "error": "Can't create group"}
+        }, {"type": "modal_status", "status": True, "error": None})
+        else: return {"type": "modal_status", "status": False, "error": "Can't create group"}
     
     async def __on_channel(self, request: dict, client_id: int):
-        id, creator_id, group_id, name = int(request["id"]), int(request["creator_id"]), int(request["group_id"]), request["name"]
+        id, group_id, name = int(request["id"]), int(next(_ for _ in request["fields"] if _["index"] == "group_id")), next(_ for _ in request["fields"] if _["index"] == "name")
         group = await self.dmp.fetch_group_by_id(group_id)
         if group != False and group is not None:
-            status = await self.dmp.create_channel(creator_id, name, id, group_id)
+            status = await self.dmp.create_channel(client_id, name, id, group_id)
             if status:
                 request =  {
                     "type": "channel",
                     "id": id,
-                    "creator_id": creator_id,
+                    "creator_id": client_id,
                     "group_id": group_id,
                     "name": name,
                 }
                 await self.cmp.broadcast(request, group.members)
-                return (request, {"type": "channel_creation_status", "status": True, "error": None})
-            else: return {"type": "channel_creation_status", "status": False, "error": "Can't create channel"}
+                return (request, {"type": "modal_status", "status": True, "error": None})
+            else: return {"type": "modal_status", "status": False, "error": "Can't create channel"}
 
     async def __on_message(self, request: dict, client_id: int):
         id, sender_id, group_id, channel_id, sender_name, sender_icon_path, content = int(request["id"]), int(request["sender_id"]), int(request["group_id"]), int(request["channel_id"]), request["sender_name"], request["sender_icon_path"], request["content"]
@@ -150,7 +165,7 @@ class Clientinterface:
             else: return {"type": "message_creation_status", "status": False, "error": "Can't send message."}
 
     async def __on_contact(self, request: dict, client_id: int):
-        id, co_client_id, co_client_name = int(request["id"]), int(request["co_client_id"]), request["co_client_name"]
+        id, co_client_id, co_client_name = int(request["id"]), int(next(_ for _ in request["fields"] if _["index"] == "co_client_id")), next(_ for _ in request["fields"] if _["index"] == "co_client_name")
         status = await self.dmp.create_channel(client_id, co_client_name, id, private=True, co_client_id=co_client_id)
         if status: 
             request = {
@@ -161,9 +176,9 @@ class Clientinterface:
             }
             request_status = await self.cmp.notify(request, co_client_id)
             if not request_status:
-                return {"type": "contact_creation_status", "status": False, "error": "An unexpected error occured while sending friend request."}
-            return (request, {"type": "contact_creation_status", "status": True, "error": None})
-        else: return {"type": "contact_creation_status", "status": False, "error": "Can't friend user."}
+                return {"type": "modal_status", "status": False, "error": "An unexpected error occured while sending friend request."}
+            return (request, {"type": "modal_status", "status": True, "error": None})
+        else: return {"type": "modal_status", "status": False, "error": "Can't friend user."}
 
     def router_tasks(self):
         @self.router.websocket("/api")
