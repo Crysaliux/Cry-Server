@@ -1,8 +1,8 @@
 import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
 import { GlobalContext } from '../services/global_manager';
+import { ListenerHatch } from "../services/listener";
 import { Modal } from "../components/overlay/modal";
 import '../static/client_interface.css';
-import { Listener } from "services/listener";
 
 interface APIResponse {
     success: boolean;
@@ -11,41 +11,43 @@ interface APIResponse {
 
 const ModalView: React.FC = () => {
     const context_data = useContext(GlobalContext);
-    if (!context_data) {
+    const listener_hatch = useContext(ListenerHatch);
+    if (!context_data || !listener_hatch) {
         throw new Error("Context for groups_view can't be defined.");
     }
     const [modal_image_select_path, SetModalImageSelectPath] = useState<string>('');
-    let modal_reference = useRef(context_data.display_modal as Modal);
-    let native_submit_colour = useRef('');
-    const index = useRef(crypto.randomUUID());
-    const submit_button_class = useRef('button blue small nocopy');
+    const index = useRef<string>(crypto.randomUUID());
+    const submit_button_colour = useRef<string | null>(null);
 
-    const ModalSubmitReference = useRef<HTMLButtonElement>(null);
+    const ModalReference = useRef<Modal| null>(null);
+    if (context_data.current_modal.current) {
+        ModalReference.current = context_data.current_modal.current;
+    }
     const ModalImageReference = useRef<HTMLInputElement>(null);
 
-    if (ModalSubmitReference.current) {
-        native_submit_colour.current = window.getComputedStyle(ModalSubmitReference.current).backgroundColor;
-    }
+    if (ModalReference.current) {
+        if (ModalReference.current.submit_colour !== '') {
+            submit_button_colour.current = ModalReference.current.submit_colour;
+        } else {
+            submit_button_colour.current = 'blue';
+        }
 
-    if (ModalImageReference.current) {
-        ModalImageReference.current.style.backgroundImage = `url(${modal_image_select_path})`;
-    }
-
-    if (context_data.display_modal) {
-        submit_button_class.current = `button ${context_data.display_modal.submit_colour} small nocopy`;
+        if (ModalImageReference.current) {
+            ModalImageReference.current.style.backgroundImage = `url(${modal_image_select_path})`;
+        }
     }
 
     //...group, ...data as Partial<Group>
 
     const OnFieldChange = async (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-        if (modal_reference.current) {
-            modal_reference.current.fields = modal_reference.current.fields.map(
+        if (ModalReference.current) {
+            ModalReference.current.fields = ModalReference.current.fields.map(
                 field => field.index === event.target.dataset.index ? { ...field, data: { input: event.target.value } } : field);
         }
     };
 
     const OnSelectImagechange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (modal_reference.current) {
+        if (ModalReference.current) {
             const image = event.target.files?.[0];
             if (image && image.type.startsWith('image/')) {
                 try {
@@ -59,7 +61,7 @@ const ModalView: React.FC = () => {
                     const data: APIResponse = await response.json();
                     if (data.url !== null) {
                         SetModalImageSelectPath(data.url);
-                        modal_reference.current.image_select_path = data.url;
+                        ModalReference.current.image_select_path = data.url;
                     } else {
                         context_data.SetError('Looks like our servers arent responding properly, maybe try again later');
                     }
@@ -71,19 +73,22 @@ const ModalView: React.FC = () => {
     };
 
     const SubmitModal = async () => {
-        if (modal_reference.current) {
-            if (modal_reference.current.fields.every(field => field.input !== '')) {
-                if (ModalSubmitReference.current) {
-                    ModalSubmitReference.current.style.backgroundColor = `${native_submit_colour.current.replace(')', ', 0.5)')}`;
+        if (ModalReference.current) {
+            if (ModalReference.current.fields.every(field => field.input !== '')) {
+                if (submit_button_colour.current) {
+                    submit_button_colour.current = `${ModalReference.current.submit_colour}_clicked`;
                 }
-                context_data.SetModalSubmitRequest(modal_reference.current);
+                listener_hatch.SendRequest(ModalReference.current);
             } else {
+                if (submit_button_colour.current) {
+                    submit_button_colour.current = ModalReference.current.submit_colour;
+                }
                 context_data.SetError('Hmmm you cant leave some fields blank like that');
             }
         }
     }
 
-    const Evaluate = (length: string) => {
+    const EvaluateInputlength = (length: string) => {
         switch(length) {
             case 'long':
                 return 300;
@@ -92,36 +97,35 @@ const ModalView: React.FC = () => {
         }
     };
 
-    return (
-        <>
-            {
-                context_data.display_modal ? 
-                <>
-                    <div className="modal border" id={context_data.display_modal.index}>
-                        {
-                            context_data.display_modal.image_select ?
-                            <div ref={ModalImageReference} className="modal_image">
-                                <input className="modal_image_input" type="file" accept="image/png, image/jpeg" onChange={OnSelectImagechange}></input>
-                            </div>
-                            : null
-                        }
-                        {context_data.display_modal.fields.map(field => (
-                            <div className="modal_input" key={field.index}>
-                                <div className="input_info medium nocopy">{field.header}</div>
-                                <textarea maxLength={Evaluate(field.input_length)} className="modal_input_field {field.input_length}" onChange={OnFieldChange}></textarea>
-                            </div>
-                        ))}
-                        <div className="modal_choice">
-                            <button className={submit_button_class.current} ref={ModalSubmitReference} onClick={SubmitModal}>Create</button>
-                            <button className="button underlined small nocopy" onClick={() => context_data.SetDisplayModal(null)}>Cancel</button>
+    if (ModalReference.current && context_data.modal_display_status) {
+        return (
+            <>  
+                <div className="modal border" id={ModalReference.current.index}>
+                    {
+                        ModalReference.current.image_select ?
+                        <div ref={ModalImageReference} className="modal_image">
+                            <input className="modal_image_input" type="file" accept="image/png, image/jpeg" onChange={OnSelectImagechange}></input>
                         </div>
+                        : null
+                    }
+                    {ModalReference.current.fields.map(field => (
+                        <div className="modal_input" key={field.index}>
+                            <div className="input_info medium nocopy">{field.header}</div>
+                            <textarea maxLength={EvaluateInputlength(field.input_length)} className='modal_input_field' onChange={OnFieldChange}></textarea>
+                        </div>
+                    ))}
+                    <div className="modal_choice">
+                        <button className={`button ${submit_button_colour.current} small nocopy`} onClick={SubmitModal}>Create</button>
+                        <button className="button underlined small nocopy" onClick={() => context_data.SetModalDisplayStatus(false)}>Cancel</button>
                     </div>
+                </div>
 
-                    <div id="modal-blur-overlay"></div>
-                </> : null
-            }
-        </>
-    );
+                <div id="modal-blur-overlay"></div>
+            </>
+        );
+    } else {
+        return null;
+    }
 };
 
 export default ModalView;

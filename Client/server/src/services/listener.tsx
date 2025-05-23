@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext } from "react";
+import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
 import { GlobalContext } from '../services/global_manager';
 import { Contact, ToRemoveContact } from "../components/interface/contacts";
 import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/interface/groups";
@@ -14,12 +14,18 @@ interface ListenerProperties {
     children: ReactNode;
 }
 
+interface ListenerHatchProperties {
+    SendRequest: (data: ClientRequestData) => void;
+}
+
+export const ListenerHatch = createContext<ListenerHatchProperties | undefined>(undefined);
+
 export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     const context_data = useContext(GlobalContext);
     if (!context_data) {
         throw new Error("Context for groups_view can't be defined.");
     }
-    const socketReference = useRef<WebSocket | null>(null);
+    const SocketReference = useRef<WebSocket | null>(null);
 
     /*
     Objects are automatically updated upon receiving a partial instance of themselves from the API.
@@ -30,12 +36,8 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     */
 
     useEffect(() => {
-        var addr = 'ws://localhost:8080/client/api'; //Default
-        if (context_data.listener_addr) {
-            addr = context_data.listener_addr
-        }
-        const socket = new WebSocket(addr);
-        socketReference.current = socket;
+        const socket = new WebSocket(context_data.listener_addr.current);
+        SocketReference.current = socket;
 
         socket.onmessage = async (event: MessageEvent) => {
             try {
@@ -106,7 +108,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         break;
 
                     case 'group_load_members':
-                        if (context_data.current_group_id === data.id) {
+                        if (context_data.current_group_id.current === data.id) {
                             context_data.SetCurrentGroupMembers(data.members as Member[]);
                         }
                         break;
@@ -127,7 +129,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
         socket.onopen = () => {
             console.log('Client connected');
-            socket.send(JSON.stringify(context_data.client_id));
+            socket.send(JSON.stringify(context_data.client_id.current));
         };
 
         socket.onerror = (error) => {
@@ -142,9 +144,9 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     }, []);
 
     const SendRequest = (data: ClientRequestData) => {
-        if (socketReference.current && socketReference.current.readyState === WebSocket.OPEN) {
+        if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
             try {
-                socketReference.current.send(JSON.stringify(data));
+                SocketReference.current.send(JSON.stringify(data));
             } catch (error) {
                 console.error(`Can't send data to ${context_data.listener_addr}: ${error}`);
             }
@@ -156,7 +158,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     useEffect(() => {
         if (context_data.modal_submit_request) {
             SendRequest(context_data.modal_submit_request as Modal);
-            context_data.SetDisplayModal(null);
+            //context_data.SetDisplayModal(null);
         }
     }, [context_data.modal_submit_request])
 
@@ -180,5 +182,9 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         }
     }, [context_data.channel_to_create]);
     */
-    return children;
+    return (
+        <ListenerHatch.Provider value={{ SendRequest }}>
+            { children }
+        </ListenerHatch.Provider>
+    );
 };

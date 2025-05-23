@@ -18,18 +18,19 @@ const ActionBarView: React.FC = () => {
             index: 'create_group',
             image_select: true,
             image_select_path: null,
-            submit_colour: 'grey',
+            submit_colour: '',
             fields: [ 
                 { "type": "field", "index": "name", "header": "What should we call it?", "input_length": "short", "input": '' },
                 { "type": "field", "index": "desc", "header": "How would you describe it?", "input_length": "long", "input": '' },
             ] as Field[]
         };
-        return NewModal;
+        context_data.current_modal.current = NewModal;
+        context_data.SetModalDisplayStatus(true);
     };
 
     return (
         <>
-            <div id="action-bar-addgroup" onClick={() => context_data.SetDisplayModal(CreateGroupModal())}></div>
+            <div id="action-bar-addgroup" onClick={CreateGroupModal}></div>
             <div id="action-bar-dms" onClick={() => navigate('/')}></div>
         </>
     );

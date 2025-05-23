@@ -36,12 +36,20 @@ BUTTON STYLES
     background-color: rgba(0, 0, 255, 1);
 }
 
+.blue_clicked {
+    background-color: rgba(0, 0, 255, 0.5);
+}
+
 .blue:hover {
     background-color: rgba(0, 0, 255, 0.5);
 }
 
 .red {
     background-color: rgba(255, 0, 0, 1);
+}
+
+.red_clicked {
+    background-color: (255, 0, 0, 0.5);
 }
 
 .red:hover {
@@ -52,6 +60,10 @@ BUTTON STYLES
     background-color: rgba(255, 255, 255, 1);
 }
 
+.white_clicked {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
 .white:hover {
     background-color: rgba(255, 255, 255, 0.5);
 }
@@ -60,12 +72,20 @@ BUTTON STYLES
     background-color: rgba(0, 128, 0, 1);
 }
 
+.green_clicked {
+    background-color: rgba(0, 128, 0, 0.5);
+}
+
 .green:hover {
     background-color: rgba(0, 128, 0, 0.5);
 }
 
 .grey {
     background-color: rgba(128, 128, 128, 1);
+}
+
+.grey_clicked {
+    background-color: rgba(128, 128, 128, 0.5);
 }
 
 .grey:hover {

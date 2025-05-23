@@ -11,7 +11,7 @@ const GroupsView: React.FC = () => {
     const navigate = useNavigate();
 
     const HandleGroupNavigation = (id: string | number) => {
-        context_data.SetCurrentGroupId(`${id}`);
+        context_data.current_group_id.current = `${id}`;
         navigate(`/${id}`);
     };
 
