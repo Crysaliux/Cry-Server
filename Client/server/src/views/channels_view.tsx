@@ -7,7 +7,7 @@ const ChannelsView: React.FC = () => {
     const group_id = useParams<{ group_id: string}>();
     const context_data = useContext(GlobalContext);
     if (!context_data) {
-        throw new Error("Context for groups_view can't be defined.");
+        throw new Error("Context for channels_view can't be defined.");
     }
     const navigate = useNavigate();
     const RelatedChannels = context_data.channels.filter(channel => channel.group_id === group_id);

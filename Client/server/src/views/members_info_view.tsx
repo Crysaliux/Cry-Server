@@ -5,7 +5,7 @@ import '../static/client_interface.css';
 const MembersInfoView: React.FC = () => {
     const context_data = useContext(GlobalContext);
     if (!context_data) {
-        throw new Error("Context for groups_view can't be defined.");
+        throw new Error("Context for members_info_view can't be defined.");
     }
     return (
         <>

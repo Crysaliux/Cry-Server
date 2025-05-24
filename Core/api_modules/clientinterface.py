@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
-from pydantic import Field as type
-from typing import List, Union
+from pydantic import BaseModel, TypeAdapter, Field as _type
+from typing import List, Union, Annotated, Literal
 from ast import literal_eval
 from PIL import Image
 import aiofiles
@@ -67,14 +66,14 @@ class GrabCreds(BaseModel):
     id: int
 
 class Field(BaseModel):
-    type: str = type(..., const='field')
+    type: Literal['field']
     index: str
     header: str
     input_length: str
     input: str
 
 class Modal(BaseModel):
-    type: str = type(..., const='modal')
+    type: Literal['modal']
     id: Union[int, str, None]
     index: str
     image_select: bool
@@ -83,7 +82,7 @@ class Modal(BaseModel):
     fields: List[Field]
 
 class Message(BaseModel):
-    type: str = type(..., const='message')
+    type: Literal['message']
     id: Union[int, str]
     sender_id: Union[int, str]
     group_id: Union[int, str]
@@ -93,8 +92,11 @@ class Message(BaseModel):
     content: str
     unread: bool
 
-class ClientRequest(BaseModel):
-    __type__ = Union[Modal, Message] = type(..., discriminator="type")
+class GroupRequestMembers(BaseModel):
+    type: Literal['group_request_members']
+    id: Union[int, str]
+
+ClientRequest = Annotated[Union[Modal, Message, GroupRequestMembers], _type(discriminator='type')]
 
 class Clientinterface:
     def __init__(
@@ -130,6 +132,7 @@ class Clientinterface:
         self.types = { 
             "modal": {"ref": Modal, "func": self.__on_modal},
             "message": {"ref": Message, "func": self.__on_message},
+            "group_request_members": {"ref": GroupRequestMembers, "func": self.__on_group_request_members},
         }
 
         self.system_modal_types = {
@@ -139,9 +142,8 @@ class Clientinterface:
         }
 
     async def __total_interpreter(self, data: json, socket: WebSocket, id: int):
-        request = ClientRequest.model_validate({"__type__": data})
-        request = request.__type__
-
+        adapter = TypeAdapter(ClientRequest)
+        request = adapter.validate_python(data)
         if request.type in self.types:
             if isinstance(request, self.types[request.type]["ref"]):
                 func = self.types[request.type]["func"]
@@ -164,7 +166,7 @@ class Clientinterface:
         return response
 
     async def __on_group(self, request, client_id: int):
-        id, image_select_path, name, desc = int(request.id), request.image_select_path, request.fields, next(_ for _ in request.fields if _.index == "name"), next(_ for _ in request.fields if _.index == "desc")
+        id, image_select_path, name, desc = int(request.id), request.image_select_path, next(_ for _ in request.fields if _.index == "name").input, next(_ for _ in request.fields if _.index == "desc").input
         status = await self.dmp.create_group(name, client_id, id // 200, image_select_path, desc) # // for test only!
         if status: return ({
             "type": "group",
@@ -177,7 +179,7 @@ class Clientinterface:
         else: return {"type": "modal_status", "status": False, "error": "Can't create group"}
     
     async def __on_channel(self, request, client_id: int):
-        id, group_id, name = int(request.id), int(next(_ for _ in request.fields if _.index == "group_id")), next(_ for _ in request.fields if _.index == "name")
+        id, group_id, name = int(request.id), int(next(_ for _ in request.fields if _.index == "group_id").input), next(_ for _ in request.fields if _.index == "name").input
         group = await self.dmp.fetch_group_by_id(group_id)
         if group and group is not None:
             status = await self.dmp.create_channel(client_id, name, id, group_id)
@@ -229,6 +231,27 @@ class Clientinterface:
                 return {"type": "modal_status", "status": False, "error": "An unexpected error occured while sending friend request."}
             return (request, {"type": "modal_status", "status": True, "error": None})
         else: return {"type": "modal_status", "status": False, "error": "Can't friend user."}
+
+    async def __on_group_request_members(self, request, client_id: int):
+        id = int(request.id)
+        group = await self.dmp.fetch_group_by_id(id)
+        if group and group is not None:
+            members = []
+            for member in group.members:
+                members.append({
+                    "type": "member", 
+                    "id": member.id, 
+                    "name": member.diplay_name, 
+                    "icon_path": member.icon_path, 
+                    "status": await self.cmp.fetch_status(member.id),
+                    })
+            request = {
+                "type": "group_load_members",
+                "id": id,
+                "members": members,
+            }
+            return request
+
 
     def router_tasks(self):
         @self.router.websocket("/api")

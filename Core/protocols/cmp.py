@@ -28,3 +28,11 @@ class CMP:
                 await self.active_connections[id].send_json(request)
                 return True
             except: return False
+
+    async def fetch_status(self, id: int):
+        async with self.proc_lock:
+            try:
+                if id in self.active_connections:
+                    return True
+                return False
+            except: return False

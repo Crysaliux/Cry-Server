@@ -33,6 +33,10 @@ WIDGETS
     background-color: rgb(54, 58, 63);
 }
 
+.silent_widget {
+    background: transparent;
+}
+
 /*
 Last column - 26
 Last row - 28
@@ -41,6 +45,9 @@ Last row - 28
 #header-widget {
     grid-column-start: 1;
     grid-column-end: 26;
+    display: grid;
+    grid-template-columns: repeat(25, 1fr);
+    gap: 0.1vh;
     height: 5vh;
 }
 
@@ -105,6 +112,35 @@ Last row - 28
     scrollbar-width: none;
 }
 
+/*
+HEADER WIDGETS
+*/
+
+#header-support-widget {
+    grid-row-start: 1;
+    height: 100%;
+}
+
+#header-group-addfriend-widget {
+    grid-column-start: 2;
+    grid-column-end: 6;
+    grid-row-start: 1;
+    height: 100%;
+}
+
+#header-channelinfo-friends-widget {
+    grid-column-start: 6;
+    grid-column-end: 23;
+    grid-row-start: 1;
+    height: 100%;
+}
+
+#header-memberstats-widget {
+    grid-column-start: 23;
+    grid-column-end: 26;
+    grid-row-start: 1;
+    height: 100%;
+}
 
 /*
 GROUPS

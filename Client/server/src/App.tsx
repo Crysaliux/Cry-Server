@@ -2,6 +2,11 @@ import React, { useState, createContext, Dispatch, SetStateAction, useMemo } fro
 import { Routes, Route, BrowserRouter, useNavigate } from 'react-router-dom';
 import { ContextManager } from './services/global_manager';
 import { Listener } from './services/listener';
+import ChannelNameView from './views/channel_name_view';
+import GroupInfoView from './views/group_info_view';
+import MembersStatsView from './views/members_stats_view';
+import AddFriendView from './views/add_friend_view';
+import FriendNameView from './views/friend_name_view';
 import GroupsView from './views/groups_view';
 import ChannelsView from './views/channels_view';
 import ChannelView from './views/channel_view';
@@ -24,7 +29,28 @@ const App: React.FC = () => {
 
                         <div id="widgets">
 
-                            <div id="header-widget" className="widget"></div>
+                            <div id="header-widget" className="silent_widget">
+                                <div id="header-support-widget" className="widget">
+
+                                </div>
+                                <div id="header-group-addfriend-widget" className="widget">
+                                    <Routes>
+                                        <Route path="/" element={<AddFriendView /> } />
+                                        <Route path="/group/:group_id" element={<GroupInfoView />} />
+                                    </Routes>
+                                </div>
+                                <div id="header-channelinfo-friends-widget" className="widget">
+                                    <Routes>
+                                        <Route path="/:contact_id" element={<FriendNameView />} />
+                                        <Route path="/group/:group_id/:channel_id" element={<ChannelNameView />} />
+                                    </Routes>
+                                </div>
+                                <div id="header-memberstats-widget" className="widget">
+                                    <Routes>
+                                        <Route path="/group/:group_id" element={<MembersStatsView />} />
+                                    </Routes>
+                                </div>
+                            </div>
                     
                             <div id="groups-widget" className="widget">
                                 <GroupsView />
@@ -36,20 +62,20 @@ const App: React.FC = () => {
                             <div id="channels-contacts-widget" className="widget">
                                 <Routes>
                                     <Route path="/" />
-                                    <Route path="/:group_id" element={<ChannelsView />} />
+                                    <Route path="/group/:group_id" element={<ChannelsView />} />
                                 </Routes>
                             </div>
 
                             <div id="chat-widget" className="widget">
                                 <Routes>
                                     <Route path="/:contact_id" />
-                                    <Route path="/:group_id/:channel_id" element={<ChannelView />} />
+                                    <Route path="/group/:group_id/:channel_id" element={<ChannelView />} />
                                 </Routes>
                             </div>
 
                             <div id="members-contact-widget" className="widget">
                                 <Routes>
-                                    <Route path="/:group_id" element={<MembersInfoView />} />
+                                    <Route path="/group/:group_id" element={<MembersInfoView />} />
                                 </Routes>
                             </div>
 

@@ -14,7 +14,7 @@ const ModalView: React.FC = () => {
     const context_data = useContext(GlobalContext);
     const listener_hatch = useContext(ListenerHatch);
     if (!context_data || !listener_hatch) {
-        throw new Error("Context for groups_view can't be defined.");
+        throw new Error("Context for modal_view can't be defined.");
     }
     const [modal_image_select_path, SetModalImageSelectPath] = useState<string>('');
     const index = useRef<string>(crypto.randomUUID());
@@ -25,7 +25,8 @@ const ModalView: React.FC = () => {
         ModalReference.current = context_data.current_modal.current;
     }
     const ModalImageReference = useRef<HTMLInputElement>(null);
-    const id_gen = customAlphabet('123456789', 32);
+    const version = useRef(0);
+    const id_gen = customAlphabet('123456789', 16);
 
     if (ModalReference.current) {
         if (ModalReference.current.submit_colour !== '') {
@@ -62,7 +63,8 @@ const ModalView: React.FC = () => {
                     });
                     const data: APIResponse = await response.json();
                     if (data.url !== null) {
-                        SetModalImageSelectPath(data.url);
+                        version.current += 1;
+                        SetModalImageSelectPath(`${data.url}?v=${version.current}`);
                         ModalReference.current.image_select_path = data.url;
                     } else {
                         context_data.SetError('Looks like our servers arent responding properly, maybe try again later');

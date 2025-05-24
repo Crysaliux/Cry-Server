@@ -1,18 +1,21 @@
 import React, { useEffect, useState, Dispatch, SetStateAction, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { GlobalContext } from '../services/global_manager';
+import { ListenerHatch } from "../services/listener";
 import '../static/client_interface.css';
 
 const GroupsView: React.FC = () => {
     const context_data = useContext(GlobalContext);
-    if (!context_data) {
+    const listener_hatch = useContext(ListenerHatch);
+    if (!context_data || !listener_hatch) {
         throw new Error("Context for groups_view can't be defined.");
     }
     const navigate = useNavigate();
 
     const HandleGroupNavigation = (id: string | number) => {
         context_data.current_group_id.current = `${id}`;
-        navigate(`/${id}`);
+        listener_hatch.SendRequest({ type: 'group_request_members', id: context_data.current_group_id.current });
+        navigate(`/group/${id}`);
     };
 
     return (
