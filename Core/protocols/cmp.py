@@ -19,12 +19,12 @@ class CMP:
         async with self.proc_lock:
             for client in clients:
                 try:
-                    await self.active_connections[client.id].send_text(json.dumps(request))
+                    await self.active_connections[client.id].send_json(request)
                 except: pass
     
-    async def notify(self, request, id):
+    async def notify(self, request, id: int):
         async with self.proc_lock:
             try:
-                await self.active_connections[id].send_text(json.dumps(request))
+                await self.active_connections[id].send_json(request)
                 return True
             except: return False

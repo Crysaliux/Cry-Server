@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, W
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from pydantic import Field as type
+from typing import List, Union
 from ast import literal_eval
 from PIL import Image
 import aiofiles
@@ -44,11 +46,55 @@ import os
     id: number | string;
     co_client_id: number | string;
     co_client_name: string;
+
+    type: 'modal';
+    id: number | string | null;
+    index: string;
+    image_select: boolean;
+    image_select_path: string | null;
+    submit_colour: string;
+    fields: Field[];
+
+    type: 'field';
+    index: string;
+    header: string;
+    input_length: string; // short / long
+    input: string;
 """
 
 class GrabCreds(BaseModel):
     token: str
     id: int
+
+class Field(BaseModel):
+    type: str = type(..., const='field')
+    index: str
+    header: str
+    input_length: str
+    input: str
+
+class Modal(BaseModel):
+    type: str = type(..., const='modal')
+    id: Union[int, str, None]
+    index: str
+    image_select: bool
+    image_select_path: Union[str, None]
+    submit_colour: str
+    fields: List[Field]
+
+class Message(BaseModel):
+    type: str = type(..., const='message')
+    id: Union[int, str]
+    sender_id: Union[int, str]
+    group_id: Union[int, str]
+    channel_id: Union[int, str]
+    sender_name: str
+    sender_icon_path: str
+    content: str
+    unread: bool
+
+class ClientRequest(BaseModel):
+    __type__ = Union[Modal, Message] = type(..., discriminator="type")
 
 class Clientinterface:
     def __init__(
@@ -82,8 +128,8 @@ class Clientinterface:
         self.router = APIRouter()
 
         self.types = { 
-            "modal": self.__on_modal,
-            "message": self.__on_message,
+            "modal": {"ref": Modal, "func": self.__on_modal},
+            "message": {"ref": Message, "func": self.__on_message},
         }
 
         self.system_modal_types = {
@@ -92,29 +138,33 @@ class Clientinterface:
             "channel": self.__on_channel,
         }
 
-    async def __total_interpreter(self, request: dict, socket: WebSocket, id: int):
-        if request["type"] in self.types: 
-            func = self.types[request["type"]]
-            response = await func(request, id)
-            if response is not None:
-                if isinstance(response, tuple) and len(response) == 2:
-                    await socket.send_text(json.dumps(response[0]))
-                    await socket.send_text(json.dumps(response[1]))
-                else: await socket.send_text(json.dumps(response))
+    async def __total_interpreter(self, data: json, socket: WebSocket, id: int):
+        request = ClientRequest.model_validate({"__type__": data})
+        request = request.__type__
 
-    async def __modal_interpreter(self, request: dict, client_id: int):
-        if request["index"] in self.system_modal_types:
-            func = self.system_modal_types[request["index"]]
+        if request.type in self.types:
+            if isinstance(request, self.types[request.type]["ref"]):
+                func = self.types[request.type]["func"]
+                response = await func(request, id)
+                if response is not None:
+                    if isinstance(response, tuple) and len(response) == 2:
+                        await socket.send_json(response[0])
+                        await socket.send_json(response[1])
+                    else: await socket.send_json(response)
+
+    async def __modal_interpreter(self, request, client_id: int):
+        if request.index in self.system_modal_types:
+            func = self.system_modal_types[request.index]
             response = await func(request, client_id)
             if response is not None:
                 return response
 
-    async def __on_modal(self, request: dict, client_id: int):
+    async def __on_modal(self, request, client_id: int):
         response = await self.__modal_interpreter(request, client_id)
         return response
 
-    async def __on_group(self, request: dict, client_id: int):
-        id, image_select_path, name, desc = int(request["id"]), request["image_select_path"], request["fields"], next(_ for _ in request["fields"] if _["index"] == "name"), next(_ for _ in request["fields"] if _["index"] == "desc")
+    async def __on_group(self, request, client_id: int):
+        id, image_select_path, name, desc = int(request.id), request.image_select_path, request.fields, next(_ for _ in request.fields if _.index == "name"), next(_ for _ in request.fields if _.index == "desc")
         status = await self.dmp.create_group(name, client_id, id // 200, image_select_path, desc) # // for test only!
         if status: return ({
             "type": "group",
@@ -126,10 +176,10 @@ class Clientinterface:
         }, {"type": "modal_status", "status": True, "error": None})
         else: return {"type": "modal_status", "status": False, "error": "Can't create group"}
     
-    async def __on_channel(self, request: dict, client_id: int):
-        id, group_id, name = int(request["id"]), int(next(_ for _ in request["fields"] if _["index"] == "group_id")), next(_ for _ in request["fields"] if _["index"] == "name")
+    async def __on_channel(self, request, client_id: int):
+        id, group_id, name = int(request.id), int(next(_ for _ in request.fields if _.index == "group_id")), next(_ for _ in request.fields if _.index == "name")
         group = await self.dmp.fetch_group_by_id(group_id)
-        if group != False and group is not None:
+        if group and group is not None:
             status = await self.dmp.create_channel(client_id, name, id, group_id)
             if status:
                 request =  {
@@ -143,10 +193,10 @@ class Clientinterface:
                 return (request, {"type": "modal_status", "status": True, "error": None})
             else: return {"type": "modal_status", "status": False, "error": "Can't create channel"}
 
-    async def __on_message(self, request: dict, client_id: int):
-        id, sender_id, group_id, channel_id, sender_name, sender_icon_path, content = int(request["id"]), int(request["sender_id"]), int(request["group_id"]), int(request["channel_id"]), request["sender_name"], request["sender_icon_path"], request["content"]
+    async def __on_message(self, request, client_id: int):
+        id, sender_id, group_id, channel_id, sender_name, sender_icon_path, content = int(request.id), int(request.sender_id), int(request.group_id), int(request.channel_id), request.sender_name, request.sender_icon_path, request.content
         group = await self.dmp.fetch_group_by_id(group_id)
-        if group != False and group is not None:
+        if group and group is not None:
             status = await self.dmp.save_message(sender_id, group_id, channel_id, content, id)
             if status: 
                 request = {
@@ -164,8 +214,8 @@ class Clientinterface:
                 return (request, {"type": "message_creation_status", "status": True, "error": None})
             else: return {"type": "message_creation_status", "status": False, "error": "Can't send message."}
 
-    async def __on_contact(self, request: dict, client_id: int):
-        id, co_client_id, co_client_name = int(request["id"]), int(next(_ for _ in request["fields"] if _["index"] == "co_client_id")), next(_ for _ in request["fields"] if _["index"] == "co_client_name")
+    async def __on_contact(self, request, client_id: int):
+        id, co_client_id, co_client_name = int(request.id), int(next(_ for _ in request.fields if _.index == "co_client_id")), next(_ for _ in request.fields if _.index == "co_client_name")
         status = await self.dmp.create_channel(client_id, co_client_name, id, private=True, co_client_id=co_client_id)
         if status: 
             request = {
@@ -188,8 +238,8 @@ class Clientinterface:
             await self.cmp.connect(id, {"socket": websocket})
             try:
                 while True:
-                    data = await websocket.receive_text()
-                    await self.__total_interpreter(literal_eval(data), websocket, id)
+                    data = await websocket.receive_json()
+                    await self.__total_interpreter(data, websocket, id)
             except WebSocketDisconnect:
                 await self.cmp.disconnect(id)
 
@@ -234,8 +284,8 @@ class Clientinterface:
             contacts = privates + co_privates
             return JSONResponse(content={"groups": groups, "contacts": contacts}, status_code=201)
         
-        @self.router.post("/upload_group_icon", response_class=HTMLResponse)
-        async def upload_group_icon(request: Request, index: str = Form(...), session_id: str = Form(...), file: UploadFile = File(...)):
+        @self.router.post("/upload_dynamic", response_class=HTMLResponse)
+        async def upload_dynamic(request: Request, index: str = Form(...), file: UploadFile = File(...)):
             if request.headers.get('origin') != self.client_server_origin:
                 raise HTTPException(status_code=403, detail="Access forbidden.")
             if file.content_type.startswith("image/"):
@@ -249,27 +299,12 @@ class Clientinterface:
                     if image.mode in ('RGBA', 'LA'): image = image.covert('RGB')
                     image.save(save_to, 'JPEG', quality=100)
                 except:
-                    return JSONResponse(content={}, status_code=201)
-                image_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Dynamic/{filename}"
-                status = await self.dmp.save_dynamic(image_url, save_to, session_id, self.dmp.id())
-                if not status: return JSONResponse(content={"success": False}, status_code=201)
-                return JSONResponse(content={"url": image_url}, status_code=201) #Implement auto-clear for unused images!
-            return JSONResponse(content={"success": False}, status_code=201)
-        
-        @self.router.post("/group_icon_set", response_class=HTMLResponse)
-        async def group_icon_set(request: Request, session_id: int = Form(...), set_path: str = Form(...)):
-            if request.headers.get('origin') != self.client_server_origin:
-                raise HTTPException(status_code=403, detail="Access forbidden.")
-            dynamic_files = await self.dmp.fetch_dynamic_by_session_id(session_id, set_path)
-            if dynamic_files != False:
-                try:
-                    for dynamic in dynamic_files:
-                        os.remove(dynamic.inner_path)
-                        await self.dmp.delete_dynamic(dynamic.id)
-                except:
                     return JSONResponse(content={"success": False}, status_code=201)
-            else: return JSONResponse(content={"success": False}, status_code=201)
-            return JSONResponse(content={"success": True}, status_code=201)
+                image_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Dynamic/{filename}"
+                status = await self.dmp.save_dynamic(image_url, index, save_to, self.dmp.id())
+                if not status: return JSONResponse(content={"success": False}, status_code=201)
+                return JSONResponse(content={"url": image_url}, status_code=201)
+            return JSONResponse(content={"success": False}, status_code=201)
         
         @self.router.post("/upload_attachement", response_class=HTMLResponse)
         async def upload_attachement(request: Request, index: str = Form(...), channel_id: str = Form(...), file: UploadFile = File(...)):

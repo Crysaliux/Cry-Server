@@ -160,12 +160,12 @@ class Dynamic(Base):
     __tablename__ = "dynamic"
     
     path: Mapped[str] = mapped_column(String(50))
+    index: Mapped[str] = mapped_column(String(50))
     inner_path: Mapped[str] = mapped_column(String(50))
-    session_id: Mapped[str] = mapped_column(String(50))
     id: Mapped[int] = mapped_column(primary_key=True)
 
     def __repr__(self) -> str:
-        return f"Dynamic(path={self.path!r}, inner_path={self.inner_path!r}, session_id={self.session_id!r}, id={self.id!r})"
+        return f"Dynamic(path={self.path!r}, index={self.index!r}, inner_path={self.inner_path!r}, id={self.id!r})"
 
     
 class DMP:
@@ -411,19 +411,23 @@ class DMP:
     clear_dynamic
     """
 
-    async def save_dynamic(self, path: str, inner_path: str, session_id: int, id: int):
+    async def save_dynamic(self, path: str, index: str, inner_path: str, id: int):
         try:
+            dynamic_fetch = select(Dynamic).where(Dynamic.index == index) 
             async with self.session() as session:
                 async with session.begin():
-                    create_query = Dynamic(path=path, inner_path=inner_path, session_id=session_id, id=id)
-                    session.add(create_query)
-                    await session.commit()
+                    dynamic = await session.execute(dynamic_fetch)
+                    dynamic = dynamic.scalars().first()
+                    if dynamic is None:
+                        create_query = Dynamic(path=path, index=index, inner_path=inner_path, id=id)
+                        session.add(create_query)
+                        await session.commit()
             return True
         except: return False
     
-    async def delete_dynamic(self, id: int):
+    async def delete_dynamic(self, path: str):
         try:
-            dynamic_delete = delete(Dynamic).where(Dynamic.id == id)
+            dynamic_delete = delete(Dynamic).where(Dynamic.path == path)
             async with self.session() as session:
                 async with session.begin():
                     await session.execute(dynamic_delete)
