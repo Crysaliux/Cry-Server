@@ -21,8 +21,8 @@ const ActionBarView: React.FC = () => {
             image_select_path: null,
             submit_colour: '',
             fields: [ 
-                { "type": "field", "index": "name", "header": "What should we call it?", "input_length": "short", "input": '' },
-                { "type": "field", "index": "desc", "header": "How would you describe it?", "input_length": "long", "input": '' },
+                { "type": "field", "index": "name", "header": "What should we call it?", "input_length": "short", "input": '', "display": true },
+                { "type": "field", "index": "desc", "header": "How would you describe it?", "input_length": "long", "input": '', "display": true },
             ] as Field[]
         };
         context_data.current_modal.current = NewModal;

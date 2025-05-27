@@ -40,9 +40,25 @@ class Client(Base):
     privates: Mapped[List["Channel"]] = relationship("Channel", back_populates="client", foreign_keys="Channel.client_id")
     blocked: Mapped[List["Block"]] = relationship("Block", back_populates="client", foreign_keys="Block.client_id")
     co_privates: Mapped[List["Channel"]] = relationship("Channel", back_populates="co_client", foreign_keys="Channel.co_client_id")
+    pending_friend_requests: Mapped[List["FriendRequest"]] = relationship("FriendRequest", back_populates="co_client", foreign_keys="FriendRequest.co_client_id")
+    sent_friend_requests: Mapped[List["FriendRequest"]] = relationship("FriendRequest", back_populates="client", foreign_keys="FriendRequest.client_id")
 
     def __repr__(self) -> str:
         return f"Client(username={self.username!r}, email={self.email!r}, password={self.password!r}, bio={self.bio!r}, icon_path={self.icon_path!r}, id={self.id!r})"
+    
+class FriendRequest(Base):
+    __tablename__ = "friend_request"
+
+    client_id: Mapped[int] = mapped_column(ForeignKey('client.id'))
+    co_client_id: Mapped[int] = mapped_column(ForeignKey('client.id'))
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    client: Mapped["Client"] = relationship("Client", back_populates="pending_friend_requests", foreign_keys=[client_id])
+    co_client: Mapped["Client"] = relationship("Client", back_populates="sent_friend_requests", foreign_keys=[co_client_id])
+
+    def __repr__(self) -> str:
+        return f"Block(blocked_client_id={self.blocked_client_id!r}, id={self.id!r})"
     
 class Block(Base):
     __tablename__ = "block"
@@ -133,7 +149,7 @@ class Message(Base):
 
     content: Mapped[str] = mapped_column(String(1024))
     sent_at: Mapped[datetime] = mapped_column(default=func.now())
-    id : Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     channel: Mapped["Channel"] = relationship("Channel", back_populates="messages", foreign_keys=[channel_id])
     client: Mapped["Client"] = relationship("Client", back_populates="messages", foreign_keys=[client_id])
@@ -232,6 +248,33 @@ class DMP:
                         await session.commit()
                         blocked = True
             return blocked
+        except: return False
+
+    """
+    create_friend_request
+    delete_friend_request
+    """
+
+    async def create_friend_request(self, id: int, client_id: int, co_client_id: int):
+        try:
+            async with self.session() as session:
+                async with session.begin():
+                    create_query = FriendRequest(client_id=client_id, co_client_id=co_client_id, id=id)
+                    session.add(create_query)
+                    await session.commit()
+            return True
+        except: return False
+
+    async def delete_friend_request(self, id: int):
+        try:
+            deleted = False
+            friend_request_delete = delete(FriendRequest).where(FriendRequest.id == id).returning(FriendRequest.id)
+            async with self.session() as session:
+                async with session.begin():
+                    check_id = await session.execute(friend_request_delete)
+                    if check_id == id:
+                        deleted = True
+            return deleted
         except: return False
 
     """
@@ -437,6 +480,7 @@ class DMP:
     """
     fetch_client_by_mail
     fetch_client_by_id
+    fetch_client_by_username
     fetch_group_by_id
     fetch_channel_by_id
     fetch_message_by_id
@@ -461,6 +505,21 @@ class DMP:
                                                  selectinload(Client.privates),
                                                  selectinload(Client.co_privates)
                                             ).where(Client.id == id)
+            async with self.session() as session:
+                async with session.begin():
+                    client = await session.execute(fetch_query)
+                    client = client.scalars().first()
+            return client
+        except: return False
+
+    async def fetch_client_by_username(self, username: str):
+        try:
+            fetch_query = select(Client).options(selectinload(Client.groups),
+                                                 selectinload(Client.roles),
+                                                 selectinload(Client.blocked),
+                                                 selectinload(Client.privates),
+                                                 selectinload(Client.co_privates)
+                                            ).where(Client.username == username)
             async with self.session() as session:
                 async with session.begin():
                     client = await session.execute(fetch_query)

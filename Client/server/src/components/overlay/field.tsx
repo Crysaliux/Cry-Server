@@ -9,4 +9,5 @@ export interface Field {
     header: string;
     input_length: string; // short / long
     input: string;
+    display: boolean;
 }

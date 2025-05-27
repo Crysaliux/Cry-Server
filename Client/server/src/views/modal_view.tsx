@@ -3,6 +3,7 @@ import { customAlphabet } from "nanoid";
 import { GlobalContext } from '../services/global_manager';
 import { ListenerHatch } from "../services/listener";
 import { Modal } from "../components/overlay/modal";
+import { Field } from "../components/overlay/field";
 import '../static/client_interface.css';
 
 interface APIResponse {
@@ -26,9 +27,12 @@ const ModalView: React.FC = () => {
     }
     const ModalImageReference = useRef<HTMLInputElement>(null);
     const version = useRef(0);
+    const display_fields = useRef<Field[] | null>(null);
     const id_gen = customAlphabet('123456789', 16);
 
     if (ModalReference.current) {
+        display_fields.current = ModalReference.current.fields.filter(field => field.display === true);
+
         if (ModalReference.current.submit_colour !== '') {
             submit_button_colour.current = ModalReference.current.submit_colour;
         } else {
@@ -102,7 +106,7 @@ const ModalView: React.FC = () => {
         }
     };
 
-    if (ModalReference.current && context_data.modal_display_status) {
+    if (ModalReference.current && context_data.modal_display_status && display_fields.current) {
         return (
             <>  
                 <div className="modal border" id={ModalReference.current.index}>
@@ -113,7 +117,7 @@ const ModalView: React.FC = () => {
                         </div>
                         : null
                     }
-                    {ModalReference.current.fields.map(field => (
+                    {display_fields.current.map(field => (
                         <div className="modal_input" key={field.index}>
                             <div className="input_info medium nocopy">{field.header}</div>
                             <textarea maxLength={EvaluateInputlength(field.input_length)} className='modal_input_field' onChange={OnFieldChange} data-index={field.index}></textarea>

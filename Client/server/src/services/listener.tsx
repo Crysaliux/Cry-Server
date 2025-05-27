@@ -7,8 +7,9 @@ import { Channel, ToRemoveChannel } from "../components/interface/channels";
 import { Message, ToRemoveMessage } from "../components/interface/messages";
 import { Member } from "../components/interface/members";
 import { Modal, ModalStatus } from "../components/overlay/modal";
+import { FriendRequest } from "../components/interface/friend_requests";
 
-type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | ModalStatus;
+type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | ModalStatus | FriendRequest;
 type ClientRequestData = ToRequestGroupMembers | Modal;
 
 interface ListenerProperties {
@@ -113,6 +114,13 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                     case 'group_load_members':
                         if (context_data.current_group_id.current === data.id) {
                             context_data.SetCurrentGroupMembers(data.members as Member[]);
+                        }
+                        break;
+
+                    case 'friend_request':
+                        const check_friend_request = context_data.friend_requests.some(friend_request => friend_request.client_id === data.client_id);
+                        if (!check_friend_request) {
+                            context_data.SetFriendRequests(previous => [...previous, data as FriendRequest]);
                         }
                         break;
 

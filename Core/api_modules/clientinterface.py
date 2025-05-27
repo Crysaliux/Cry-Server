@@ -59,6 +59,11 @@ import os
     header: string;
     input_length: string; // short / long
     input: string;
+
+    type: 'friend_request';
+    id: number | string;
+    client_id: number | string;
+    client_name: string;
 """
 
 class GrabCreds(BaseModel):
@@ -136,7 +141,7 @@ class Clientinterface:
         }
 
         self.system_modal_types = {
-            "contact": self.__on_contact,
+            "friend_request": self.__on_friend_request,
             "group": self.__on_group,
             "channel": self.__on_channel,
         }
@@ -181,7 +186,7 @@ class Clientinterface:
     async def __on_channel(self, request, client_id: int):
         id, group_id, name = int(request.id), int(next(_ for _ in request.fields if _.index == "group_id").input), next(_ for _ in request.fields if _.index == "name").input
         group = await self.dmp.fetch_group_by_id(group_id)
-        if group and group is not None:
+        if group != False and group is not None:
             status = await self.dmp.create_channel(client_id, name, id, group_id)
             if status:
                 request =  {
@@ -198,7 +203,7 @@ class Clientinterface:
     async def __on_message(self, request, client_id: int):
         id, sender_id, group_id, channel_id, sender_name, sender_icon_path, content = int(request.id), int(request.sender_id), int(request.group_id), int(request.channel_id), request.sender_name, request.sender_icon_path, request.content
         group = await self.dmp.fetch_group_by_id(group_id)
-        if group and group is not None:
+        if group != False and group is not None:
             status = await self.dmp.save_message(sender_id, group_id, channel_id, content, id)
             if status: 
                 request = {
@@ -216,26 +221,29 @@ class Clientinterface:
                 return (request, {"type": "message_creation_status", "status": True, "error": None})
             else: return {"type": "message_creation_status", "status": False, "error": "Can't send message."}
 
-    async def __on_contact(self, request, client_id: int):
-        id, co_client_id, co_client_name = int(request.id), int(next(_ for _ in request.fields if _.index == "co_client_id")), next(_ for _ in request.fields if _.index == "co_client_name")
-        status = await self.dmp.create_channel(client_id, co_client_name, id, private=True, co_client_id=co_client_id)
-        if status: 
-            request = {
-                "type": "contact",
-                "id": id,
-                "co_client_id": co_client_id,
-                "co_client_name": co_client_name,
-            }
-            request_status = await self.cmp.notify(request, co_client_id)
-            if not request_status:
-                return {"type": "modal_status", "status": False, "error": "An unexpected error occured while sending friend request."}
-            return (request, {"type": "modal_status", "status": True, "error": None})
-        else: return {"type": "modal_status", "status": False, "error": "Can't friend user."}
+    async def __on_friend_request(self, request, client_id: int):
+        id, username = int(request.id), next(_ for _ in request.fields if _.index == "username").input
+        client = await self.dmp.fetch_client_by_id(client_id)
+        co_client = await self.dmp.fetch_client_by_username(username)
+        if co_client != False:
+            if co_client is not None:
+                request = {
+                    "type": "friend_request",
+                    "id": id,
+                    "client_id": client_id,
+                    "client_name": client.name,
+                }
+                status = await self.cmp.notify(request, co_client.id, self.dmp)
+                if not status:
+                    return {"type": "modal_status", "status": False, "error": "Can't friend user."}
+                return (request, {"type": "modal_status", "status": True, "error": None})
+            else: return {"type": "modal_status", "status": False, "error": "User with such username does not exist!"}
+        else: return {"type": "modal_status", "status": False, "error": "Error occured while trying to fetch user with that username."}
 
     async def __on_group_request_members(self, request, client_id: int):
         id = int(request.id)
         group = await self.dmp.fetch_group_by_id(id)
-        if group and group is not None:
+        if group != False and group is not None:
             members = []
             for member in group.members:
                 members.append({
@@ -251,7 +259,6 @@ class Clientinterface:
                 "members": members,
             }
             return request
-
 
     def router_tasks(self):
         @self.router.websocket("/api")

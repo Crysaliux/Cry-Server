@@ -6,6 +6,7 @@ import { Message } from "../components/interface/messages";
 import { Member } from "../components/interface/members";
 import { Modal } from "../components/overlay/modal";
 import { Field } from "../components/overlay/field";
+import { FriendRequest } from "../components/interface/friend_requests";
 
 
 interface ContextGlobalProperties {
@@ -30,6 +31,8 @@ interface ContextGlobalProperties {
     SetChannels: Dispatch<SetStateAction<Channel[]>>;
     messages: Message[];
     SetMessages: Dispatch<SetStateAction<Message[]>>;
+    friend_requests: FriendRequest[];
+    SetFriendRequests: Dispatch<SetStateAction<FriendRequest[]>>;
 
     modal_display_status: boolean;
     SetModalDisplayStatus: Dispatch<SetStateAction<boolean>>;
@@ -62,6 +65,7 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
     const [groups, SetGroups] = useState<Group[]>([]);
     const [channels, SetChannels] = useState<Channel[]>([]);
     const [messages, SetMessages] = useState<Message[]>([]);
+    const [friend_requests, SetFriendRequests] = useState<FriendRequest[]>([]);
             
     const [modal_display_status, SetModalDisplayStatus] = useState<boolean>(false);
     const [modal_submit_request, SetModalSubmitRequest] = useState<Modal | null>(null);
@@ -90,6 +94,8 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
             SetChannels,
             messages, 
             SetMessages,
+            friend_requests,
+            SetFriendRequests,
 
             modal_display_status,
             SetModalDisplayStatus,

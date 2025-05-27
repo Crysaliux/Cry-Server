@@ -22,12 +22,14 @@ class CMP:
                     await self.active_connections[client.id].send_json(request)
                 except: pass
     
-    async def notify(self, request, id: int):
+    async def notify(self, request, id: int, dmp):
         async with self.proc_lock:
             try:
                 await self.active_connections[id].send_json(request)
                 return True
-            except: return False
+            except:
+                status = await dmp.create_friend_request(request["id"], request["client_id"], id)
+                return status
 
     async def fetch_status(self, id: int):
         async with self.proc_lock:

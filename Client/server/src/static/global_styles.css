@@ -2,6 +2,12 @@
 FONT STYLES
 */
 
+* {
+    font-family: "Special Gothic", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
 .big {
     color: white;
     font-size: 130%;
@@ -14,7 +20,7 @@ FONT STYLES
 
 .small {
     color: white;
-    font-size: 100%;
+    font-size: 110%;
 }
 
 /*
@@ -29,6 +35,27 @@ EXTRA
 }
 
 /*
+BUTTONS
+*/
+
+.button {
+    height: 30px;
+    width: auto;
+    padding: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    border-radius: 5px;
+}
+
+.button:focus, .button:active {
+    outline: none;
+}
+
+/*
 BUTTON STYLES
 */
 
@@ -37,11 +64,12 @@ BUTTON STYLES
 }
 
 .blue_clicked {
-    background-color: rgba(0, 0, 255, 0.5);
+    background-color: rgba(0, 0, 255, 0.8);
 }
 
 .blue:hover {
-    background-color: rgba(0, 0, 255, 0.5);
+    background-color: rgba(0, 0, 255, 0.8);
+    cursor: pointer;
 }
 
 .red {
@@ -49,11 +77,12 @@ BUTTON STYLES
 }
 
 .red_clicked {
-    background-color: (255, 0, 0, 0.5);
+    background-color: (255, 0, 0, 0.8);
 }
 
 .red:hover {
-    background-color: (255, 0, 0, 0.5);
+    background-color: (255, 0, 0, 0.8);
+    cursor: pointer;
 }
 
 .white {
@@ -61,11 +90,12 @@ BUTTON STYLES
 }
 
 .white_clicked {
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.8);
 }
 
 .white:hover {
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
 }
 
 .green {
@@ -73,11 +103,12 @@ BUTTON STYLES
 }
 
 .green_clicked {
-    background-color: rgba(0, 128, 0, 0.5);
+    background-color: rgba(0, 128, 0, 0.8);
 }
 
 .green:hover {
-    background-color: rgba(0, 128, 0, 0.5);
+    background-color: rgba(0, 128, 0, 0.8);
+    cursor: pointer;
 }
 
 .grey {
@@ -85,11 +116,12 @@ BUTTON STYLES
 }
 
 .grey_clicked {
-    background-color: rgba(128, 128, 128, 0.5);
+    background-color: rgba(128, 128, 128, 0.8);
 }
 
 .grey:hover {
-    background-color: rgba(128, 128, 128, 0.5);
+    background-color: rgba(128, 128, 128, 0.8);
+    cursor: pointer;
 }
 
 .underlined {
@@ -99,7 +131,21 @@ BUTTON STYLES
 }
 
 .underlined:hover {
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+
+.transparent {
+    background: transparent;
+}
+
+.transparent:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+}
+
+.transparent_clicked {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 /*

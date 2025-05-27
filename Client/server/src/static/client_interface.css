@@ -125,13 +125,24 @@ HEADER WIDGETS
     grid-column-start: 2;
     grid-column-end: 6;
     grid-row-start: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     height: 100%;
 }
 
-#header-channelinfo-friends-widget {
+#header-channelinfo-contacts-widget {
     grid-column-start: 6;
     grid-column-end: 23;
     grid-row-start: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    padding: 20px;
+    overflow: hidden;
+    box-sizing: border-box;
     height: 100%;
 }
 
@@ -145,6 +156,11 @@ HEADER WIDGETS
 /*
 GROUPS
 */
+
+#group-info-widget {
+    height: 100%;
+    width: 100%;
+}
 
 .group {
     height: 45px;
@@ -460,6 +476,14 @@ MODALS
     border-radius: 5px;
 }
 
+.modal_input_field::-webkit-scrollbar {
+    width: 0;
+}
+
+.modal_input_field {
+    scrollbar-width: none;
+}
+
 .modal_choice {
     width: 90%;
     display: flex;
@@ -518,17 +542,4 @@ ERROR OVERLAY
 
 #error-ok-button {
     width: 100%;
-}
-
-/*
-BUTTONS
-*/
-
-.button {
-    height: 30px;
-    width: auto;
-    padding: 5px;
-    box-sizing: border-box;
-    border: none;
-    border-radius: 5px;
 }
