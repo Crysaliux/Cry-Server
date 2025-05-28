@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { GlobalContext } from '../services/global_manager';
+import { GlobalContext } from 'services/global_manager';
 
 const ContactsActionBarView: React.FC = () => {
     const context_data = useContext(GlobalContext);

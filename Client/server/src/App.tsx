@@ -2,17 +2,46 @@ import React, { useState, createContext, Dispatch, SetStateAction, useMemo } fro
 import { Routes, Route, BrowserRouter, useNavigate, Outlet } from 'react-router-dom';
 import { ContextManager } from './services/global_manager';
 import { Listener } from './services/listener';
-import GroupLayout from './views/layouts/group_layout';
-import ContactsLayout from './views/layouts/contacts_layout';
-import ChannelNameView from './views/channel_name_view';
-import ChannelView from './views/channel_view';
-import ModalView from './views/modal_view';
-import GroupsView from './views/groups_view';
-import ActionBarView from './views/action_bar_view';
-import ErrorView from './views/error_view';
+import ChannelsLayout from './layouts/widgets/channels_widget/channels_layout';
+import ChatLayout from './layouts/widgets/chat_widget/chat_layout';
+//import ConntactsLayout from './layouts/widgets/contacts_widget/contacts_layout';
+import GroupsLayout from './layouts/widgets/groups_widget/groups_layout';
+import HeaderLayout from './layouts/widgets/header_widget/header_layout';
+import MembersLayout from './layouts/widgets/members_widget/members_layout';
+import OverlayLayout from './layouts/widgets/overlay_widget/overlay_layout';
 import './static/client_interface.css';
 import './static/global_styles.css';
 
+interface GlobalLayoutInterface {
+    to_load: string;
+}
+
+const GlobalLayout: React.FC<GlobalLayoutInterface> = ({ to_load }) => {
+    switch(to_load) {
+        case 'group':
+            return (
+                    <>
+                        <OverlayLayout />
+                        <div id="widgets">
+                            <GroupsLayout />
+                            <Outlet />
+                            <ChannelsLayout />
+                            <MembersLayout />
+                        </div>
+                    </>
+            );
+        case 'contacts':
+            return (
+                    <>
+                        <OverlayLayout />
+                        <div id="widgets">
+                            <GroupsLayout />
+                            <Outlet />
+                        </div>
+                    </>
+            );
+    }
+};
 
 const App: React.FC = () => {
     //element={<ContactView />}
@@ -27,33 +56,15 @@ const App: React.FC = () => {
             <BrowserRouter>
                 <Listener>
                     <div id="container">
-                        <ErrorView />
-                        <ModalView />
-
-                        <div id="widgets">
-
-                            <div id="groups-widget" className="widget">
-                                <GroupsView />
-                                <div id="groups-widget-action-bar">
-                                    <ActionBarView />
-                                </div>
-                            </div>
-
-                            <Routes>
-                                <Route path="/group/:group_id" element={<GroupLayout />}>
-                                    <Route path="/group/:group_id/:channel_id" element={<ChannelNameView />} />
-                                    <Route path="/group/:group_id/:channel_id" element={<ChannelView />} />
-                                </Route>
-                                <Route path="/" element={<ContactsLayout />}>
-                                    <Route path="/:contact_id" />
-                                </Route>
-                            </Routes>
-
-                            <div id="member-info-popup-widget" className="popup-widget"></div>
-                            <div id="client-info-popup-widget" className="popup-widget"></div>
-                            <div id="channel-settings-popup-widget" className="popup-widget"></div>
-                            <div id="group-settings-popup-widget" className="popup-widget"></div>
-                        </div>
+                        <Routes>
+                            <Route path="/" element={<GlobalLayout to_load='contacts' />}>
+                                <Route index element={<HeaderLayout to_load='contacts' />} />
+                            </Route>
+                            <Route path="/group/:group_id" element={<GlobalLayout to_load='group' />}>
+                                <Route index element={<HeaderLayout to_load='group' />} />
+                                <Route path=":channel_id" element={<ChatLayout />} />
+                            </Route>
+                        </Routes>
                     </div>
                 </Listener>
             </BrowserRouter>

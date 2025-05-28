@@ -1,7 +1,6 @@
 import React, { Dispatch, SetStateAction, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { GlobalContext } from '../services/global_manager';
-import '../static/client_interface.css';
+import { GlobalContext } from "services/global_manager";
 
 const ChannelsView: React.FC = () => {
     const group_id = useParams<{ group_id: string}>();

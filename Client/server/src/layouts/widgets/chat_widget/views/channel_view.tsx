@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { GlobalContext } from '../services/global_manager';
-import { Message } from "../components/interface/messages";
-import '../static/client_interface.css';
+import { GlobalContext } from 'services/global_manager';
+import { Message } from 'components/interface/messages';
 
 const ChannelView: React.FC = () => {
     const { group_id, channel_id } = useParams<{ group_id: string, channel_id: string}>();
@@ -18,7 +17,7 @@ const ChannelView: React.FC = () => {
     const IncreaseSize = () => {
         if (InputReference.current) {
             InputReference.current.style.height = 'auto';
-            InputReference.current.style.height = `${InputReference.current.scrollHeight}px`
+            InputReference.current.style.height = `${InputReference.current.scrollHeight}px`;
         }
     };
 

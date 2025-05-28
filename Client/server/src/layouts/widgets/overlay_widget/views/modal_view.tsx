@@ -1,10 +1,9 @@
 import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
 import { customAlphabet } from "nanoid";
-import { GlobalContext } from '../services/global_manager';
-import { ListenerHatch } from "../services/listener";
-import { Modal } from "../components/overlay/modal";
-import { Field } from "../components/overlay/field";
-import '../static/client_interface.css';
+import { GlobalContext } from 'services/global_manager';
+import { ListenerHatch } from "services/listener";
+import { Modal } from "components/overlay/modal";
+import { Field } from "components/overlay/field";
 
 interface APIResponse {
     success: boolean;

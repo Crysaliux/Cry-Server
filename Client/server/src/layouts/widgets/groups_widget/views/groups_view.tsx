@@ -1,8 +1,7 @@
 import React, { useEffect, useState, Dispatch, SetStateAction, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { GlobalContext } from '../services/global_manager';
-import { ListenerHatch } from "../services/listener";
-import '../static/client_interface.css';
+import { GlobalContext } from 'services/global_manager';
+import { ListenerHatch } from 'services/listener';
 
 const GroupsView: React.FC = () => {
     const context_data = useContext(GlobalContext);
