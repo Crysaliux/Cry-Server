@@ -10,8 +10,8 @@ const ChannelNameView: React.FC = () => {
     }
     const RelatedChannel = useRef<Channel>(undefined);
     
-    if (context_data.current_channel_id.current) {
-        RelatedChannel.current = context_data.channels.find(channel => channel.id === context_data.current_channel_id.current);
+    if (context_data.current_channel_id) {
+        RelatedChannel.current = context_data.channels.find(channel => channel.id === context_data.current_channel_id);
     }
 
     return (

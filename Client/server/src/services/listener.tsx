@@ -59,6 +59,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         const check_group = context_data.groups.some(group => group.id === data.id);
                         if (!check_group) {
                             context_data.SetGroups(previous => [...previous, data as Group]);
+                            context_data.SetCurrentGroupId(`${data.id}`);
                             navigate(`/group/${data.id}`);
                         } else {
                             context_data.SetGroups(previous => previous.map((group) => group.id === data.id ? { ...group, ...data as Partial<Group> } : group));
@@ -112,7 +113,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         break;
 
                     case 'group_load_members':
-                        if (context_data.current_group_id.current === data.id) {
+                        if (context_data.current_group_id === data.id) {
                             context_data.SetCurrentGroupMembers(data.members as Member[]);
                         }
                         break;

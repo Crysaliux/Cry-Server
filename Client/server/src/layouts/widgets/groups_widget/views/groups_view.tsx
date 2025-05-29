@@ -12,8 +12,8 @@ const GroupsView: React.FC = () => {
     const navigate = useNavigate();
 
     const HandleGroupNavigation = (id: string | number) => {
-        context_data.current_group_id.current = `${id}`;
-        listener_hatch.SendRequest({ type: 'group_request_members', id: context_data.current_group_id.current });
+        context_data.SetCurrentGroupId(`${id}`);
+        listener_hatch.SendRequest({ type: 'group_request_members', id: `${id}` });
         navigate(`/group/${id}`);
     };
 

@@ -12,7 +12,7 @@ const ChannelsView: React.FC = () => {
     const RelatedChannels = context_data.channels.filter(channel => channel.group_id === group_id);
     
     const HandleChannelNavigation = (id: string | number) => {
-        context_data.current_channel_id.current = `${id}`;
+        context_data.SetCurrentChannelId(`${id}`);
         navigate(`/${group_id}/${id}`);
     };
 

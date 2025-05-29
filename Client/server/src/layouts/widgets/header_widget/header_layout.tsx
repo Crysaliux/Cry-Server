@@ -17,16 +17,16 @@ const HeaderLayout: React.FC<HeaderLayoutInterface> = ({ to_load }) => {
                     <div id="header-support-widget" className="widget">
         
                     </div>
-                <div id="header-group-addfriend-widget" className="widget">
-                    <GroupInfoView />
+                    <div id="header-group-addfriend-widget" className="widget">
+                        <GroupInfoView />
+                    </div>
+                    <div id="header-channelinfo-contacts-widget" className="widget">
+                        <ChannelNameView />
+                    </div>
+                    <div id="header-memberstats-widget" className="widget">
+                        <MemberStatsView />
+                    </div>
                 </div>
-                <div id="header-channelinfo-contacts-widget" className="widget">
-                    <ChannelNameView />
-                </div>
-                <div id="header-memberstats-widget" className="widget">
-                    <MemberStatsView />
-                </div>
-            </div>
             );
         case 'contacts':
             return (
