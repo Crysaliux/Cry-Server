@@ -31,6 +31,7 @@ const AddFriendView: React.FC = () => {
             image_select: false,
             image_select_path: null,
             submit_colour: '',
+            submit_text: 'Add friend',
             fields: [ 
                 { "type": "field", "index": "username", "header": "Input their username", "input_length": "short", "input": '', "display": true },
             ] as Field[]

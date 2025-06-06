@@ -18,13 +18,14 @@ const ModalView: React.FC = () => {
     }
     const [modal_image_select_path, SetModalImageSelectPath] = useState<string>('');
     const index = useRef<string>(crypto.randomUUID());
-    const submit_button_colour = useRef<string | null>(null);
+    const submit_button_native_colour = useRef<string | null>(null);
 
     const ModalReference = useRef<Modal| null>(null);
     if (context_data.current_modal.current) {
         ModalReference.current = context_data.current_modal.current;
     }
     const ModalImageReference = useRef<HTMLInputElement>(null);
+    const SubmitButtonReference = useRef<HTMLButtonElement>(null);
     const version = useRef(0);
     const display_fields = useRef<Field[] | null>(null);
     const id_gen = customAlphabet('123456789', 16);
@@ -32,10 +33,13 @@ const ModalView: React.FC = () => {
     if (ModalReference.current) {
         display_fields.current = ModalReference.current.fields.filter(field => field.display === true);
 
-        if (ModalReference.current.submit_colour !== '') {
-            submit_button_colour.current = ModalReference.current.submit_colour;
-        } else {
-            submit_button_colour.current = 'blue';
+        if (SubmitButtonReference.current) {
+            if (ModalReference.current.submit_colour !== '') {
+                submit_button_native_colour.current = ModalReference.current.submit_colour;
+                SubmitButtonReference.current.className = `button ${submit_button_native_colour.current}_clicked small nocopy`;
+            } else {
+                submit_button_native_colour.current = 'blue';
+            }
         }
 
         if (ModalImageReference.current) {
@@ -49,6 +53,13 @@ const ModalView: React.FC = () => {
         if (ModalReference.current) {
             ModalReference.current.fields = ModalReference.current.fields.map(
                 field => field.index === event.target.dataset.index ? { ...field, input: event.target.value } : field);
+            if (submit_button_native_colour.current && SubmitButtonReference.current) {
+                if (ModalReference.current.fields.every(field => field.input !== '')) {
+                    SubmitButtonReference.current.className = `button ${submit_button_native_colour.current} small nocopy`;
+                } else {
+                    SubmitButtonReference.current.className = `button ${submit_button_native_colour.current}_clicked small nocopy`;
+                }
+            }
         }
     };
 
@@ -82,16 +93,11 @@ const ModalView: React.FC = () => {
     const SubmitModal = async () => {
         if (ModalReference.current) {
             if (ModalReference.current.fields.every(field => field.input !== '')) {
-                if (submit_button_colour.current) {
-                    submit_button_colour.current = `${ModalReference.current.submit_colour}_clicked`;
+                if (SubmitButtonReference.current && submit_button_native_colour.current) {
+                    SubmitButtonReference.current.className = `button ${submit_button_native_colour.current}_clicked small nocopy`;
                 }
                 ModalReference.current.id = Number(id_gen());
                 listener_hatch.SendRequest(ModalReference.current);
-            } else {
-                if (submit_button_colour.current) {
-                    submit_button_colour.current = ModalReference.current.submit_colour;
-                }
-                context_data.SetError('Hmmm you cant leave some fields blank like that');
             }
         }
     }
@@ -123,7 +129,7 @@ const ModalView: React.FC = () => {
                         </div>
                     ))}
                     <div className="modal_choice">
-                        <button className={`button ${submit_button_colour.current} small nocopy`} onClick={SubmitModal}>Create</button>
+                        <button ref={SubmitButtonReference} className="button blue_clicked small nocopy" onClick={SubmitModal}>{ModalReference.current.submit_text}</button>
                         <button className="button underlined small nocopy" onClick={() => context_data.SetModalDisplayStatus(false)}>Cancel</button>
                     </div>
                 </div>

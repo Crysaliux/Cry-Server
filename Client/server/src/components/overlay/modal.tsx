@@ -20,6 +20,7 @@ export interface Modal {
     image_select: boolean;
     image_select_path: string | null;
     submit_colour: string;
+    submit_text: string;
     fields: Field[];
 }
 
