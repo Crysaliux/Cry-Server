@@ -132,6 +132,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             } else{
                                 context_data.SetError('Looks like our servers arent responding properly, maybe try again later');
                             }
+                            context_data.current_modal_failed_attempt.current = true;
                         } else {
                             context_data.SetModalDisplayStatus(false);
                         }

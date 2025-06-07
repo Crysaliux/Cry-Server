@@ -18,33 +18,21 @@ const ModalView: React.FC = () => {
     }
     const [modal_image_select_path, SetModalImageSelectPath] = useState<string>('');
     const index = useRef<string>(crypto.randomUUID());
-    const submit_button_displayed_colour = useRef<string | null>(null);
-    const [submit_button_current_colour, SetSubmitButtonCurrentColour] = useState<string | null>(null);
 
     const ModalReference = useRef<Modal| null>(null);
     if (context_data.current_modal.current) {
         ModalReference.current = context_data.current_modal.current;
     }
+    const SubmitButtonReference = useRef<HTMLButtonElement>(null);
     const ModalImageReference = useRef<HTMLInputElement>(null);
+    const long_field_default_height = useRef<number | null>(null);
+    const long_field_first_growth_height = useRef<number | null>(null);
     const version = useRef(0);
     const display_fields = useRef<Field[] | null>(null);
     const id_gen = customAlphabet('123456789', 16);
 
-    useEffect(() => {
-        submit_button_displayed_colour.current = submit_button_current_colour;
-    }, [submit_button_current_colour])
-
     if (ModalReference.current) {
         display_fields.current = ModalReference.current.fields.filter(field => field.display === true);
-
-        if (!submit_button_current_colour) {
-            if (ModalReference.current.submit_colour !== '') {
-                submit_button_displayed_colour.current = `${ModalReference.current.submit_colour}_clicked`;
-            } else {
-                submit_button_displayed_colour.current = 'blue_clicked';
-            }
-        }
-
         if (ModalImageReference.current) {
             ModalImageReference.current.style.backgroundImage = `url(${modal_image_select_path})`;
         }
@@ -54,13 +42,37 @@ const ModalView: React.FC = () => {
 
     const OnFieldChange = async (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         if (ModalReference.current) {
+            if (long_field_default_height.current) {
+                if (!long_field_first_growth_height.current && event.target.scrollHeight > long_field_default_height.current) {
+                    long_field_first_growth_height.current = event.target.scrollHeight;
+                }
+            } else {
+                long_field_default_height.current = event.target.scrollHeight;
+            }
+
+            if (event.target.dataset.input_length === 'long') {
+                if (long_field_first_growth_height.current) {
+                    if (event.target.scrollHeight > long_field_first_growth_height.current) {
+                        event.target.style.height = 'auto';
+                        event.target.style.height = `${event.target.scrollHeight}px`;
+                    } else {
+                       event.target.style.height = `${event.target.scrollHeight}px`;
+                    }
+                } else { 
+                    event.target.style.height = `${long_field_default_height.current}px`;
+                }
+                console.log(long_field_first_growth_height.current);
+            }
             ModalReference.current.fields = ModalReference.current.fields.map(
                 field => field.index === event.target.dataset.index ? { ...field, input: event.target.value } : field);
-            if (submit_button_displayed_colour.current) {
+            if (context_data.current_modal_failed_attempt.current === true) {
+                context_data.current_modal_failed_attempt.current = false;
+            }
+            if (SubmitButtonReference.current) {
                 if (ModalReference.current.fields.every(field => field.input !== '')) {
-                    SetSubmitButtonCurrentColour(submit_button_displayed_colour.current);
+                    SubmitButtonReference.current.className = `button ${ModalReference.current.submit_colour} small nocopy`;
                 } else {
-                    SetSubmitButtonCurrentColour(`${submit_button_displayed_colour.current}_clicked`);
+                    SubmitButtonReference.current.className = `button ${ModalReference.current.submit_colour}_clicked small nocopy`;
                 }
             }
         }
@@ -95,9 +107,9 @@ const ModalView: React.FC = () => {
 
     const SubmitModal = async () => {
         if (ModalReference.current) {
-            if (ModalReference.current.fields.every(field => field.input !== '')) {
-                if (submit_button_displayed_colour.current) {
-                    SetSubmitButtonCurrentColour(`${submit_button_current_colour}_clicked`);
+            if (ModalReference.current.fields.every(field => field.input !== '') && !context_data.current_modal_failed_attempt.current) {
+                if (SubmitButtonReference.current) {
+                    SubmitButtonReference.current.className = `button ${ModalReference.current.submit_colour}_clicked small nocopy`;
                 }
                 ModalReference.current.id = Number(id_gen());
                 listener_hatch.SendRequest(ModalReference.current);
@@ -128,11 +140,11 @@ const ModalView: React.FC = () => {
                     {display_fields.current.map(field => (
                         <div className="modal_input" key={field.index}>
                             <div className="input_info medium nocopy">{field.header}</div>
-                            <textarea maxLength={EvaluateInputlength(field.input_length)} className='modal_input_field' onChange={OnFieldChange} data-index={field.index}></textarea>
+                            <textarea maxLength={EvaluateInputlength(field.input_length)} className='modal_input_field no_border' onChange={OnFieldChange} data-input_length={field.input_length} data-index={field.index}></textarea>
                         </div>
                     ))}
                     <div className="modal_choice">
-                        <button className={`button ${submit_button_displayed_colour.current} small nocopy`} onClick={SubmitModal}>{ModalReference.current.submit_text}</button>
+                        <button ref={SubmitButtonReference} className={`button ${ModalReference.current.submit_colour}_clicked small nocopy`} onClick={SubmitModal}>{ModalReference.current.submit_text}</button>
                         <button className="button underlined small nocopy" onClick={() => context_data.SetModalDisplayStatus(false)}>Cancel</button>
                     </div>
                 </div>

@@ -18,7 +18,7 @@ const ActionBarView: React.FC = () => {
             index: 'group',
             image_select: true,
             image_select_path: null,
-            submit_colour: '',
+            submit_colour: 'blue',
             submit_text: 'Create group',
             fields: [ 
                 { "type": "field", "index": "name", "header": "What should we call it?", "input_length": "short", "input": '', "display": true },

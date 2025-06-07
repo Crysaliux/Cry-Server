@@ -16,6 +16,7 @@ interface ContextGlobalProperties {
     current_channel_id: string | null;
     SetCurrentChannelId: Dispatch<SetStateAction<string | null>>;
     current_modal: RefObject<Modal | null>;
+    current_modal_failed_attempt: RefObject<boolean>;
 
     client_display_name: string | null;
     SetClientDisplayName: Dispatch<SetStateAction<string | null>>;
@@ -57,6 +58,7 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
     const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
     const [current_channel_id, SetCurrentChannelId] = useState<string | null>(null);
     const current_modal = useRef<Modal | null>(null);
+    const current_modal_failed_attempt = useRef<boolean>(false);
 
     const [client_display_name, SetClientDisplayName] = useState<string | null>(null);
     const [client_username, SetClientUsername] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
             current_channel_id,
             SetCurrentChannelId,
             current_modal,
+            current_modal_failed_attempt,
 
             client_display_name,
             SetClientDisplayName,
