@@ -471,9 +471,12 @@ MODALS
     height: 40px;
     width: 100%;
     resize: none;
-    padding: 11px;
+    padding: 7px;
     box-sizing: border-box;
+    word-wrap: break-word;
+    white-space: pre-wrap;
     border-radius: 5px;
+    background-color: black;
 }
 
 .modal_input_field::-webkit-scrollbar {

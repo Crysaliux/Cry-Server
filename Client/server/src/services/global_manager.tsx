@@ -41,8 +41,10 @@ interface ContextGlobalProperties {
     modal_submit_request: Modal | null; 
     SetModalSubmitRequest: Dispatch<SetStateAction<Modal | null>>;
     error: string | null;
-
     SetError: Dispatch<SetStateAction<string | null>>;
+
+    modal_input_field_short_length: RefObject<number>;
+    modal_input_field_long_length: RefObject<number>;
 }
 
 interface ContextManagerProperties {
@@ -74,6 +76,11 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
     const [modal_submit_request, SetModalSubmitRequest] = useState<Modal | null>(null);
             
     const [error, SetError] = useState<string | null>(null);
+
+    //GLOBAL SETTINGS
+
+    const modal_input_field_short_length = useRef<number>(32);
+    const modal_input_field_long_length = useRef<number>(256);
 
     return (
         <GlobalContext.Provider value = {{
@@ -108,7 +115,10 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
             modal_submit_request,
             SetModalSubmitRequest,
             error,
-            SetError
+            SetError,
+
+            modal_input_field_short_length,
+            modal_input_field_long_length,
         }}>
             { children }
         </GlobalContext.Provider>

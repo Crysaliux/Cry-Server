@@ -1,4 +1,5 @@
 import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
+import TextareaAutosize from "react-textarea-autosize";
 import { customAlphabet } from "nanoid";
 import { GlobalContext } from 'services/global_manager';
 import { ListenerHatch } from "services/listener";
@@ -25,8 +26,6 @@ const ModalView: React.FC = () => {
     }
     const SubmitButtonReference = useRef<HTMLButtonElement>(null);
     const ModalImageReference = useRef<HTMLInputElement>(null);
-    const long_field_default_height = useRef<number | null>(null);
-    const long_field_first_growth_height = useRef<number | null>(null);
     const version = useRef(0);
     const display_fields = useRef<Field[] | null>(null);
     const id_gen = customAlphabet('123456789', 16);
@@ -39,30 +38,12 @@ const ModalView: React.FC = () => {
     }
 
     //...group, ...data as Partial<Group>
+    //32 symbols, then overflow
+    //long - 256
+    //short - 32
 
     const OnFieldChange = async (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         if (ModalReference.current) {
-            if (long_field_default_height.current) {
-                if (!long_field_first_growth_height.current && event.target.scrollHeight > long_field_default_height.current) {
-                    long_field_first_growth_height.current = event.target.scrollHeight;
-                }
-            } else {
-                long_field_default_height.current = event.target.scrollHeight;
-            }
-
-            if (event.target.dataset.input_length === 'long') {
-                if (long_field_first_growth_height.current) {
-                    if (event.target.scrollHeight > long_field_first_growth_height.current) {
-                        event.target.style.height = 'auto';
-                        event.target.style.height = `${event.target.scrollHeight}px`;
-                    } else {
-                       event.target.style.height = `${event.target.scrollHeight}px`;
-                    }
-                } else { 
-                    event.target.style.height = `${long_field_default_height.current}px`;
-                }
-                console.log(long_field_first_growth_height.current);
-            }
             ModalReference.current.fields = ModalReference.current.fields.map(
                 field => field.index === event.target.dataset.index ? { ...field, input: event.target.value } : field);
             if (context_data.current_modal_failed_attempt.current === true) {
@@ -117,12 +98,20 @@ const ModalView: React.FC = () => {
         }
     }
 
-    const EvaluateInputlength = (length: string) => {
+    const FieldEvaluator = (length: string, index: string) => {
         switch(length) {
             case 'long':
-                return 300;
+                return (
+                    <>
+                        <TextareaAutosize minRows={1} maxLength={context_data.modal_input_field_long_length.current} className='modal_input_field no_border small' onChange={OnFieldChange} data-input_length={length} data-index={index}></TextareaAutosize>
+                    </>
+                );
             case 'short':
-                return 30;
+                return (
+                    <>
+                        <TextareaAutosize style={{textAlign: 'center'}} minRows={1} maxRows={1} maxLength={context_data.modal_input_field_short_length.current} className='modal_input_field no_border small' onChange={OnFieldChange} data-input_length={length} data-index={index}></TextareaAutosize>
+                    </>
+                );
         }
     };
 
@@ -140,7 +129,7 @@ const ModalView: React.FC = () => {
                     {display_fields.current.map(field => (
                         <div className="modal_input" key={field.index}>
                             <div className="input_info medium nocopy">{field.header}</div>
-                            <textarea maxLength={EvaluateInputlength(field.input_length)} className='modal_input_field no_border' onChange={OnFieldChange} data-input_length={field.input_length} data-index={field.index}></textarea>
+                            { FieldEvaluator(field.input_length, field.index) }
                         </div>
                     ))}
                     <div className="modal_choice">
