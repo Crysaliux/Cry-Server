@@ -1,6 +1,6 @@
 export interface FriendRequest {
     type: 'friend_request';
-    id: number | string;
-    client_id: number | string;
+    id: number;
+    client_id: number;
     client_name: string;
 }

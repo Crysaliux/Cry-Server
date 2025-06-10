@@ -1,7 +1,7 @@
 export interface Contact {
     type: 'contact';
-    id: number | string;
-    co_client_id: number | string;
+    id: number;
+    co_client_id: number;
     co_client_name: string;
 }
 
@@ -9,7 +9,7 @@ export interface Contact {
 
 export interface ToRemoveContact {
     type: 'contact_remove';
-    id: number | string;
+    id: number;
 }
 
 export interface ContactCreationStatus {

@@ -132,6 +132,18 @@ HEADER WIDGETS
     height: 100%;
 }
 
+/*
+header-group-addfriend-widget:
+- group-info-widget
+*/
+
+#group-info-widget {
+    width: 100%;
+    height: 100%;
+    align-content: center;
+    justify-items: center;
+}
+
 #header-channelinfo-contacts-widget {
     grid-column-start: 6;
     grid-column-end: 23;
@@ -386,12 +398,46 @@ POPUP WIDGETS
     display: none;
 }
 
-#channel-settings-popup-widget {
+#channel-action-menu-popup-widget {
     display: none;
 }
 
-#group-settings-popup-widget {
-    display: none;
+#group-action-menu-popup-widget {
+    width: 100px;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/*
+group-action-menu-popup-widget options
+*/
+
+.group_action_menu_option {
+    width: 100%;
+    height: 20px;
+    display: flex;
+    flex-direction: row;
+}
+
+.group_action_menu_option:hover {
+    cursor: pointer;
+}
+
+.group_action_menu_option_name {
+    width: 80px;
+    height: 100%;
+}
+
+.group_action_menu_option_icon {
+    width: 20px;
+    height: 20px;
+}
+
+.group_action_menu_option_icon img {
+    width: 100%;
+    height: 100%;
+    position: relative;
 }
 
 /*

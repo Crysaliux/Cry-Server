@@ -59,7 +59,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         const check_group = context_data.groups.some(group => group.id === data.id);
                         if (!check_group) {
                             context_data.SetGroups(previous => [...previous, data as Group]);
-                            context_data.SetCurrentGroupId(`${data.id}`);
+                            context_data.SetCurrentGroupId(data.id);
                             navigate(`/group/${data.id}`);
                         } else {
                             context_data.SetGroups(previous => previous.map((group) => group.id === data.id ? { ...group, ...data as Partial<Group> } : group));

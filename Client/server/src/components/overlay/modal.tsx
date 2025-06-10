@@ -15,7 +15,7 @@ ModalResponse indexes:
 
 export interface Modal {
     type: 'modal';
-    id: number | string | null;
+    id: number | null;
     index: string;
     image_select: boolean;
     image_select_path: string | null;

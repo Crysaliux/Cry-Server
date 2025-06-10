@@ -1,9 +1,9 @@
 export interface Message {
     type: 'message';
-    id: number | string;
-    sender_id: number | string;
-    group_id: number | string;
-    channel_id: number | string;
+    id: number;
+    sender_id: number;
+    group_id: number;
+    channel_id: number;
     sender_name: string;
     sender_icon_path: string;
     content: string;
@@ -14,7 +14,7 @@ export interface Message {
 
 export interface ToRemoveMessage {
     type: 'message_remove';
-    id: number | string;
+    id: number;
 }
 
 export interface MessageCreationStatus {

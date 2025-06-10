@@ -1,8 +1,8 @@
 export interface Channel {
     type: 'channel';
-    id: number | string;
-    creator_id: number | string;
-    group_id: number | string;
+    id: number;
+    creator_id: number;
+    group_id: number;
     name: string;
 }
 
@@ -10,7 +10,7 @@ export interface Channel {
 
 export interface ToRemoveChannel {
     type: 'channel_remove';
-    id: number | string;
+    id: number;
 }
 
 /*

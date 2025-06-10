@@ -2,8 +2,8 @@ import { Member } from "./members";
 
 export interface Group {
     type: 'group';
-    id: number | string;
-    owner_id: number | string;
+    id: number;
+    owner_id: number;
     icon_path: string;
     name: string;
     desc: string;
@@ -13,12 +13,12 @@ export interface Group {
 
 export interface ToRemoveGroup {
     type: 'group_remove';
-    id: number | string;
+    id: number;
 }
 
 export interface ToLoadGroupMembers {
     type: 'group_load_members';
-    id: number | string;
+    id: number;
     members: Member[];
 }
 
@@ -26,7 +26,7 @@ export interface ToLoadGroupMembers {
 
 export interface ToRequestGroupMembers {
     type: 'group_request_members';
-    id: number | string;
+    id: number;
 }
 
 /*

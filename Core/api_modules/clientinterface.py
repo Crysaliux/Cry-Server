@@ -79,7 +79,7 @@ class Field(BaseModel):
 
 class Modal(BaseModel):
     type: Literal['modal']
-    id: Union[int, str, None]
+    id: Union[int, None]
     index: str
     image_select: bool
     image_select_path: Union[str, None]
@@ -89,9 +89,9 @@ class Modal(BaseModel):
 class Message(BaseModel):
     type: Literal['message']
     id: Union[int, str]
-    sender_id: Union[int, str]
-    group_id: Union[int, str]
-    channel_id: Union[int, str]
+    sender_id: int
+    group_id: int
+    channel_id: int
     sender_name: str
     sender_icon_path: str
     content: str
@@ -99,7 +99,7 @@ class Message(BaseModel):
 
 class GroupRequestMembers(BaseModel):
     type: Literal['group_request_members']
-    id: Union[int, str]
+    id: int
 
 ClientRequest = Annotated[Union[Modal, Message, GroupRequestMembers], _type(discriminator='type')]
 
@@ -171,7 +171,7 @@ class Clientinterface:
         return response
 
     async def __on_group(self, request, client_id: int):
-        id, image_select_path, name, desc = int(request.id), request.image_select_path, next(_ for _ in request.fields if _.index == "name").input, next(_ for _ in request.fields if _.index == "desc").input
+        id, image_select_path, name, desc = request.id, request.image_select_path, next(_ for _ in request.fields if _.index == "name").input, next(_ for _ in request.fields if _.index == "desc").input
         status = await self.dmp.create_group(name, client_id, id // 200, image_select_path, desc) # // for test only!
         if status: return ({
             "type": "group",
@@ -184,7 +184,7 @@ class Clientinterface:
         else: return {"type": "modal_status", "status": False, "error": "Can't create group"}
     
     async def __on_channel(self, request, client_id: int):
-        id, group_id, name = int(request.id), int(next(_ for _ in request.fields if _.index == "group_id").input), next(_ for _ in request.fields if _.index == "name").input
+        id, group_id, name = request.id, next(_ for _ in request.fields if _.index == "group_id").input, next(_ for _ in request.fields if _.index == "name").input
         group = await self.dmp.fetch_group_by_id(group_id)
         if group != False and group is not None:
             status = await self.dmp.create_channel(client_id, name, id, group_id)
@@ -201,7 +201,7 @@ class Clientinterface:
             else: return {"type": "modal_status", "status": False, "error": "Can't create channel"}
 
     async def __on_message(self, request, client_id: int):
-        id, sender_id, group_id, channel_id, sender_name, sender_icon_path, content = int(request.id), int(request.sender_id), int(request.group_id), int(request.channel_id), request.sender_name, request.sender_icon_path, request.content
+        id, sender_id, group_id, channel_id, sender_name, sender_icon_path, content = request.id, request.sender_id, request.group_id, request.channel_id, request.sender_name, request.sender_icon_path, request.content
         group = await self.dmp.fetch_group_by_id(group_id)
         if group != False and group is not None:
             status = await self.dmp.save_message(sender_id, group_id, channel_id, content, id)
@@ -222,7 +222,7 @@ class Clientinterface:
             else: return {"type": "message_creation_status", "status": False, "error": "Can't send message."}
 
     async def __on_friend_request(self, request, client_id: int):
-        id, username = int(request.id), next(_ for _ in request.fields if _.index == "username").input
+        id, username = request.id, next(_ for _ in request.fields if _.index == "username").input
         client = await self.dmp.fetch_client_by_id(client_id)
         co_client = await self.dmp.fetch_client_by_username(username)
         if co_client != False:
@@ -241,7 +241,7 @@ class Clientinterface:
         else: return {"type": "modal_status", "status": False, "error": "Error occured while trying to fetch user with that username."}
 
     async def __on_group_request_members(self, request, client_id: int):
-        id = int(request.id)
+        id = request.id
         group = await self.dmp.fetch_group_by_id(id)
         if group != False and group is not None:
             members = []

@@ -1,6 +1,6 @@
 export interface Member {
     type: 'member';
-    id: number | string;
+    id: number;
     name: string;
     icon_path: string;
     status: string;
@@ -10,7 +10,7 @@ export interface Member {
 
 export interface ToRemoveMember {
     type: 'member_remove';
-    id: number | string;
+    id: number;
 }
 
 /*

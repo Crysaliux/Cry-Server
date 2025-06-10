@@ -11,10 +11,10 @@ import { FriendRequest } from "components/interface/friend_requests";
 interface ContextGlobalProperties {
     listener_addr: RefObject<string>;
     client_id: RefObject<number | null>;
-    current_group_id: string | null;
-    SetCurrentGroupId: Dispatch<SetStateAction<string | null>>;
-    current_channel_id: string | null;
-    SetCurrentChannelId: Dispatch<SetStateAction<string | null>>;
+    current_group_id: number | undefined;
+    SetCurrentGroupId: Dispatch<SetStateAction<number | undefined>>;
+    current_channel_id: number | undefined;
+    SetCurrentChannelId: Dispatch<SetStateAction<number | undefined>>;
     current_modal: RefObject<Modal | null>;
     current_modal_failed_attempt: RefObject<boolean>;
 
@@ -42,6 +42,8 @@ interface ContextGlobalProperties {
     SetModalSubmitRequest: Dispatch<SetStateAction<Modal | null>>;
     error: string | null;
     SetError: Dispatch<SetStateAction<string | null>>;
+    group_action_menu_display_status: boolean;
+    SetGroupActionMenuDisplayStatus: Dispatch<SetStateAction<boolean>>;
 
     modal_input_field_short_length: RefObject<number>;
     modal_input_field_long_length: RefObject<number>;
@@ -57,8 +59,8 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
     //GLOBAL PROPERTIES/REFERENCES
     const listener_addr = useRef<string>('ws://localhost:8080/client/api');
     const client_id = useRef<number | null>(1234);
-    const [current_group_id, SetCurrentGroupId] = useState<string | null>(null);
-    const [current_channel_id, SetCurrentChannelId] = useState<string | null>(null);
+    const [current_group_id, SetCurrentGroupId] = useState<number | undefined>(undefined);
+    const [current_channel_id, SetCurrentChannelId] = useState<number | undefined>(undefined);
     const current_modal = useRef<Modal | null>(null);
     const current_modal_failed_attempt = useRef<boolean>(false);
 
@@ -76,6 +78,7 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
     const [modal_submit_request, SetModalSubmitRequest] = useState<Modal | null>(null);
             
     const [error, SetError] = useState<string | null>(null);
+    const [group_action_menu_display_status, SetGroupActionMenuDisplayStatus] = useState<boolean>(false);
 
     //GLOBAL SETTINGS
 
@@ -116,6 +119,8 @@ export const ContextManager: React.FC<ContextManagerProperties> = memo(({ childr
             SetModalSubmitRequest,
             error,
             SetError,
+            group_action_menu_display_status,
+            SetGroupActionMenuDisplayStatus,
 
             modal_input_field_short_length,
             modal_input_field_long_length,
