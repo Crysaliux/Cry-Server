@@ -13,14 +13,16 @@ const GroupInfoView: React.FC = () => {
         RelatedGroup.current = context_data.groups.find(group => group.id === context_data.current_group_id);
     }
 
+    const HandleGroupActionMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        context_data.SetGroupActionMenuDisplayStatus(true);
+    };
+
     return (
         <>
             {
                 RelatedGroup.current ?
-                <div id="group-info-widget" className="nocopy">
-                    <div id="group-info-droplist">
-
-                    </div>
+                <div id="group-info-widget" className="nocopy" onContextMenu={HandleGroupActionMenu}>
                     <div id="group-info-widget-name" className="medium">{RelatedGroup.current.name}</div>
                 </div>
                 : null

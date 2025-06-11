@@ -8,6 +8,6 @@ export interface Field {
     index: string;
     header: string;
     input_length: string; // short / long
-    input: string;
+    input: string | number;
     display: boolean;
 }

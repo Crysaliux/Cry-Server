@@ -75,7 +75,7 @@ class Field(BaseModel):
     index: str
     header: str
     input_length: str
-    input: str
+    input: Union[str, int]
 
 class Modal(BaseModel):
     type: Literal['modal']

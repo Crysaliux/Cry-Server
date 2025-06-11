@@ -9,6 +9,7 @@ import GroupsLayout from 'layouts/widgets/groups_widget/groups_layout';
 import HeaderLayout from 'layouts/widgets/header_widget/header_layout';
 import MembersLayout from 'layouts/widgets/members_widget/members_layout';
 import OverlayLayout from 'layouts/widgets/overlay_widget/overlay_layout';
+import GroupActionMenuLayout from 'layouts/popup_widgets/group_action_menu_widget/group_action_menu_layout';
 import 'static/client_interface.css';
 import 'static/global_styles.css';
 
@@ -28,6 +29,7 @@ const GlobalLayout: React.FC<GlobalLayoutInterface> = ({ to_load }) => {
                             <Outlet />
                             <ChannelsLayout />
                             <MembersLayout />
+                            <GroupActionMenuLayout />
                         </div>
                     </>
             );
