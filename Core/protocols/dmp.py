@@ -530,8 +530,8 @@ class DMP:
     async def fetch_group_by_id(self, id: int):
         try:
             fetch_query = select(Group).options(selectinload(Group.channels),
-                                                selectinload(Group.members),
-                                                selectinload(Group.messages)
+                                                 selectinload(Group.members),
+                                                 selectinload(Group.messages)
                                             ).where(Group.id == id)
             async with self.session() as session:
                 async with session.begin():

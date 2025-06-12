@@ -402,6 +402,8 @@ POPUP WIDGETS
 }
 
 #group-action-menu-popup-widget {
+    top: 6%;
+    left: 5.5%;
     width: 250px;
     height: auto;
     display: flex;

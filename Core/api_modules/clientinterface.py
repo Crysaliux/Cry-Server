@@ -187,7 +187,7 @@ class Clientinterface:
         id, group_id, name = request.id, next(_ for _ in request.fields if _.index == "group_id").input, next(_ for _ in request.fields if _.index == "name").input
         group = await self.dmp.fetch_group_by_id(group_id)
         if group != False and group is not None:
-            status = await self.dmp.create_channel(client_id, name, id, group_id)
+            status = await self.dmp.create_channel(client_id, name, id // 200, group_id) # // for test only!
             if status:
                 request =  {
                     "type": "channel",

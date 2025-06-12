@@ -13,16 +13,26 @@ const GroupInfoView: React.FC = () => {
         RelatedGroup.current = context_data.groups.find(group => group.id === context_data.current_group_id);
     }
 
-    const HandleGroupActionMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    const HandleGroupActionMenuRightClick = () => {
+        if (!context_data.group_action_menu_display_status) {
+            context_data.SetGroupActionMenuDisplayStatus(true);
+        } else {
+            context_data.SetGroupActionMenuDisplayStatus(false);
+        }
+    };
+
+    const HandleGroupActionMenuLeftClick = (event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault();
-        context_data.SetGroupActionMenuDisplayStatus(true);
+        if (!context_data.group_action_menu_display_status) {
+            context_data.SetGroupActionMenuDisplayStatus(true);
+        }
     };
 
     return (
         <>
             {
                 RelatedGroup.current ?
-                <div id="group-info-widget" className="nocopy" onContextMenu={HandleGroupActionMenu}>
+                <div id="group-info-widget" className="nocopy" onClick={HandleGroupActionMenuRightClick} onContextMenu={HandleGroupActionMenuLeftClick}>
                     <div id="group-info-widget-name" className="medium">{RelatedGroup.current.name}</div>
                 </div>
                 : null
