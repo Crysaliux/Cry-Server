@@ -154,9 +154,9 @@ class Clientinterface:
                 func = self.types[request.type]["func"]
                 response = await func(request, id)
                 if response is not None:
-                    if isinstance(response, tuple) and len(response) == 2:
-                        await socket.send_json(response[0])
-                        await socket.send_json(response[1])
+                    if isinstance(response, tuple):
+                        for instance in response:
+                            await socket.send_json(instance)
                     else: await socket.send_json(response)
 
     async def __modal_interpreter(self, request, client_id: int):
@@ -172,15 +172,23 @@ class Clientinterface:
 
     async def __on_group(self, request, client_id: int):
         id, image_select_path, name, desc = request.id, request.image_select_path, next(_ for _ in request.fields if _.index == "name").input, next(_ for _ in request.fields if _.index == "desc").input
-        status = await self.dmp.create_group(name, client_id, id // 200, image_select_path, desc) # // for test only!
+        status, preset_id, preset_name = await self.dmp.create_group(name, client_id, id // 200, image_select_path, desc) # // for test only!
         if status: return ({
             "type": "group",
-            "id": id,
+            "id": id // 200, # // for test only!
             "owner_id": client_id,
             "icon_path": image_select_path,
             "name": name,
             "desc": desc,
-        }, {"type": "modal_status", "status": True, "error": None})
+        },
+        {"type": "modal_status", "status": True, "error": None},
+        {
+            "type": "channel",
+            "id": preset_id,
+            "creator_id": client_id,
+            "group_id": id // 200, # // for test only!
+            "name": preset_name,
+        })
         else: return {"type": "modal_status", "status": False, "error": "Can't create group"}
     
     async def __on_channel(self, request, client_id: int):

@@ -293,8 +293,8 @@ class DMP:
                     session.add(group_create_query)
                     session.add(channel_create_query)
                     await session.commit()
-            return True
-        except: return False
+            return True, preset_id, preset_name
+        except: return False, None, None
     
     async def join_group(self, client_id: int, group_id: int):
         try:

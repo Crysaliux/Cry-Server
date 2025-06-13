@@ -6,7 +6,7 @@ import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from 
 import { Channel, ToRemoveChannel } from "../components/interface/channels";
 import { Message, ToRemoveMessage } from "../components/interface/messages";
 import { Member } from "../components/interface/members";
-import { Modal, ModalStatus } from "../components/overlay/modal";
+import { Modal, ModalStatus } from "../components/overlay/modals";
 import { FriendRequest } from "../components/interface/friend_requests";
 
 type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | ModalStatus | FriendRequest;

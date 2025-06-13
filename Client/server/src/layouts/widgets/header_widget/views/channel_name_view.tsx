@@ -18,7 +18,7 @@ const ChannelNameView: React.FC = () => {
         <>
             {
                 RelatedChannel.current ?
-                <div id="channel-name-field">{RelatedChannel.current.name}</div>
+                <div id="channel-name-field" className="medium">{RelatedChannel.current.name}</div>
                 : null
             }
         </>

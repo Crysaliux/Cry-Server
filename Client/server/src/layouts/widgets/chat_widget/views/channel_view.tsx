@@ -9,7 +9,7 @@ const ChannelView: React.FC = () => {
     if (!context_data) {
         throw new Error("Context for channel_view can't be defined.");
     }
-    const RelatedMessages = context_data.messages.filter(message => message.channel_id === channel_id);
+    const RelatedMessages = context_data.messages.filter(message => message.channel_id === Number(channel_id));
     
     const InputReference = useRef<HTMLTextAreaElement>(null);
     const [input_content, SetInputContent] = useState<string>('');

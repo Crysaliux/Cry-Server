@@ -12,9 +12,11 @@ const GroupsView: React.FC = () => {
     const navigate = useNavigate();
 
     const HandleGroupNavigation = (id: number) => {
-        context_data.SetCurrentGroupId(id);
+        const RelatedChannels = context_data.channels.filter(channel => channel.group_id === id);
         listener_hatch.SendRequest({ type: 'group_request_members', id: id });
-        navigate(`/group/${id}`);
+        context_data.SetCurrentGroupId(id);
+        context_data.SetCurrentChannelId(RelatedChannels[0].id);
+        navigate(`/group/${id}/${RelatedChannels[0].id}`);
     };
 
     return (

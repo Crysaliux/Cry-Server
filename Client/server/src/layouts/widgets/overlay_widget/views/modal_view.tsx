@@ -3,7 +3,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { customAlphabet } from "nanoid";
 import { GlobalContext } from 'services/global_manager';
 import { ListenerHatch } from "services/listener";
-import { Modal } from "components/overlay/modal";
+import { Modal } from "components/overlay/modals";
 import { Field } from "components/overlay/field";
 
 interface APIResponse {

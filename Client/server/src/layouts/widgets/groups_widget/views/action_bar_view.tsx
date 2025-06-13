@@ -1,8 +1,8 @@
 import React, { Dispatch, SetStateAction, useContext } from "react";
 import { GlobalContext } from 'services/global_manager';
 import { useParams, useNavigate } from "react-router-dom";
-import { Modal } from "components/overlay/modal";
-import { Field } from "components/overlay/field";
+import { Modal } from "components/overlay/modals";
+import { Field } from "components/overlay/fields";
 
 const ActionBarView: React.FC = () => {
     const context_data = useContext(GlobalContext);

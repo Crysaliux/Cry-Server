@@ -33,7 +33,7 @@ const GroupInfoView: React.FC = () => {
             {
                 RelatedGroup.current ?
                 <div id="group-info-widget" className="nocopy" onClick={HandleGroupActionMenuRightClick} onContextMenu={HandleGroupActionMenuLeftClick}>
-                    <div id="group-info-widget-name" className="medium">{RelatedGroup.current.name}</div>
+                    <div id="group-info-widget-name" className="big">{RelatedGroup.current.name}</div>
                 </div>
                 : null
             }

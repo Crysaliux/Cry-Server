@@ -3,17 +3,17 @@ import { useParams, useNavigate } from "react-router-dom";
 import { GlobalContext } from "services/global_manager";
 
 const ChannelsView: React.FC = () => {
-    const group_id = useParams<{ group_id: string}>();
+    const group_id = useParams<{ group_id: string }>();
     const context_data = useContext(GlobalContext);
     if (!context_data) {
         throw new Error("Context for channels_view can't be defined.");
     }
     const navigate = useNavigate();
-    const RelatedChannels = context_data.channels.filter(channel => channel.group_id === group_id);
+    const RelatedChannels = context_data.channels.filter(channel => channel.group_id === Number(group_id.group_id));
     
     const HandleChannelNavigation = (id: number) => {
         context_data.SetCurrentChannelId(id);
-        navigate(`/${group_id}/${id}`);
+        navigate(`/group/${group_id.group_id}/${id}`);
     };
 
     return (

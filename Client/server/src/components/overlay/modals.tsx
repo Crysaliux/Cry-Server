@@ -1,4 +1,4 @@
-import { Field } from "./field";
+import { Field } from "./fields";
 /*
 Modal indexes:
 - group_creation

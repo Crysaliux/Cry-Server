@@ -1,7 +1,7 @@
 import React, { useContext, useRef } from "react";
 import { GlobalContext } from 'services/global_manager';
-import { Modal } from "components/overlay/modal";
-import { Field } from "components/overlay/field";
+import { Modal } from "components/overlay/modals";
+import { Field } from "components/overlay/fields";
 
 const AddFriendView: React.FC = () => {
     const context_data = useContext(GlobalContext);

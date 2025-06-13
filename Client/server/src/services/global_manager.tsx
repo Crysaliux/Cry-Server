@@ -4,7 +4,7 @@ import { Group } from "components/interface/groups";
 import { Channel } from "components/interface/channels";
 import { Message } from "components/interface/messages";
 import { Member } from "components/interface/members";
-import { Modal } from "components/overlay/modal";
+import { Modal } from "components/overlay/modals";
 import { FriendRequest } from "components/interface/friend_requests";
 
 
