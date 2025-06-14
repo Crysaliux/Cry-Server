@@ -181,14 +181,14 @@ class Clientinterface:
             "name": name,
             "desc": desc,
         },
-        {"type": "modal_status", "status": True, "error": None},
         {
-            "type": "channel",
+            "type": "self_create_channel",
             "id": preset_id,
             "creator_id": client_id,
             "group_id": id // 200, # // for test only!
             "name": preset_name,
-        })
+        },
+        {"type": "modal_status", "status": True, "error": None},)
         else: return {"type": "modal_status", "status": False, "error": "Can't create group"}
     
     async def __on_channel(self, request, client_id: int):
@@ -205,6 +205,7 @@ class Clientinterface:
                     "name": name,
                 }
                 await self.cmp.broadcast(request, group.members)
+                request["type"] = 'self_create_channel'
                 return (request, {"type": "modal_status", "status": True, "error": None})
             else: return {"type": "modal_status", "status": False, "error": "Can't create channel"}
 

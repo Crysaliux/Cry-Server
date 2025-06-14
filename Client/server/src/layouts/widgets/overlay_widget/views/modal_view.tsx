@@ -4,7 +4,7 @@ import { customAlphabet } from "nanoid";
 import { GlobalContext } from 'services/global_manager';
 import { ListenerHatch } from "services/listener";
 import { Modal } from "components/overlay/modals";
-import { Field } from "components/overlay/field";
+import { Field } from "components/overlay/fields";
 
 interface APIResponse {
     success: boolean;

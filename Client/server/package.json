@@ -11,10 +11,14 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@lexical/markdown": "^0.32.1",
+    "@lexical/react": "^0.32.1",
     "@types/react-router-dom": "^5.3.3",
+    "lexical": "^0.32.1",
     "nanoid": "^5.1.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.5.3",
     "react-textarea-autosize": "^8.5.9",
     "typescript": "^5.8.3"

@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { GlobalContext } from '../services/global_manager';
 import { Contact, ToRemoveContact } from "../components/interface/contacts";
 import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/interface/groups";
-import { Channel, ToRemoveChannel } from "../components/interface/channels";
+import { Channel, ToRemoveChannel, ToSelfCreateChannel } from "../components/interface/channels";
 import { Message, ToRemoveMessage } from "../components/interface/messages";
 import { Member } from "../components/interface/members";
 import { Modal, ModalStatus } from "../components/overlay/modals";
 import { FriendRequest } from "../components/interface/friend_requests";
 
-type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | ModalStatus | FriendRequest;
-type ClientRequestData = ToRequestGroupMembers | Modal;
+type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | ModalStatus | FriendRequest | ToSelfCreateChannel;
+type ClientRequestData = ToRequestGroupMembers | Modal | Message;
 
 interface ListenerProperties {
     children: ReactNode;
@@ -59,8 +59,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         const check_group = context_data.groups.some(group => group.id === data.id);
                         if (!check_group) {
                             context_data.SetGroups(previous => [...previous, data as Group]);
-                            context_data.SetCurrentGroupId(data.id);
-                            navigate(`/group/${data.id}`);
                         } else {
                             context_data.SetGroups(previous => previous.map((group) => group.id === data.id ? { ...group, ...data as Partial<Group> } : group));
                         }
@@ -109,6 +107,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         const check_message_remove = context_data.messages.some(message => message.id === data.id);
                         if (check_message_remove) {
                             context_data.SetMessages(previous => previous.filter(message => message.id !== data.id));
+                        }
+                        break;
+
+                    case 'self_create_channel':
+                        const check_self_channel = context_data.channels.some(channel => channel.id === data.id);
+                        if (!check_self_channel) {
+                            const NewChannel: Channel = {
+                                type: 'channel',
+                                id: data.id,
+                                creator_id: data.creator_id,
+                                group_id: data.group_id,
+                                name: data.name,
+                            };
+                            context_data.SetChannels(previous => [...previous, NewChannel as Channel]);
+                            context_data.SetCurrentChannelId(data.id);
+                            navigate(`/group/${data.group_id}/${data.id}`);
                         }
                         break;
 

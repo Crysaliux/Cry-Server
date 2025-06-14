@@ -286,7 +286,19 @@ CHAT
     width: 80%;
     border-radius: 5px;
     resize: none;
+    padding: 5px;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    white-space: pre-wrap;
     background-color: rgb(31, 29, 29);
+}
+
+#input-field::-webkit-scrollbar {
+    width: 0;
+}
+
+#input-field {
+    scrollbar-width: none;
 }
 
 #input-attachement {

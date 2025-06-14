@@ -13,6 +13,14 @@ export interface ToRemoveChannel {
     id: number;
 }
 
+export interface ToSelfCreateChannel {
+    type: 'self_create_channel';
+    id: number;
+    creator_id: number;
+    group_id: number;
+    name: string;
+}
+
 /*
 Updates are handled automatically when client receives partial representation of an initial interface (Channel)
 */
