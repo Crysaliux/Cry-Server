@@ -328,12 +328,11 @@ CHAT
 .message {
     height: fit-content;
     width: fit-content;
-    max-width: 100%;
+    max-width: 80%;
     padding: 10px;
     display: flex;
     flex-direction: row;
     gap: 10px;
-    background-color: black;
 }
 
 .message img {

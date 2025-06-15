@@ -14,30 +14,32 @@ const ChannelView: React.FC = () => {
         throw new Error("Context for channel_view can't be defined.");
     }
     const RelatedMessages = context_data.messages.filter(message => message.channel_id === Number(channel_id));
-    const input_content = useRef<string>(''); //??????????????????????????
+    const InputAreaReference = useRef<HTMLTextAreaElement>(null);
     const id_gen = customAlphabet('123456789', 16);
 
-    const TargetChannel = context_data.channels.find(channel => channel.id === Number(channel_id));
-    if (context_data.current_group_id !== TargetChannel?.group_id) {
-        context_data.SetCurrentGroupId(TargetChannel?.group_id);
-    }
+    useEffect(() => {
+        if (context_data.current_group_id !== Number(group_id)) {
+            context_data.SetCurrentGroupId(Number(group_id));
+        }
+        context_data.SetCurrentChannelId(Number(channel_id));
+    }, []);
 
-    const SaveContent = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-        input_content.current = event.target.value;
-    };
-
-    const SendMessage = (event: React.KeyboardEvent) => {
-        if (event.key === 'Enter' && context_data.client_id.current && context_data.current_group_id && context_data.current_channel_id && context_data.client_display_name) {
+    const SendMessage = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        console.log(context_data.current_group_id);
+        if (event.key === 'Enter' && context_data.client_id.current && context_data.current_group_id && context_data.current_channel_id && InputAreaReference.current) {
             event.preventDefault();
+            console.log('eeee');
+            const value = InputAreaReference.current.value;
+            InputAreaReference.current.value = '';
             const NewMessage: Message = {
                 type: 'message',
                 id: Number(id_gen()),
                 sender_id: context_data.client_id.current,
                 group_id: context_data.current_group_id,
                 channel_id: context_data.current_channel_id,
-                sender_name: context_data.client_display_name,
+                sender_name: 'bob',
                 sender_icon_path: 'htttp://',
-                content: input_content.current,
+                content: value,
                 unread: true,
             };
             listener_hatch.SendRequest(NewMessage); //??????????????????????
@@ -48,11 +50,11 @@ const ChannelView: React.FC = () => {
         <>
             <div id="messages">
                 {RelatedMessages.map(message => (
-                    <div className="message" key={message.id} data-group_id={group_id} data-channel_id={message.channel_id} data-sender_id={message.sender_id} data-sender_name={message.sender_name}>
+                    <div className="message transparent" key={message.id} data-group_id={group_id} data-channel_id={message.channel_id} data-sender_id={message.sender_id} data-sender_name={message.sender_name}>
                         <img src={message.sender_icon_path}></img>
                         <div className="message-container">
-                            <div className="message-sender medium nocopy">{message.sender_name}</div>
-                            <div className="message-content small">
+                            <div className="medium nocopy pointer underline_on_touch">{message.sender_name}</div>
+                            <div className="small">
                                 {message.content}
                             </div>
                         </div>
@@ -61,7 +63,7 @@ const ChannelView: React.FC = () => {
             </div>
 
             <div id="input">
-                <TextareaAutosize className="medium" id="input-field" placeholder="Time to chat..." onChange={SaveContent} onKeyDown={SendMessage}></TextareaAutosize>
+                <TextareaAutosize ref={InputAreaReference} className="medium" id="input-field" placeholder="Time to chat..." onKeyDown={SendMessage}></TextareaAutosize>
                 <div id="input-attachement"></div>
                 <div id="input-gif"></div>
             </div>

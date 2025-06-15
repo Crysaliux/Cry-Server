@@ -29,7 +29,7 @@ const GroupActionMenuView: React.FC = () => {
 
     return (
         <>
-            <div className="group_action_menu_option transparent medium">
+            <div className="group_action_menu_option transparent pointer medium">
                 <div className="group_action_menu_option_name" onClick={CreateChannelModal}>
                     New category
                 </div>
@@ -38,7 +38,7 @@ const GroupActionMenuView: React.FC = () => {
                 </div>
             </div>
 
-            <div className="group_action_menu_option transparent medium">
+            <div className="group_action_menu_option transparent pointer medium">
                 <div className="group_action_menu_option_name" onClick={CreateChannelModal}>
                     New channel
                 </div>
@@ -47,7 +47,7 @@ const GroupActionMenuView: React.FC = () => {
                 </div>
             </div>
 
-            <div className="group_action_menu_option transparent medium">
+            <div className="group_action_menu_option transparent pointer medium">
                 <div className="group_action_menu_option_name">
                     Settings
                 </div>

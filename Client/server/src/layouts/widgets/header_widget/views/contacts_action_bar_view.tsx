@@ -9,8 +9,8 @@ const ContactsActionBarView: React.FC = () => {
 
     return (
         <>
-            <button className={`button transparent small nocopy`}>Pending...</button>
-            <button className={`button transparent small nocopy`}>Blocked</button>
+            <button className={`button transparent pointer small nocopy`}>Pending...</button>
+            <button className={`button transparent pointer small nocopy`}>Blocked</button>
         </>
     );
 };

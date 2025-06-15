@@ -9,8 +9,8 @@ const GroupInfoView: React.FC = () => {
     }
     const RelatedGroup = useRef<Group | undefined>(undefined);
 
-    if (context_data.current_group_id) {
-        RelatedGroup.current = context_data.groups.find(group => group.id === context_data.current_group_id);
+    if (context_data.current_channel_id) {
+        RelatedGroup.current = context_data.groups.find(group=> group.id === context_data.channels.find(channel => channel.id === context_data.current_channel_id)?.group_id);
     }
 
     const HandleGroupActionMenuRightClick = () => {

@@ -199,7 +199,7 @@ class Clientinterface:
             if status:
                 request =  {
                     "type": "channel",
-                    "id": id,
+                    "id": id // 200, # // for test only!
                     "creator_id": client_id,
                     "group_id": group_id,
                     "name": name,

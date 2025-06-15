@@ -124,6 +124,10 @@ BUTTON STYLES
     cursor: pointer;
 }
 
+/*
+ELEMENT STYLES
+*/
+
 .underlined {
     background: none;
     text-decoration: underline;
@@ -141,15 +145,22 @@ BUTTON STYLES
 
 .transparent:hover {
     background-color: rgba(255, 255, 255, 0.1);
-    cursor: pointer;
 }
 
 .transparent_clicked {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+.pointer {
+    cursor: pointer;
+}
+
+.underline_on_touch:hover {
+    text-decoration: underline;
+}
+
 /*
-BORDER
+ELEMENT BORDER STYLES
 */
 
 .border {
