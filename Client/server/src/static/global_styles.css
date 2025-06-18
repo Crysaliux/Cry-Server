@@ -9,18 +9,28 @@ FONT STYLES
 }
 
 .big {
-    color: white;
     font-size: 120%;
+    color: white;
 }
 
 .medium {
-    color: white;
     font-size: 115%;
+    color: white;
 }
 
 .small {
-    color: white;
     font-size: 110%;
+    color: white;
+}
+
+.message_fetched {
+    font-size: 110%;
+    color: white;
+}
+
+.message_pending {
+    font-size: 110%;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 /*

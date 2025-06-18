@@ -7,6 +7,7 @@ export interface Message {
     sender_name: string;
     sender_icon_path: string;
     content: string;
+    sent: boolean;
     unread: boolean;
 }
 

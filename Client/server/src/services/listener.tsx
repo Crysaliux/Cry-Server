@@ -74,9 +74,9 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         break;
 
                     case 'message':
-                        const check_message = context_data.messages.some(message => message.id === data.id);
+                        const check_message = context_data.messages.some(message => message.id === data.id && message.sent === true);
                         if (!check_message) {
-                            context_data.SetMessages(previous => [...previous, data as Message]);
+                            context_data.SetMessages(previous => previous.map(message => message.id === data.id ? { ...message, sent: true } : message));
                         } else {
                             context_data.SetMessages(previous => previous.map(message => message.id === data.id ? { ...message, ...data as Partial<Message> } : message));
                         }

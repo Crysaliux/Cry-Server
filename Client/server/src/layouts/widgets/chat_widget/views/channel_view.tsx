@@ -15,6 +15,7 @@ const ChannelView: React.FC = () => {
     }
     const RelatedMessages = context_data.messages.filter(message => message.channel_id === Number(channel_id));
     const InputAreaReference = useRef<HTMLTextAreaElement>(null);
+    const MessagesAreaReference = useRef<HTMLDivElement>(null);
     const id_gen = customAlphabet('123456789', 16);
 
     useEffect(() => {
@@ -22,13 +23,18 @@ const ChannelView: React.FC = () => {
             context_data.SetCurrentGroupId(Number(group_id));
         }
         context_data.SetCurrentChannelId(Number(channel_id));
+        ScrollToBottom();
     }, []);
 
+    const ScrollToBottom = () => { //?????????????
+        if (MessagesAreaReference.current) {
+            MessagesAreaReference.current.lastElementChild?.scrollIntoView({behavior: 'smooth', block: 'end'});
+        }
+    };
+
     const SendMessage = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        console.log(context_data.current_group_id);
         if (event.key === 'Enter' && context_data.client_id.current && context_data.current_group_id && context_data.current_channel_id && InputAreaReference.current) {
             event.preventDefault();
-            console.log('eeee');
             const value = InputAreaReference.current.value;
             InputAreaReference.current.value = '';
             const NewMessage: Message = {
@@ -40,21 +46,32 @@ const ChannelView: React.FC = () => {
                 sender_name: 'bob',
                 sender_icon_path: 'htttp://',
                 content: value,
+                sent: false,
                 unread: true,
             };
-            listener_hatch.SendRequest(NewMessage); //??????????????????????
+            context_data.SetMessages(previous => [...previous, NewMessage]);
+            ScrollToBottom(); //?????????????????
+            listener_hatch.SendRequest(NewMessage);
+        }
+    };
+
+    const ValidateMessageStatus = (status: boolean) => {
+        if (status) {
+            return 'message_fetched';
+        } else {
+            return 'message_pending';
         }
     };
 
     return (
         <>
-            <div id="messages">
+            <div id="messages" ref={MessagesAreaReference}>
                 {RelatedMessages.map(message => (
                     <div className="message transparent" key={message.id} data-group_id={group_id} data-channel_id={message.channel_id} data-sender_id={message.sender_id} data-sender_name={message.sender_name}>
                         <img src={message.sender_icon_path}></img>
                         <div className="message-container">
                             <div className="medium nocopy pointer underline_on_touch">{message.sender_name}</div>
-                            <div className="small">
+                            <div className={ValidateMessageStatus(message.sent)}>
                                 {message.content}
                             </div>
                         </div>

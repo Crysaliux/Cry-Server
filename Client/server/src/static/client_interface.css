@@ -254,12 +254,13 @@ CHAT
 
 #messages {
     width: 100%;
+    height: auto;
     flex: 1;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: scroll;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 10px; /*????????????????????*/
 }
 
 #messages::-webkit-scrollbar {
@@ -272,11 +273,14 @@ CHAT
 
 #input {
     width: 100%;
-    padding: 20px;
+    max-height: 600px;
+    padding-left: 0.5%;
+    padding-bottom: 20px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    flex-direction: row; 
+    flex-direction: row;
+    background: transparent;
     gap: 1%;
 }
 
@@ -327,8 +331,7 @@ CHAT
 
 .message {
     height: fit-content;
-    width: fit-content;
-    max-width: 80%;
+    width: 100%;
     padding: 10px;
     display: flex;
     flex-direction: row;
