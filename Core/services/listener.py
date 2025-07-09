@@ -1,9 +1,17 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
+from ..components.client import NewClient
+from ..components.group import NewGroup
+from ..components.message import NewMessage
+from ..components.permission import NewPermission
+from ..components.role import NewRole
+from ..components.room import NewRoom
+from ..components.space import NewSpace
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
 from ast import literal_eval
+from datetime import datetime
 from PIL import Image
 import aiofiles
 import json
@@ -11,97 +19,16 @@ import jwt
 import io
 import os
 
-"""
-    type: 'group';
-    id: number | string;
-    owner_id: number | string;
-    icon_path: string;
-    name: string;
-    desc: string;
 
-    async def create_group(self, name: str, client_id: int, id: int, icon_path: str = None, desc: str = None):
-    
-    type: 'channel';
-    id: number | string;
-    creator_id: number | string;
-    group_id: number | string;
-    name: string;
-
-    async def create_channel(self, client_id: int, name: str, id: int, group_id: int = None, private: bool = False, co_client_id: int = None):
-    
-    type: 'message';
-    id: number | string;
-    sender_id: number | string;
-    group_id: number | string;
-    channel_id: number | string;
-    sender_name: string;
-    sender_icon_path: string;
-    content: string;
-    unread: boolean;
-
-    async def save_message(self, client_id: int, channel_id: int, content: str, id: int):
-    
-    type: 'contact';
-    id: number | string;
-    co_client_id: number | string;
-    co_client_name: string;
-
-    type: 'modal';
-    id: number | string | null;
-    index: string;
-    image_select: boolean;
-    image_select_path: string | null;
-    submit_colour: string;
-    fields: Field[];
-
-    type: 'field';
-    index: string;
-    header: string;
-    input_length: string; // short / long
-    input: string;
-
-    type: 'friend_request';
-    id: number | string;
-    client_id: number | string;
-    client_name: string;
-"""
-
-class GrabCreds(BaseModel):
-    token: str
-    id: int
-
-class Field(BaseModel):
-    type: Literal['field']
-    index: str
-    header: str
-    input_length: str
-    input: Union[str, int]
-
-class Modal(BaseModel):
-    type: Literal['modal']
-    id: Union[int, None]
-    index: str
-    image_select: bool
-    image_select_path: Union[str, None]
-    submit_colour: str
-    fields: List[Field]
-
-class Message(BaseModel):
-    type: Literal['message']
-    id: Union[int, str]
-    sender_id: int
-    group_id: int
-    channel_id: int
-    sender_name: str
-    sender_icon_path: str
-    content: str
-    unread: bool
-
-class GroupRequestMembers(BaseModel):
-    type: Literal['group_request_members']
-    id: int
-
-ClientRequest = Annotated[Union[Modal, Message, GroupRequestMembers], _type(discriminator='type')]
+ClientRequest = Annotated[Union[
+    NewClient, 
+    NewGroup, 
+    NewMessage, 
+    NewPermission, 
+    NewRole,
+    NewRoom,
+    NewSpace,
+    ], _type(discriminator='type')]
 
 class Clientinterface:
     def __init__(
@@ -135,15 +62,13 @@ class Clientinterface:
         self.router = APIRouter()
 
         self.types = { 
-            "modal": {"ref": Modal, "func": self.__on_modal},
-            "message": {"ref": Message, "func": self.__on_message},
-            "group_request_members": {"ref": GroupRequestMembers, "func": self.__on_group_request_members},
-        }
-
-        self.system_modal_types = {
-            "friend_request": self.__on_friend_request,
-            "group": self.__on_group,
-            "channel": self.__on_channel,
+            "new_client": {"ref": NewClient, "func": ...},
+            "new_group": {"ref": NewGroup, "func": ...},
+            "new_message": {"ref": NewMessage, "func": ...},
+            "new_permission": {"ref": NewPermission, "func": ...},
+            "new_role": {"ref": NewRole, "func": ...},
+            "new_room": {"ref": NewRoom, "func": ...},
+            "new_space": {"ref": NewSpace, "func": ...},
         }
 
     async def __total_interpreter(self, data: json, socket: WebSocket, id: int):
@@ -155,16 +80,9 @@ class Clientinterface:
                 response = await func(request, id)
                 if response is not None:
                     if isinstance(response, tuple):
-                        for instance in response:
+                        for instance in response: #In case if double, triple, etc (like... really rare, chill)
                             await socket.send_json(instance)
                     else: await socket.send_json(response)
-
-    async def __modal_interpreter(self, request, client_id: int):
-        if request.index in self.system_modal_types:
-            func = self.system_modal_types[request.index]
-            response = await func(request, client_id)
-            if response is not None:
-                return response
 
     async def __on_modal(self, request, client_id: int):
         response = await self.__modal_interpreter(request, client_id)

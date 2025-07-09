@@ -14,7 +14,7 @@ const HeaderLayout: React.FC<HeaderLayoutInterface> = ({ to_load }) => {
         case 'group':
             return (
                 <div id="header-widget" className="silent_widget">
-                    <div id="header-support-widget" className="widget">
+                    <div id="header-dms-widget" className="widget">
         
                     </div>
                     <div id="header-group-addfriend-widget" className="widget">
@@ -31,7 +31,7 @@ const HeaderLayout: React.FC<HeaderLayoutInterface> = ({ to_load }) => {
         case 'contacts':
             return (
                 <div id="header-widget" className="silent_widget">
-                    <div id="header-support-widget" className="widget">
+                    <div id="header-dms-widget" className="widget">
         
                     </div>
                     <div id="header-group-addfriend-widget" className="widget">

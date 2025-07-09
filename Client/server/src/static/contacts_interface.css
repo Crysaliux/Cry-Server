@@ -1,0 +1,174 @@
+/*
+WIDGETS
+*/
+
+#dms-widgets {
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(36, 1fr);
+    gap: 0.1vh;
+    background-color: rgb(69, 81, 95);
+}
+
+/*
+Last column - 26
+Last row - 28
+*/
+
+#dms-header-widget {
+    grid-column-start: 1;
+    grid-column-end: 37;
+    display: grid;
+    grid-template-columns: repeat(36, 1fr);
+    gap: 0.1vh;
+    height: 5vh;
+}
+
+#dms-contacts-widget {
+    grid-column-start: 2;
+    grid-column-end: 7;
+    grid-row-start: 2;
+    height: 94.9vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    justify-items: center;
+}
+
+#dms-contacts-widget::-webkit-scrollbar {
+    width: 0;
+}
+
+#dms-contacts-widget {
+    scrollbar-width: none;
+}
+
+#chat-widget {
+    grid-column-start: 7;
+    grid-column-end: 33;
+    grid-row-start: 2;
+    height: 94.9vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#dms-contact-info-widget {
+    grid-column-start: 33;
+    grid-column-end: 37;
+    grid-row-start: 2;
+    height: 94.9vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    justify-items: center;
+}
+
+#dms-contact-widget::-webkit-scrollbar {
+    width: 0;
+}
+
+#dms-contact-widget {
+    scrollbar-width: none;
+}
+
+/*
+HEADER WIDGETS
+*/
+
+#dms-header-support-widget {
+    grid-row-start: 1;
+    height: 100%;
+}
+
+#dms-header-addfriend-widget {
+    grid-column-start: 2;
+    grid-column-end: 7;
+    grid-row-start: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    height: 100%;
+}
+
+/*
+dms-header-addfriend-widget:
+- group-info-widget
+*/
+
+#header-contact-actionbar-widget {
+    grid-column-start: 7;
+    grid-column-end: 33;
+    grid-row-start: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 5%;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+    box-sizing: border-box;
+    height: 100%;
+}
+
+#dms-header-memberstats-widget {
+    grid-column-start: 33;
+    grid-column-end: 37;
+    grid-row-start: 1;
+    height: 100%;
+}
+
+/*
+INTRO
+*/
+
+#group-info-widget {
+    height: 100%;
+    width: 100%; /*???????????????*/
+}
+
+/*
+CHANNELS
+*/
+
+.channel {
+    height: 30px;
+    width: 98%;
+    margin-top: 10px;
+    border-radius: 5px;
+    align-content: center;
+    padding-left: 5px;
+    box-sizing: border-box;
+}
+
+.channel:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+}
+
+/*
+MEMBERS
+*/
+
+.member {
+    height: 50px;
+    width: 98%;
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    border-radius: 5px;
+}
+
+.member img {
+    position: relative;
+    width: 35px;
+    border-radius: 50%;
+    height: 35px;
+}
+
+.member:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+}

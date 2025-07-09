@@ -1,7 +1,7 @@
-from sqlalchemy import ForeignKey, String, Boolean, DateTime, insert, select, update, delete, Table, Column, Integer, func, desc
+from sqlalchemy import ForeignKey, String, Boolean, DateTime, insert, select, update, delete, Table, Column, Integer, func, desc, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from random import uniform
 from typing import List
@@ -12,178 +12,183 @@ class Base(DeclarativeBase):
 
 client_group_relationship = Table(
     'cgrel', Base.metadata,
-    Column('client_id', Integer, ForeignKey('client.id'), primary_key=True),
-    Column('group_id', Integer, ForeignKey('group.id'), primary_key=True)
+    Column('client_id', String, ForeignKey('client.id'), primary_key=True),
+    Column('group_id', String, ForeignKey('group.id'), primary_key=True)
+)
+
+friend_relationship = Table(
+    'frrel', Base.metadata,
+    Column('client_id', String, ForeignKey('client.id'), primary_key=True),
+    Column('client_id', String, ForeignKey('client.id'), primary_key=True)
 )
 
 client_role_relationship = Table(
     'crrel', Base.metadata,
-    Column('client_id', Integer, ForeignKey('client.id'), primary_key=True),
-    Column('role_id', Integer, ForeignKey('role.id'), primary_key=True)
+    Column('client_id', String, ForeignKey('client.id'), primary_key=True),
+    Column('role_id', String, ForeignKey('role.id'), primary_key=True)
 )
 
 class Client(Base):
     __tablename__ = "client"
 
     username: Mapped[str] = mapped_column(String(10))
-    name: Mapped[str] = mapped_column(String(20))
+    nickname: Mapped[str] = mapped_column(String(20))
     email: Mapped[str] = mapped_column(String(30))
-    password: Mapped[str] = mapped_column()
-    bio: Mapped[str] = mapped_column(String(200), nullable=True)
-    icon_path: Mapped[str] = mapped_column(String(100), nullable=True)
-    id : Mapped[int] = mapped_column(primary_key=True)
+    password_hashed: Mapped[str]
+    about_me: Mapped[str] = mapped_column(String(200), nullable=True)
+    avatar_url: Mapped[str] = mapped_column(String(100), nullable=True)
+    color_theme: Mapped[str] = mapped_column(String(10), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    id : Mapped[str] = mapped_column(String(36), primary_key=True)
 
+    token: Mapped[str]
+    token_expires_at: Mapped[datetime] = mapped_column(DateTime) #datetime.now(datetime.timezone.utc) + timedelta(hours=...)
+    last_login: Mapped[datetime] = mapped_column(DateTime) #datetime.utcnow()
+
+    friends = relationship("Client", secondary=friend_relationship, back_populates="friends")
     groups = relationship("Group", secondary=client_group_relationship, back_populates="members")
-    roles = relationship("Role", secondary=client_role_relationship, back_populates="clients")
+    roles = relationship("Role", secondary=client_group_relationship, back_populates="assignees")
     owned_groups: Mapped[List["Group"]] = relationship("Group", back_populates="owner", foreign_keys="Group.owner_id")
-    messages: Mapped[List["Message"]] = relationship("Message", back_populates="client", foreign_keys="Message.client_id")
-    privates: Mapped[List["Channel"]] = relationship("Channel", back_populates="client", foreign_keys="Channel.client_id")
-    blocked: Mapped[List["Block"]] = relationship("Block", back_populates="client", foreign_keys="Block.client_id")
-    co_privates: Mapped[List["Channel"]] = relationship("Channel", back_populates="co_client", foreign_keys="Channel.co_client_id")
-    pending_friend_requests: Mapped[List["FriendRequest"]] = relationship("FriendRequest", back_populates="co_client", foreign_keys="FriendRequest.co_client_id")
-    sent_friend_requests: Mapped[List["FriendRequest"]] = relationship("FriendRequest", back_populates="client", foreign_keys="FriendRequest.client_id")
+    created_spaces: Mapped[List["Space"]] = relationship("Space", back_populates="creator", foreign_keys="Space.cretor_id")
+    created_rooms: Mapped[List["Room"]] = relationship("Room", back_populates="creator", foreign_keys="Room.creator_id")
+    messages: Mapped[List["Message"]] = relationship("Message", back_populates="author", foreign_keys="Message.author_id")
 
-    def __repr__(self) -> str:
-        return f"Client(username={self.username!r}, email={self.email!r}, password={self.password!r}, bio={self.bio!r}, icon_path={self.icon_path!r}, id={self.id!r})"
+class Group(Base):
+    __tablename__ = "group"
+
+    owner_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
+
+    name: Mapped[str] = mapped_column(String(20))
+    about_group: Mapped[str] = mapped_column(String(300), nullable=True)
+    icon_url: Mapped[str] = mapped_column(String(100), nullable=True)
+    nsfw: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    id : Mapped[str] = mapped_column(String(36), primary_key=True)
+
+    #settings
+    content_filter: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
+    content_filter_level: Mapped[str] = mapped_column(String(10))
+
+    members = relationship("Client", secondary=client_group_relationship, back_populates="groups")
+    owner: Mapped["Client"] = relationship("Client", back_populates="owned_groups", foreign_keys=[owner_id])
+    roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id")
+    spaces: Mapped[List["Space"]] = relationship("Space", back_populates="group", foreign_keys="Space.group_id")
+    rooms: Mapped[List["Room"]] = relationship("Room", back_populates="group", foreign_keys="Room.group_id")
+    messages: Mapped[List["Message"]] = relationship("Message", back_populates="group", foreign_keys="Message.group_id")
+
+class Space(Base):
+    __tablename__ = "space"
+
+    group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
+    creator_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
+
+    name: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    id : Mapped[str] = mapped_column(String(36), primary_key=True)
     
-class FriendRequest(Base):
-    __tablename__ = "friend_request"
+    creator: Mapped["Client"] = relationship("Client", back_populates="created_spaces", foreign_keys=[creator_id])
+    rooms: Mapped[List["Room"]] = relationship("Room", back_populates="space", foreign_keys="Room.space_id")
+    messages: Mapped[List["Message"]] = relationship("Message", back_populates="space", foreign_keys="Message.space_id")
 
-    client_id: Mapped[int] = mapped_column(ForeignKey('client.id'))
-    co_client_id: Mapped[int] = mapped_column(ForeignKey('client.id'))
+class Room(Base):
+    __tablename__ = "room"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
+    space_id: Mapped[str] = mapped_column(ForeignKey('space.id'))
+    creator_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
 
-    client: Mapped["Client"] = relationship("Client", back_populates="pending_friend_requests", foreign_keys=[client_id])
-    co_client: Mapped["Client"] = relationship("Client", back_populates="sent_friend_requests", foreign_keys=[co_client_id])
-
-    def __repr__(self) -> str:
-        return f"Block(blocked_client_id={self.blocked_client_id!r}, id={self.id!r})"
+    name: Mapped[str] = mapped_column(String(20))
+    about_room: Mapped[str] = mapped_column(String(150), nullable=True)
+    nsfw: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
     
-class Block(Base):
-    __tablename__ = "block"
+    creator: Mapped["Client"] = relationship("Client", back_populates="created_rooms", foreign_keys=[creator_id])
+    messages: Mapped[List["Message"]] = relationship("Message", back_populates="room", foreign_keys="Message.room_id")
 
-    client_id: Mapped[int] = mapped_column(ForeignKey('client.id'))
+class Message(Base):
+    __tablename__ = "message"
 
-    blocked_client_id: Mapped[int]
-    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
+    space_id: Mapped[str] = mapped_column(ForeignKey('space.id'))
+    room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
+    author_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
 
-    client: Mapped["Client"] = relationship("Client", back_populates="blocked", foreign_keys=[client_id])
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    content: Mapped[str] = mapped_column(String(1200))
+    edited: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
-    def __repr__(self) -> str:
-        return f"Block(blocked_client_id={self.blocked_client_id!r}, id={self.id!r})"
+    group: Mapped["Group"] = relationship("Group", back_populates="messages", foreign_keys=[group_id])
+    space: Mapped["Space"] = relationship("Space", back_populates="messages", foreign_keys=[space_id])
+    room: Mapped["Room"] = relationship("Room", back_populates="messages", foreign_keys=[room_id])
+    author: Mapped["Client"] = relationship("Client", back_populates="messages", foreign_keys=[author_id])
 
 class Role(Base):
     __tablename__ = "role"
 
-    group_id: Mapped[int] = mapped_column(ForeignKey('group.id'))
+    group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
 
-    name: Mapped[str] = mapped_column(String(10))
-    rank_index: Mapped[int]
-    id: Mapped[int] = mapped_column(primary_key=True)
-    
-    MESSAGE_SEND: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    MESSAGE_DELETE: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    MESSAGE_EDIT: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    CHANNEL_CREATE: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    CHANNEL_DELETE: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    CHANNEL_EDIT: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    GROUP_CREATE: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    GROUP_DELETE: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    GROUP_EDIT: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    
+    name: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
     group: Mapped["Group"] = relationship("Group", back_populates="roles", foreign_keys=[group_id])
-    clients = relationship("Client", secondary=client_role_relationship, back_populates="roles")
+    permissions: Mapped[List["Permission"]] = relationship("Permission", back_populates="role", foreign_keys="Permission.role_id")
+    assignees = relationship("Client", secondary=client_group_relationship, back_populates="roles")
 
-    def __repr__(self) -> str:
-        return f"Role(name={self.name!r}, id={self.id!r})"
+class Permission(Base):
+    __tablename__ = "permission"
 
-class Group(Base):
-    __tablename__ = "group"
-    
-    owner_id: Mapped[int] = mapped_column(ForeignKey('client.id'))
+    role_id: Mapped[str] = mapped_column(ForeignKey('role.id'))
+    room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
 
-    name: Mapped[str] = mapped_column(String(10))
-    desc: Mapped[str] = mapped_column(String(100), nullable=True)
-    icon_path: Mapped[str] = mapped_column(String(100), nullable=True)
-    id : Mapped[int] = mapped_column(primary_key=True)
+    body: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
 
-    members = relationship("Client", secondary=client_group_relationship, back_populates="groups")
-    owner: Mapped["Client"] = relationship("Client", back_populates="owned_groups", foreign_keys=[owner_id])
-    channels: Mapped[List["Channel"]] = relationship("Channel", back_populates="group", foreign_keys="Channel.group_id")
-    messages: Mapped[List["Message"]] = relationship("Message", back_populates="group", foreign_keys="Message.group_id")
-    roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id")
+    role: Mapped["Group"] = relationship("Role", back_populates="permissions", foreign_keys=[role_id])
+    room: Mapped["Group"] = relationship("Room", back_populates="assigned_permissions", foreign_keys=[room_id])
 
-    def __repr__(self) -> str:
-        return f"Group(name={self.name!r}, desc={self.desc!r}, icon_path={self.icon_path!r}, id={self.id!r})"
-    
-class Channel(Base):
-    __tablename__ = "channel"
+"""
+PERMISSIONS
 
-    group_id: Mapped[int] = mapped_column(ForeignKey('group.id'), nullable=True)
+= GLOBAL:
+    - create_spaces
+    - create_rooms
+    - send_messages
+    - view_spaces (overrides view_rooms, meaning that if set to FALSE, neither spaces nor rooms will be displayed)
+    - view_rooms
+    - manage_group *
+    - create_roles
+    - send_media (.img .jpg. .gif .mp4 etc media attachements won't be allowed is set to FALSE)
+    - attach_files (overrides send_media as no attachements will be allowed if set to FALSE)
+    - ban (this be obvious :> )
+    - kick (this as well :> )
 
-    client_id: Mapped[int] = mapped_column(ForeignKey('client.id'), nullable=True)
-    co_client_id: Mapped[int] = mapped_column(ForeignKey('client.id'), nullable=True)
+= ROOMS (per role permissions):
+    - send_messages
+    - send_media (same as in GLOBAL)
+    - attach_files (same as in GLOBAL)
+    - manage_room
 
-    name: Mapped[str] = mapped_column(String(10))
-    personal: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    id : Mapped[int] = mapped_column(primary_key=True)
+= PERMISSIONS
+This is pretty simple:
+    {
+        "permission": "manage_group",
+        "global": true,
+    }
 
-    group: Mapped["Group"] = relationship("Group", back_populates="channels", foreign_keys=[group_id])
+    or
 
-    client: Mapped["Client"] = relationship("Client", back_populates="privates", foreign_keys=[client_id])
-    co_client: Mapped["Client"] = relationship("Client", back_populates="co_privates", foreign_keys=[co_client_id])
+    {
+        "permission": "send_messages",
+        "global": false,
+    }
 
-    messages: Mapped[List["Message"]] = relationship("Message", back_populates="channel", foreign_keys="Message.channel_id")
-    attachements: Mapped[List["Attachement"]] = relationship("Attachement", back_populates="channel", foreign_keys="Attachement.channel_id")
+    Keep in mind that some permissions can be in both categories.
 
-    def __repr__(self) -> str:
-        return f"Channel(name={self.name!r}, personal={self.personal!r}, id={self.id!r})"
-    
-class Message(Base):
-    __tablename__ = "message"
+"""
 
-    client_id: Mapped[int] = mapped_column(ForeignKey('client.id'))
-    group_id: Mapped[int] = mapped_column(ForeignKey('group.id'), nullable=True)
-    channel_id: Mapped[int] = mapped_column(ForeignKey('channel.id'))
-
-    content: Mapped[str] = mapped_column(String(1024))
-    sent_at: Mapped[datetime] = mapped_column(default=func.now())
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    channel: Mapped["Channel"] = relationship("Channel", back_populates="messages", foreign_keys=[channel_id])
-    client: Mapped["Client"] = relationship("Client", back_populates="messages", foreign_keys=[client_id])
-    group: Mapped["Group"] = relationship("Group", back_populates="messages", foreign_keys=[group_id])
-
-    def __repr__(self) -> str:
-        return f"Message(content={self.content!r}, id={self.id!r})"
-    
-class Attachement(Base):
-    __tablename__ = "attachement"
-
-    channel_id: Mapped[int] = mapped_column(ForeignKey('channel.id'))
-
-    path: Mapped[str] = mapped_column(String(50))
-    inner_path: Mapped[str] = mapped_column(String(50))
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    channel: Mapped["Channel"] = relationship("Channel", back_populates="attachements", foreign_keys=[channel_id])
-
-    def __repr__(self) -> str:
-        return f"Attachement(path={self.path!r}, inner_path={self.inner_path!r}, id={self.id!r})"
-
-class Dynamic(Base):
-    __tablename__ = "dynamic"
-    
-    path: Mapped[str] = mapped_column(String(50))
-    index: Mapped[str] = mapped_column(String(50))
-    inner_path: Mapped[str] = mapped_column(String(50))
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    def __repr__(self) -> str:
-        return f"Dynamic(path={self.path!r}, index={self.index!r}, inner_path={self.inner_path!r}, id={self.id!r})"
-
-    
 class DMP:
     def __init__(self):
         self.engine = create_async_engine("sqlite+aiosqlite://", echo=True)
@@ -192,18 +197,7 @@ class DMP:
     async def start(self):
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
-    def id(self):
-        time.sleep(uniform(0.300, 0.450))
-        tiden = list(datetime.now().strftime("%m/%d/%Y/%H/%M/%S/%f").split("/"))
-        id = 0
-        for iden in tiden:
-            id += int(iden) * int(tiden[-1])
-        return id
     
-    """
-    create_client
-    delete_client
     """
     
     async def create_client(self, name: str, username: str, email: str, password: str, id: int):
@@ -250,10 +244,6 @@ class DMP:
             return blocked
         except: return False
 
-    """
-    create_friend_request
-    delete_friend_request
-    """
 
     async def create_friend_request(self, id: int, client_id: int, co_client_id: int):
         try:
@@ -277,11 +267,6 @@ class DMP:
             return deleted
         except: return False
 
-    """
-    create_group
-    join_group
-    delete_group
-    """
     
     async def create_group(self, name: str, client_id: int, id: int, icon_path: str = None, desc: str = None):
         try:
@@ -326,10 +311,6 @@ class DMP:
             return deleted
         except: return False
     
-    """
-    create_channel
-    delete_channel
-    """
     
     async def create_channel(self, client_id: int, name: str, id: int, group_id: int = None, private: bool = False, co_client_id: int = None):
         try:
@@ -356,10 +337,6 @@ class DMP:
             return deleted
         except: return False
     
-    """
-    create_role
-    delete_role
-    """
     
     async def create_role(self, name: str, rank_index: int, group_id: int, id: int, **permissions):
         try:
@@ -383,10 +360,6 @@ class DMP:
             return deleted
         except: return False
     
-    """
-    save_message
-    delete_message
-    """
     
     async def save_message(self, client_id: int, group_id: int, channel_id: int, content: str, id: int):
         try:
@@ -416,10 +389,6 @@ class DMP:
             return deleted
         except: return False
 
-    """
-    save_attachement
-    delete_attachement
-    """
 
     async def save_attachement(self, channel_id: int, path: str, inner_path: str, id: int):
         try:
@@ -449,10 +418,6 @@ class DMP:
             return deleted
         except: return False
 
-    """
-    save_dynamic
-    clear_dynamic
-    """
 
     async def save_dynamic(self, path: str, index: str, inner_path: str, id: int):
         try:
@@ -477,15 +442,6 @@ class DMP:
             return True
         except: return False
 
-    """
-    fetch_client_by_mail
-    fetch_client_by_id
-    fetch_client_by_username
-    fetch_group_by_id
-    fetch_channel_by_id
-    fetch_message_by_id
-    fetch_dynamic_by_session_id
-    """
     
     async def fetch_client_by_mail(self, email: str):
         try:
@@ -592,3 +548,5 @@ class DMP:
                     dynamic_files = dynamic_files.scalars().first()
             return dynamic_files
         except: return False
+
+    """

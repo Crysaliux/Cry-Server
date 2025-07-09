@@ -1,0 +1,181 @@
+/*
+WIDGETS
+*/
+
+#group-widgets {
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(36, 1fr);
+    gap: 0.1vh;
+    background-color: rgb(69, 81, 95);
+}
+
+/*
+Last column - 26
+Last row - 28
+*/
+
+#group-header-widget {
+    grid-column-start: 1;
+    grid-column-end: 37;
+    display: grid;
+    grid-template-columns: repeat(36, 1fr);
+    gap: 0.1vh;
+    height: 5vh;
+}
+
+#group-channels-contacts-widget {
+    grid-column-start: 2;
+    grid-column-end: 7;
+    grid-row-start: 2;
+    height: 94.9vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    justify-items: center;
+}
+
+#group-channels-contacts-widget::-webkit-scrollbar {
+    width: 0;
+}
+
+#group-channels-contacts-widget {
+    scrollbar-width: none;
+}
+
+#group-chat-widget {
+    grid-column-start: 7;
+    grid-column-end: 33;
+    grid-row-start: 2;
+    height: 94.9vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#group-members-contact-widget {
+    grid-column-start: 33;
+    grid-column-end: 37;
+    grid-row-start: 2;
+    height: 94.9vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    justify-items: center;
+}
+
+#group-members-contact-widget::-webkit-scrollbar {
+    width: 0;
+}
+
+#group-members-contact-widget {
+    scrollbar-width: none;
+}
+
+/*
+HEADER WIDGETS
+*/
+
+#group-header-support-widget {
+    grid-row-start: 1;
+    height: 100%;
+}
+
+#group-header-group-addfriend-widget {
+    grid-column-start: 2;
+    grid-column-end: 7;
+    grid-row-start: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    height: 100%;
+}
+
+/*
+header-group-addfriend-widget:
+- group-info-widget
+*/
+
+#group-group-info-widget {
+    width: 100%;
+    height: 100%;
+    align-content: center;
+    justify-items: center;
+}
+
+#group-header-channelinfo-contacts-widget {
+    grid-column-start: 7;
+    grid-column-end: 33;
+    grid-row-start: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 5%;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+    box-sizing: border-box;
+    height: 100%;
+}
+
+#group-header-memberstats-widget {
+    grid-column-start: 33;
+    grid-column-end: 37;
+    grid-row-start: 1;
+    height: 100%;
+}
+
+/*
+INTRO
+*/
+
+#group-group-info-widget {
+    height: 100%;
+    width: 100%; /*???????????????*/
+}
+
+/*
+CHANNELS
+*/
+
+.group_channel {
+    height: 30px;
+    width: 98%;
+    margin-top: 10px;
+    border-radius: 5px;
+    align-content: center;
+    padding-left: 5px;
+    box-sizing: border-box;
+}
+
+.group_channel:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+}
+
+/*
+MEMBERS
+*/
+
+.group_member {
+    height: 50px;
+    width: 98%;
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    border-radius: 5px;
+}
+
+.group_member img {
+    position: relative;
+    width: 35px;
+    border-radius: 50%;
+    height: 35px;
+}
+
+.group_member:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+}

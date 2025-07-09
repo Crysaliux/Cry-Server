@@ -17,17 +17,210 @@ body, html {
 }
 
 /*
-WIDGETS
+FONT STYLES (GLOBAL)
 */
 
-#widgets {
-    height: 100%;
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(25, 1fr);
-    gap: 0.1vh;
-    background-color: rgb(69, 81, 95);
+* {
+    font-family: "Special Gothic", sans-serif;
+    font-weight: 400;
+    font-style: normal;
 }
+
+.big {
+    font-size: 120%;
+    color: white;
+}
+
+.medium {
+    font-size: 115%;
+    color: white;
+}
+
+.small {
+    font-size: 110%;
+    color: white;
+}
+
+.message_fetched {
+    font-size: 110%;
+    color: white;
+}
+
+.message_pending {
+    font-size: 110%;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/*
+ELEMENT STYLES (GLOBAL)
+*/
+
+.underlined {
+    background: none;
+    text-decoration: underline;
+    color: rgba(255, 255, 255, 1);
+}
+
+.underlined:hover {
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+
+.transparent {
+    background: transparent;
+}
+
+.transparent:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.transparent_clicked {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/*
+BORDER STYLES (GLOBAL)
+*/
+
+.border {
+    border: 1px solid rgb(69, 81, 95);
+}
+
+.no_border {
+    border: none;
+    outline: none;
+}
+
+.no_border:focus, .no_border:active {
+    outline: none;
+}
+
+/*
+INTERACTIONS (GLOBAL)
+*/
+
+.nocopy {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.pointer {
+    cursor: pointer;
+}
+
+.underline_on_touch:hover {
+    text-decoration: underline;
+}
+
+/*
+COLOUR PALETTE (GLOBAL)
+*/
+
+.blue {
+    background-color: rgba(0, 0, 255, 1);
+}
+
+.blue_clicked {
+    background-color: rgba(0, 0, 255, 0.8);
+}
+
+.blue:hover {
+    background-color: rgba(0, 0, 255, 0.8);
+    cursor: pointer;
+}
+
+.red {
+    background-color: rgba(255, 0, 0, 1);
+}
+
+.red_clicked {
+    background-color: (255, 0, 0, 0.8);
+}
+
+.red:hover {
+    background-color: (255, 0, 0, 0.8);
+    cursor: pointer;
+}
+
+.white {
+    background-color: rgba(255, 255, 255, 1);
+}
+
+.white_clicked {
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.white:hover {
+    background-color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+
+.green {
+    background-color: rgba(0, 128, 0, 1);
+}
+
+.green_clicked {
+    background-color: rgba(0, 128, 0, 0.8);
+}
+
+.green:hover {
+    background-color: rgba(0, 128, 0, 0.8);
+    cursor: pointer;
+}
+
+.grey {
+    background-color: rgba(128, 128, 128, 1);
+}
+
+.grey_clicked {
+    background-color: rgba(128, 128, 128, 0.8);
+}
+
+.grey:hover {
+    background-color: rgba(128, 128, 128, 0.8);
+    cursor: pointer;
+}
+
+/*
+INTERACTIVE ELEMENTS (GLOBAL)
+*/
+
+.text_button {
+    height: 30px;
+    width: auto;
+    padding: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+}
+
+.img_button {
+    height: 30px;
+    width: auto;
+    padding: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+}
+
+.text_button:focus,
+.text_button:active,
+.img_button:focus,
+.img_button:active {
+    outline: none;
+}
+
+/*
+WIDGETS (GLOBAL)
+*/
 
 .widget {
     background-color: rgb(54, 58, 63);
@@ -38,146 +231,12 @@ WIDGETS
 }
 
 /*
-Last column - 26
-Last row - 28
+GROUPS (GLOBAL)
 */
-
-#header-widget {
-    grid-column-start: 1;
-    grid-column-end: 26;
-    display: grid;
-    grid-template-columns: repeat(25, 1fr);
-    gap: 0.1vh;
-    height: 5vh;
-}
-
-#groups-widget {
-   grid-row-start: 2;
-   height: 94.9vh;
-   overflow-x: hidden;
-   overflow-y: auto;
-   justify-items: center;
-}
-
-#groups-widget::-webkit-scrollbar {
-    width: 0;
-}
-
-#groups-widget {
-    scrollbar-width: none;
-}
-
-#channels-contacts-widget {
-    grid-column-start: 2;
-    grid-column-end: 6;
-    grid-row-start: 2;
-    height: 94.9vh;
-    overflow-x: hidden;
-    overflow-y: auto;
-    justify-items: center;
-}
-
-#channels-contacts-widget::-webkit-scrollbar {
-    width: 0;
-}
-
-#channels-contacts-widget {
-    scrollbar-width: none;
-}
-
-#chat-widget {
-    grid-column-start: 6;
-    grid-column-end: 23;
-    grid-row-start: 2;
-    height: 94.9vh;
-    display: flex;
-    flex-direction: column;
-}
-
-#members-contact-widget {
-    grid-column-start: 23;
-    grid-column-end: 26;
-    grid-row-start: 2;
-    height: 94.9vh;
-    overflow-x: hidden;
-    overflow-y: auto;
-    justify-items: center;
-}
-
-#members-contact-widget::-webkit-scrollbar {
-    width: 0;
-}
-
-#members-contact-widget {
-    scrollbar-width: none;
-}
-
-/*
-HEADER WIDGETS
-*/
-
-#header-support-widget {
-    grid-row-start: 1;
-    height: 100%;
-}
-
-#header-group-addfriend-widget {
-    grid-column-start: 2;
-    grid-column-end: 6;
-    grid-row-start: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    height: 100%;
-}
-
-/*
-header-group-addfriend-widget:
-- group-info-widget
-*/
-
-#group-info-widget {
-    width: 100%;
-    height: 100%;
-    align-content: center;
-    justify-items: center;
-}
-
-#header-channelinfo-contacts-widget {
-    grid-column-start: 6;
-    grid-column-end: 23;
-    grid-row-start: 1;
-    display: flex;
-    flex-direction: row;
-    gap: 5%;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    overflow: hidden;
-    box-sizing: border-box;
-    height: 100%;
-}
-
-#header-memberstats-widget {
-    grid-column-start: 23;
-    grid-column-end: 26;
-    grid-row-start: 1;
-    height: 100%;
-}
-
-/*
-GROUPS
-*/
-
-#group-info-widget {
-    height: 100%;
-    width: 100%;
-}
 
 .group {
-    height: 45px;
-    width: 45px;
+    height: 40px;
+    width: 40px;
     margin-top: 10px;
     border-radius: 10px;
 }
@@ -230,26 +289,7 @@ GROUPS
 }
 
 /*
-CHANNELS
-*/
-
-.channel {
-    height: 30px;
-    width: 98%;
-    margin-top: 10px;
-    border-radius: 5px;
-    align-content: center;
-    padding-left: 5px;
-    box-sizing: border-box;
-}
-
-.channel:hover {
-    background-color: rgba(255, 255, 255, 0.4);
-    cursor: pointer;
-}
-
-/*
-CHAT
+CHAT (GLOBAL)
 */
 
 #messages {
@@ -353,34 +393,6 @@ CHAT
     display: flex;
     flex-direction: column;
     gap: 10px;
-}
-
-/*
-GROUP MEMBERS
-*/
-
-.member {
-    height: 50px;
-    width: 98%;
-    padding: 10px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: row;
-    gap: 10px;
-    align-items: center;
-    border-radius: 5px;
-}
-
-.member img {
-    position: relative;
-    width: 35px;
-    border-radius: 50%;
-    height: 35px;
-}
-
-.member:hover {
-    background-color: rgba(255, 255, 255, 0.4);
-    cursor: pointer;
 }
 
 /*
