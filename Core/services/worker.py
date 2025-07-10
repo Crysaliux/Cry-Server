@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Boolean, DateTime, insert, select, update, delete, Table, Column, Integer, func, desc, JSON
+from sqlalchemy import ForeignKey, String, Boolean, DateTime, Table, Column, Integer, func, desc, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from datetime import datetime, timedelta
@@ -32,7 +32,7 @@ class Client(Base):
     __tablename__ = "client"
 
     username: Mapped[str] = mapped_column(String(10))
-    nickname: Mapped[str] = mapped_column(String(20))
+    nickname: Mapped[str] = mapped_column(String(20), nullable=True)
     email: Mapped[str] = mapped_column(String(30))
     password_hashed: Mapped[str]
     about_me: Mapped[str] = mapped_column(String(200), nullable=True)
@@ -43,7 +43,7 @@ class Client(Base):
 
     token: Mapped[str]
     token_expires_at: Mapped[datetime] = mapped_column(DateTime) #datetime.now(datetime.timezone.utc) + timedelta(hours=...)
-    last_login: Mapped[datetime] = mapped_column(DateTime) #datetime.utcnow()
+    last_login: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
 
     friends = relationship("Client", secondary=friend_relationship, back_populates="friends")
     groups = relationship("Group", secondary=client_group_relationship, back_populates="members")
@@ -189,7 +189,7 @@ This is pretty simple:
 
 """
 
-class DMP:
+class Worker:
     def __init__(self):
         self.engine = create_async_engine("sqlite+aiosqlite://", echo=True)
         self.session = sessionmaker(bind=self.engine, class_=AsyncSession, expire_on_commit=False)
@@ -197,9 +197,17 @@ class DMP:
     async def start(self):
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+async def executer(func):
+    async def wrapper(request, session):
+        async with session() as ssn:
+            async with ssn.begin():
+                result = await func(request, ssn)
+        return result
+    return wrapper
+
     
     """
-    
     async def create_client(self, name: str, username: str, email: str, password: str, id: int):
         try:
             created = False

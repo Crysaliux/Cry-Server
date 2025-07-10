@@ -6,10 +6,9 @@ from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
-from .protocols.dmp import DMP
-from .protocols.cmp import CMP
-from .api_modules.authentication import Authentication
-from .api_modules.clientinterface import Clientinterface
+from .services.worker import Worker
+from .services.listener import Listener
+from .services.oauth import Authentication
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from itertools import takewhile
@@ -34,8 +33,7 @@ class Core(FastAPI):
         super().__init__()
         self.sv_host = host
         self.sv_port = port
-        self.dmp = DMP()
-        self.cmp = CMP()
+        self.worker = Worker()
         self.client_server_origin = "http://localhost:5173"
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
@@ -62,19 +60,18 @@ class Core(FastAPI):
             allow_headers=["*"],
         )
 
-        self.auth = Authentication(
-            dmp=self.dmp, 
+        self.oauth = Authentication(
+            ws=self.worker.session, #ws - worker session
             tepmlates=self.templates, 
             hasher=self.hasher, 
             algorithm=self.algorithm, 
             access_key=self.server_access_key
         )
-        self.auth.router_tasks()
+        self.oauth.router_tasks()
 
-        self.client = Clientinterface(
-            cmp=self.cmp,
+        self.listener = Listener(
             addr=(self.sv_host, self.sv_port),
-            dmp=self.dmp,
+            ws=self.worker.session, #ws - worker session
             tepmlates=self.templates, 
             hasher=self.hasher, 
             algorithm=self.algorithm, 
@@ -84,12 +81,12 @@ class Core(FastAPI):
             max_file_size=self.max_file_size,
             max_message_length=self.max_message_length,
             client_server_origin=self.client_server_origin,
-            access_key=self.server_access_key
+            access_key=self.server_access_key,
         )
-        self.client.router_tasks()
+        self.listener.router_tasks()
 
-        self.include_router(self.auth.router, prefix="/auth")
-        self.include_router(self.client.router, prefix="/client")
+        self.include_router(self.auth.router, prefix="/oauth")
+        self.include_router(self.listener.router, prefix="/api_hatch")
 
         self.main_routes = [
             {"path": "/", "func": self.__main, "method": ["GET"]},

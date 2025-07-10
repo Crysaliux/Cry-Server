@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
-from ..components.client import NewClient
+from ..components.client import UpdateClient
 from ..components.group import NewGroup
 from ..components.message import NewMessage
 from ..components.permission import NewPermission
@@ -10,6 +10,8 @@ from ..components.space import NewSpace
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
+from worker import executer, Client, Group, Space, Room, Message, Role, Permission
+from sqlalchemy import insert, select, update, delete
 from ast import literal_eval
 from datetime import datetime
 from PIL import Image
@@ -21,7 +23,7 @@ import os
 
 
 ClientRequest = Annotated[Union[
-    NewClient, 
+    UpdateClient, 
     NewGroup, 
     NewMessage, 
     NewPermission, 
@@ -30,12 +32,11 @@ ClientRequest = Annotated[Union[
     NewSpace,
     ], _type(discriminator='type')]
 
-class Clientinterface:
+class Listener:
     def __init__(
             self, 
             hasher, 
-            dmp, 
-            cmp, 
+            ws,  
             storage_images_path: str, 
             storage_files_path: str, 
             max_message_length: dict, 
@@ -44,13 +45,12 @@ class Clientinterface:
             client_server_origin: str, 
             algorithm, access_key, 
             addr: tuple, 
-            tepmlates: Jinja2Templates
+            tepmlates: Jinja2Templates,
         ):
         self.addr = addr
         self.access_key = access_key
         self.hasher = hasher
-        self.dmp = dmp
-        self.cmp = cmp
+        self.ws = ws
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
         self.max_message_length = max_message_length
@@ -62,7 +62,7 @@ class Clientinterface:
         self.router = APIRouter()
 
         self.types = { 
-            "new_client": {"ref": NewClient, "func": ...},
+            "new_client": {"ref": UpdateClient, "func": self.__on_update_client},
             "new_group": {"ref": NewGroup, "func": ...},
             "new_message": {"ref": NewMessage, "func": ...},
             "new_permission": {"ref": NewPermission, "func": ...},
@@ -70,19 +70,35 @@ class Clientinterface:
             "new_room": {"ref": NewRoom, "func": ...},
             "new_space": {"ref": NewSpace, "func": ...},
         }
+    
+    @executer
+    async def __validate_request(self, token: str, session):
+        payload = jwt.decode(token, self.access_key, algorithm=self.algorithm)
+        username, id = payload["username"], payload["id"]
+        client = session.execute(select(Client).where(Client.username == username, Client.id == id, Client.token == token))
+        if client: return True
+        return False
 
-    async def __total_interpreter(self, data: json, socket: WebSocket, id: int):
+    async def __total_interpreter(self, data: json, socket: WebSocket):
         adapter = TypeAdapter(ClientRequest)
         request = adapter.validate_python(data)
         if request.type in self.types:
             if isinstance(request, self.types[request.type]["ref"]):
                 func = self.types[request.type]["func"]
-                response = await func(request, id)
+                response = await func(request, self.ws)
                 if response is not None:
                     if isinstance(response, tuple):
                         for instance in response: #In case if double, triple, etc (like... really rare, chill)
                             await socket.send_json(instance)
                     else: await socket.send_json(response)
+
+    @executer
+    async def __on_update_client(self, request, session):
+        nickname, about_me, avatar_url, color_theme, id = request.nickname, request.about_me, request.avatr_url, request.color_theme, request.id
+        await session.execute(update(Client).where(Client.id == id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme))
+        return {"operation": "on_update_client", "status": True, "error": None}
+
+
 
     async def __on_modal(self, request, client_id: int):
         response = await self.__modal_interpreter(request, client_id)
