@@ -67,7 +67,7 @@ class Group(Base):
 
     #settings
     content_filter: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    content_filter_level: Mapped[str] = mapped_column(String(10))
+    content_filter_level: Mapped[str] = mapped_column(String(10), default="low")
 
     members = relationship("Client", secondary=client_group_relationship, back_populates="groups")
     owner: Mapped["Client"] = relationship("Client", back_populates="owned_groups", foreign_keys=[owner_id])
@@ -130,6 +130,7 @@ class Role(Base):
     group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
 
     name: Mapped[str] = mapped_column(String(20))
+    color: Mapped[str] = mapped_column(String(7), default="#FFFFFF") #HEX only! heh.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
@@ -141,7 +142,7 @@ class Permission(Base):
     __tablename__ = "permission"
 
     role_id: Mapped[str] = mapped_column(ForeignKey('role.id'))
-    room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
+    room_id: Mapped[str] = mapped_column(ForeignKey('room.id'), nullable=True)
 
     body: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))

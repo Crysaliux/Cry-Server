@@ -72,6 +72,7 @@ class Core(FastAPI):
         self.listener = Listener(
             addr=(self.sv_host, self.sv_port),
             ws=self.worker.session, #ws - worker session
+            oauth2=self.oauth2,
             tepmlates=self.templates, 
             hasher=self.hasher, 
             algorithm=self.algorithm, 

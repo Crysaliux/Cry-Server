@@ -8,5 +8,4 @@ class NewRoom(BaseModel):
     creator_id: str
     name: str
     about_room: Union[str, None]
-    nsfw: bool
     id: str

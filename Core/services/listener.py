@@ -37,6 +37,7 @@ class Listener:
             self, 
             hasher, 
             ws,  
+            oauth2,
             storage_images_path: str, 
             storage_files_path: str, 
             max_message_length: dict, 
@@ -51,6 +52,7 @@ class Listener:
         self.access_key = access_key
         self.hasher = hasher
         self.ws = ws
+        self.oauth2 = oauth2
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
         self.max_message_length = max_message_length
@@ -97,6 +99,48 @@ class Listener:
         nickname, about_me, avatar_url, color_theme, id = request.nickname, request.about_me, request.avatr_url, request.color_theme, request.id
         await session.execute(update(Client).where(Client.id == id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme))
         return {"operation": "on_update_client", "status": True, "error": None}
+    
+    @executer
+    async def __on_new_group(self, request, session):
+        owner_id, name, about_group, icon_url, id = request.owner_id, request.name, request.about_group, request.icon_url, request.id
+        session.add(Group(owner_id=owner_id, name=name, about_group=about_group, icon_url=icon_url, id=id)) 
+        await session.commit()
+        return {"operation": "on_new_group", "status": True, "error": None}
+    
+    @executer
+    async def __on_new_space(self, request, session):
+        group_id, creator_id, name, id = request.group_id, request.creator_id, request.name, request.id
+        session.add(Space(group_id=group_id, creator_id=creator_id, name=name, id=id)) 
+        await session.commit()
+        return {"operation": "on_new_space", "status": True, "error": None}
+    
+    @executer
+    async def __on_new_room(self, request, session):
+        group_id, space_id, creator_id, name, about_room, id = request.group_id, request.space_id, request.creator_id, request.name, request.about_room, request.id
+        session.add(Room(group_id=group_id, space_id=space_id, creator_id=creator_id, name=name, about_room=about_room, id=id)) 
+        await session.commit()
+        return {"operation": "on_new_room", "status": True, "error": None}
+    
+    @executer
+    async def __on_new_message(self, request, session):
+        group_id, space_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
+        session.add(Message(group_id=group_id, space_id=space_id, room_id=room_id, author_id=author_id, content=content, id=id)) 
+        await session.commit()
+        return {"operation": "on_new_message", "status": True, "error": None}
+    
+    @executer
+    async def __on_new_role(self, request, session):
+        group_id, name, id = request.group_id, request.name, request.id
+        session.add(Role(group_id=group_id, name=name, id=id))
+        await session.commit()
+        return {"operation": "on_new_role", "status": True, "error": None}
+    
+    @executer
+    async def __on_new_permission(self, request, session):
+        role_id, room_id, body = request.role_id, request.room_id, request.body
+        session.add(Permission(role_id=role_id, room_id=room_id, body=body))
+        await session.commit()
+        return {"operation": "on_new_role", "status": True, "error": None}
 
 
 
@@ -204,17 +248,19 @@ class Listener:
             return request
 
     def router_tasks(self):
-        @self.router.websocket("/api")
-        async def listener(websocket: WebSocket):
+        @self.router.websocket("/listener")
+        async def listener(websocket: WebSocket, token: str = Depends(self.oauth2)):
             await websocket.accept()
-            id = int(await websocket.receive_text())
-            await self.cmp.connect(id, {"socket": websocket})
-            try:
-                while True:
-                    data = await websocket.receive_json()
-                    await self.__total_interpreter(data, websocket, id)
-            except WebSocketDisconnect:
-                await self.cmp.disconnect(id)
+            if await self.__validate_request(token, self.ws):
+                try:
+                    while True:
+                        data = await websocket.receive_json()
+                        await self.__total_interpreter(data, websocket)
+                except WebSocketDisconnect:
+                    await websocket.close()
+            else:
+                await websocket.send_json({"connection_status": False, "error": "invalid or outdated access token"})
+                await websocket.close()
 
         @self.router.post("/validate", response_class=HTMLResponse)
         async def validate(request: Request, creds: GrabCreds):

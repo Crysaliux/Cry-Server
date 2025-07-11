@@ -7,7 +7,4 @@ class NewGroup(BaseModel):
     name: str
     about_group: Union[str, None]
     icon_url: Union[str, None]
-    nsfw: bool
     id: str
-    content_filter: bool
-    content_filter_level: bool
