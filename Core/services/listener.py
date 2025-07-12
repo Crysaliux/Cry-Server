@@ -78,7 +78,7 @@ class Listener:
             "new_space": {"ref": NewSpace, "func": self.__on_new_space, "name": "on_new_space"},
 
             "update_client": {"ref": UpdateClient, "func": self.__on_update_client, "name": "on_update_client"},
-            "update_group": {"ref": NewGroup, "func": ..., "name": "on_update_group"},
+            "update_group": {"ref": NewGroup, "func": self.__on_update_group, "name": "on_update_group"},
             "update_message": {"ref": NewMessage, "func": ..., "name": "on_update_message"},
             "update_role": {"ref": NewRole, "func": ..., "name": "on_update_role"},
             "update_room": {"ref": NewRoom, "func": ..., "name": "on_update_room"},
