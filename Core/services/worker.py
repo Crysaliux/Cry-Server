@@ -72,6 +72,7 @@ class Group(Base):
     members = relationship("Client", secondary=client_group_relationship, back_populates="groups")
     owner: Mapped["Client"] = relationship("Client", back_populates="owned_groups", foreign_keys=[owner_id])
     roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id")
+    permissions: Mapped[List["Permission"]] = relationship("Permission", back_populates="group", foreign_keys="Permission.group_id")
     spaces: Mapped[List["Space"]] = relationship("Space", back_populates="group", foreign_keys="Space.group_id")
     rooms: Mapped[List["Room"]] = relationship("Room", back_populates="group", foreign_keys="Room.group_id")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="group", foreign_keys="Message.group_id")
@@ -141,12 +142,15 @@ class Role(Base):
 class Permission(Base):
     __tablename__ = "permission"
 
+    group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
     role_id: Mapped[str] = mapped_column(ForeignKey('role.id'))
     room_id: Mapped[str] = mapped_column(ForeignKey('room.id'), nullable=True)
 
     body: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
+    group: Mapped["Group"] = relationship("Group", back_populates="permissions", foreign_keys=[group_id])
     role: Mapped["Group"] = relationship("Role", back_populates="permissions", foreign_keys=[role_id])
     room: Mapped["Group"] = relationship("Room", back_populates="assigned_permissions", foreign_keys=[room_id])
 
@@ -154,36 +158,37 @@ class Permission(Base):
 PERMISSIONS
 
 = GLOBAL:
-    - create_spaces
-    - create_rooms
-    - send_messages
-    - view_spaces (overrides view_rooms, meaning that if set to FALSE, neither spaces nor rooms will be displayed)
-    - view_rooms
-    - manage_group *
-    - create_roles
-    - send_media (.img .jpg. .gif .mp4 etc media attachements won't be allowed is set to FALSE)
-    - attach_files (overrides send_media as no attachements will be allowed if set to FALSE)
-    - ban (this be obvious :> )
-    - kick (this as well :> )
+    - CREATE_SPACES
+    - CREATE_ROOMS
+    - SEND_MESSAGES
+    - VIEW_SPACES (overrides view_rooms, meaning that if set to FALSE, neither spaces nor rooms will be displayed)
+    - VIEW_ROOMS
+    - MANAGE_GROUP *
+    - CO_OWNER * (FULL ACCESS)
+    - CREATE_ROLES
+    - SEND_MEDIA (.img .jpg. .gif .mp4 etc media attachements won't be allowed is set to FALSE)
+    - ATTACH_FILES (overrides send_media as no attachements will be allowed if set to FALSE)
+    - BAN (this be obvious :> )
+    - KICK (this as well :> )
 
 = ROOMS (per role permissions):
-    - send_messages
-    - send_media (same as in GLOBAL)
-    - attach_files (same as in GLOBAL)
-    - manage_room
+    - SEND_MESSAGES
+    - SEND_MEDIA (same as in GLOBAL)
+    - ATTACH_FILES (same as in GLOBAL)
+    - MANAGE_ROOM
 
 = PERMISSIONS
 This is pretty simple:
     {
-        "permission": "manage_group",
-        "global": true,
+        "permission": "MANAGE_GROUP",
+        "global": True,
     }
 
     or
 
     {
-        "permission": "send_messages",
-        "global": false,
+        "permission": "SEND_MESSAGES",
+        "global": False,
     }
 
     Keep in mind that some permissions can be in both categories.
@@ -200,11 +205,13 @@ class Worker:
             await conn.run_sync(Base.metadata.create_all)
 
 async def executer(func):
-    async def wrapper(request, session):
-        async with session() as ssn:
-            async with ssn.begin():
-                result = await func(request, ssn)
-        return result
+    async def wrapper(request, client, operation_name, session):
+        try:
+            async with session() as ssn:
+                async with ssn.begin():
+                    result = await func(request, client, ssn)
+            return result
+        except: return {"operation": operation_name, "status": False, "error": "Oops... It seems that our server is in trouble, dev team got notified!"}
     return wrapper
 
     

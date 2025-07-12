@@ -9,3 +9,11 @@ class NewRoom(BaseModel):
     name: str
     about_room: Union[str, None]
     id: str
+
+class UpdateRoom(BaseModel):
+    type: Literal['update_room']
+    creator_id: str
+    name: str
+    about_room: Union[str, None]
+    nsfw: bool
+    id: str

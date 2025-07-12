@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from ..components.client import UpdateClient
-from ..components.group import NewGroup
-from ..components.message import NewMessage
-from ..components.permission import NewPermission
-from ..components.role import NewRole
-from ..components.room import NewRoom
-from ..components.space import NewSpace
+from ..components.group import NewGroup, UpdateGroup
+from ..components.message import NewMessage, UpdateMessage
+from ..components.permission import NewPermission, DeletePermission
+from ..components.role import NewRole, UpdateRole
+from ..components.room import NewRoom, UpdateRoom
+from ..components.space import NewSpace, UpdateSpace
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
@@ -30,6 +30,12 @@ ClientRequest = Annotated[Union[
     NewRole,
     NewRoom,
     NewSpace,
+    UpdateGroup,
+    UpdateMessage,
+    UpdateRole,
+    UpdateRoom,
+    UpdateSpace,
+    DeletePermission,
     ], _type(discriminator='type')]
 
 class Listener:
@@ -64,13 +70,21 @@ class Listener:
         self.router = APIRouter()
 
         self.types = { 
-            "new_client": {"ref": UpdateClient, "func": self.__on_update_client},
-            "new_group": {"ref": NewGroup, "func": ...},
-            "new_message": {"ref": NewMessage, "func": ...},
-            "new_permission": {"ref": NewPermission, "func": ...},
-            "new_role": {"ref": NewRole, "func": ...},
-            "new_room": {"ref": NewRoom, "func": ...},
-            "new_space": {"ref": NewSpace, "func": ...},
+            "new_group": {"ref": NewGroup, "func": self.__on_new_group, "name": "on_new_group"},
+            "new_message": {"ref": NewMessage, "func": self.__on_new_message, "name": "on_new_message"},
+            "new_permission": {"ref": NewPermission, "func": self.__on_new_permission, "name": "on_new_permission"},
+            "new_role": {"ref": NewRole, "func": self.__on_new_role, "name": "on_new_role"},
+            "new_room": {"ref": NewRoom, "func": self.__on_new_room, "name": "on_new_room"},
+            "new_space": {"ref": NewSpace, "func": self.__on_new_space, "name": "on_new_space"},
+
+            "update_client": {"ref": UpdateClient, "func": self.__on_update_client, "name": "on_update_client"},
+            "update_group": {"ref": NewGroup, "func": ..., "name": "on_update_group"},
+            "update_message": {"ref": NewMessage, "func": ..., "name": "on_update_message"},
+            "update_role": {"ref": NewRole, "func": ..., "name": "on_update_role"},
+            "update_room": {"ref": NewRoom, "func": ..., "name": "on_update_room"},
+            "update_space": {"ref": NewSpace, "func": ..., "name": "on_update_space"},
+
+            "delete_permission": {"ref": NewPermission, "func": ..., "name": "on_new_permission"},
         }
     
     @executer
@@ -78,69 +92,266 @@ class Listener:
         payload = jwt.decode(token, self.access_key, algorithm=self.algorithm)
         username, id = payload["username"], payload["id"]
         client = session.execute(select(Client).where(Client.username == username, Client.id == id, Client.token == token))
-        if client: return True
+        if client: return True, client
+        return False, None
+    
+    async def __validate_global_permissions(self, group: Group, permission: str):
+        if next(role for role in group.roles if next(perm for perm in role.permissions if perm.body["global"] and perm.body["permission"] == permission) is not None) is not None:
+            return True
         return False
 
-    async def __total_interpreter(self, data: json, socket: WebSocket):
+    async def __validate_room_related_permissions(self, group: Group, permission: str):
+        if next(role for role in group.roles if next(perm for perm in role.permissions if not perm.body["global"] and perm.body["permission"] == permission) is not None) is not None:
+            return True
+        return False
+
+    async def __total_interpreter(self, data: dict, client: Client, socket: WebSocket):
         adapter = TypeAdapter(ClientRequest)
         request = adapter.validate_python(data)
         if request.type in self.types:
             if isinstance(request, self.types[request.type]["ref"]):
                 func = self.types[request.type]["func"]
-                response = await func(request, self.ws)
+                response = await func(request, client, self.types[request.type]["name"], self.ws)
                 if response is not None:
                     if isinstance(response, tuple):
                         for instance in response: #In case if double, triple, etc (like... really rare, chill)
                             await socket.send_json(instance)
                     else: await socket.send_json(response)
-
-    @executer
-    async def __on_update_client(self, request, session):
-        nickname, about_me, avatar_url, color_theme, id = request.nickname, request.about_me, request.avatr_url, request.color_theme, request.id
-        await session.execute(update(Client).where(Client.id == id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme))
-        return {"operation": "on_update_client", "status": True, "error": None}
     
+    #ON_NEW_...
     @executer
-    async def __on_new_group(self, request, session):
+    async def __on_new_group(self, request, client: Client, operation_name: str, session):
         owner_id, name, about_group, icon_url, id = request.owner_id, request.name, request.about_group, request.icon_url, request.id
         session.add(Group(owner_id=owner_id, name=name, about_group=about_group, icon_url=icon_url, id=id)) 
         await session.commit()
-        return {"operation": "on_new_group", "status": True, "error": None}
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "owner_id": owner_id,
+                "name": name,
+                "about_group": about_group,
+                "icon_url": icon_url,
+                "id": id,
+            }
+        }
     
     @executer
-    async def __on_new_space(self, request, session):
+    async def __on_new_space(self, request, client: Client, operation_name: str, session):
         group_id, creator_id, name, id = request.group_id, request.creator_id, request.name, request.id
         session.add(Space(group_id=group_id, creator_id=creator_id, name=name, id=id)) 
         await session.commit()
-        return {"operation": "on_new_space", "status": True, "error": None}
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "creator_id": creator_id,
+                "name": name,
+                "id": id,
+            }
+        }
     
     @executer
-    async def __on_new_room(self, request, session):
+    async def __on_new_room(self, request, client: Client, operation_name: str, session):
         group_id, space_id, creator_id, name, about_room, id = request.group_id, request.space_id, request.creator_id, request.name, request.about_room, request.id
         session.add(Room(group_id=group_id, space_id=space_id, creator_id=creator_id, name=name, about_room=about_room, id=id)) 
         await session.commit()
-        return {"operation": "on_new_room", "status": True, "error": None}
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "space_id": space_id,
+                "creator_id": creator_id,
+                "name": name,
+                "about_room": about_room,
+                "id": id,
+            }
+        }
     
     @executer
-    async def __on_new_message(self, request, session):
+    async def __on_new_message(self, request, client: Client, operation_name: str, session):
         group_id, space_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
         session.add(Message(group_id=group_id, space_id=space_id, room_id=room_id, author_id=author_id, content=content, id=id)) 
         await session.commit()
-        return {"operation": "on_new_message", "status": True, "error": None}
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "space_id": space_id,
+                "room_id": room_id,
+                "author_id": author_id,
+                "content": content,
+                "id": id,
+            }
+        }
     
     @executer
-    async def __on_new_role(self, request, session):
+    async def __on_new_role(self, request, client: Client, operation_name: str, session):
         group_id, name, id = request.group_id, request.name, request.id
         session.add(Role(group_id=group_id, name=name, id=id))
         await session.commit()
-        return {"operation": "on_new_role", "status": True, "error": None}
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "name": name,
+                "id": id,
+            }
+        }
     
     @executer
-    async def __on_new_permission(self, request, session):
-        role_id, room_id, body = request.role_id, request.room_id, request.body
-        session.add(Permission(role_id=role_id, room_id=room_id, body=body))
+    async def __on_new_permission(self, request, client: Client, operation_name: str, session):
+        group_id, role_id, room_id, body, id = request.group_id, request.role_id, request.room_id, request.body, request.id
+        session.add(Permission(group_id=group_id, role_id=role_id, room_id=room_id, body=body, id=id))
         await session.commit()
-        return {"operation": "on_new_role", "status": True, "error": None}
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "role_id": role_id,
+                "room_id": room_id,
+                "body": body,
+                "id": id,
+            }
+        }
+    
+
+    #ON_UPDATE_...
+    @executer
+    async def __on_update_client(self, request, client: Client, operation_name: str, session):
+        nickname, about_me, avatar_url, color_theme, id = request.nickname, request.about_me, request.avatr_url, request.color_theme, request.id
+        await session.execute(update(Client).where(Client.id == id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme))
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "nickname": nickname,
+                "about_me": about_me,
+                "avatar_url": avatar_url,
+                "color_theme": color_theme,
+                "id": id,
+            }
+        }
+    
+    @executer
+    async def __on_update_group(self, request, client: Client, operation_name: str, session):
+        owner_id, name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = request.owner_id, request.name, request.about_group, request.icon_url, request.nsfw, request.content_filter, request.content_filter_level, request.id
+        group = await session.execute(select(Group).where(Group.id == id))
+        if group is not None:
+            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_room_related_permissions(group, "MANAGE_GROUP"):
+                await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level))
+                return {
+                    "operation": operation_name, 
+                    "status": True, 
+                    "error": None,
+            
+                    "body": {
+                        "name": name,
+                        "about_group": about_group,
+                        "icon_url": icon_url,
+                        "nsfw": nsfw,
+                        "id": id,
+
+                        "content_filter": content_filter,
+                        "content_filter_level": content_filter_level,
+                    }
+                }
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_GROUP] permissions!"}
+        else: return {"operation": operation_name, "status": False, "error": "Group object has not been found"}
+    
+    @executer
+    async def __on_update_space(self, request, client: Client, operation_name: str, session):
+        group_id, creator_id, name, id = request.group_id, request.creator_id, request.name, request.id
+        session.add(Space(group_id=group_id, creator_id=creator_id, name=name, id=id)) 
+        await session.commit()
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "creator_id": creator_id,
+                "name": name,
+                "id": id,
+            }
+        }
+    
+    @executer
+    async def __on_update_room(self, request, client: Client, operation_name: str, session):
+        group_id, space_id, creator_id, name, about_room, id = request.group_id, request.space_id, request.creator_id, request.name, request.about_room, request.id
+        session.add(Room(group_id=group_id, space_id=space_id, creator_id=creator_id, name=name, about_room=about_room, id=id)) 
+        await session.commit()
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "space_id": space_id,
+                "creator_id": creator_id,
+                "name": name,
+                "about_room": about_room,
+                "id": id,
+            }
+        }
+    
+    @executer
+    async def __on_update_message(self, request, client: Client, operation_name: str, session):
+        group_id, space_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
+        session.add(Message(group_id=group_id, space_id=space_id, room_id=room_id, author_id=author_id, content=content, id=id)) 
+        await session.commit()
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "space_id": space_id,
+                "room_id": room_id,
+                "author_id": author_id,
+                "content": content,
+                "id": id,
+            }
+        }
+    
+    @executer
+    async def __on_update_role(self, request, client: Client, operation_name: str, session):
+        group_id, name, id = request.group_id, request.name, request.id
+        session.add(Role(group_id=group_id, name=name, id=id))
+        await session.commit()
+        return {
+            "operation": operation_name, 
+            "status": True, 
+            "error": None,
+            
+            "body": {
+                "group_id": group_id,
+                "name": name,
+                "id": id,
+            }
+        }
 
 
 
@@ -251,11 +462,12 @@ class Listener:
         @self.router.websocket("/listener")
         async def listener(websocket: WebSocket, token: str = Depends(self.oauth2)):
             await websocket.accept()
-            if await self.__validate_request(token, self.ws):
+            status, client = await self.__validate_request(token, self.ws)
+            if status:
                 try:
                     while True:
                         data = await websocket.receive_json()
-                        await self.__total_interpreter(data, websocket)
+                        await self.__total_interpreter(data, client, websocket)
                 except WebSocketDisconnect:
                     await websocket.close()
             else:

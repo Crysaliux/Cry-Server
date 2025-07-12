@@ -6,3 +6,10 @@ class NewRole(BaseModel):
     group_id: str
     name: str
     id: str
+
+class UpdateRole(BaseModel):
+    type: Literal['update_role']
+    group_id: str
+    name: str
+    color:str
+    id: str

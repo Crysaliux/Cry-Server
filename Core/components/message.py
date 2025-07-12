@@ -9,3 +9,12 @@ class NewMessage(BaseModel):
     author_id: str
     content: str
     id: str
+
+class UpdateMessage(BaseModel): #.edited must be set to True
+    type: Literal['update_message']
+    group_id: str
+    space_id: str
+    room_id: str
+    author_id: str
+    content: str
+    id: str
