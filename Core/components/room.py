@@ -12,6 +12,7 @@ class NewRoom(BaseModel):
 
 class UpdateRoom(BaseModel):
     type: Literal['update_room']
+    group_id: str
     creator_id: str
     name: str
     about_room: Union[str, None]

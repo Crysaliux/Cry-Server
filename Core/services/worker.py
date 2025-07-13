@@ -95,7 +95,7 @@ class Room(Base):
     __tablename__ = "room"
 
     group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
-    space_id: Mapped[str] = mapped_column(ForeignKey('space.id'))
+    space_id: Mapped[str] = mapped_column(ForeignKey('space.id'), nullable=True)
     creator_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
 
     name: Mapped[str] = mapped_column(String(20))
@@ -104,6 +104,8 @@ class Room(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     
+    group: Mapped["Group"] = relationship("Group", back_populates="rooms", foreign_keys=[group_id])
+    space: Mapped["Space"] = relationship("Space", back_populates="rooms", foreign_keys=[space_id])
     creator: Mapped["Client"] = relationship("Client", back_populates="created_rooms", foreign_keys=[creator_id])
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="room", foreign_keys="Message.room_id")
 
@@ -161,6 +163,8 @@ PERMISSIONS
     - CREATE_SPACES
     - CREATE_ROOMS
     - SEND_MESSAGES
+    - MANAGE_ROOMS
+    - MANAGE_SPACES
     - VIEW_SPACES (overrides view_rooms, meaning that if set to FALSE, neither spaces nor rooms will be displayed)
     - VIEW_ROOMS
     - MANAGE_GROUP *
@@ -175,7 +179,6 @@ PERMISSIONS
     - SEND_MESSAGES
     - SEND_MEDIA (same as in GLOBAL)
     - ATTACH_FILES (same as in GLOBAL)
-    - MANAGE_ROOM
 
 = PERMISSIONS
 This is pretty simple:
