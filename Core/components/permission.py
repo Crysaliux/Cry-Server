@@ -12,6 +12,4 @@ class NewPermission(BaseModel):
 class DeletePermission(BaseModel):
     type: Literal['delete_permission']
     group_id: str
-    room_id: Union[str, None] #None when global permission is passed
-    body: dict
     id: str

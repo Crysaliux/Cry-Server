@@ -11,7 +11,6 @@ class NewGroup(BaseModel):
 
 class UpdateGroup(BaseModel):
     type: Literal['update_group']
-    owner_id: str
     name: str
     about_group: Union[str, None]
     icon_url: Union[str, None]
@@ -20,3 +19,8 @@ class UpdateGroup(BaseModel):
 
     content_filter: bool
     content_filter_level: str
+
+class DeleteGroup(BaseModel):
+    type: Literal['delete_group']
+    owner_id: str
+    id: str

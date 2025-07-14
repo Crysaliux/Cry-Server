@@ -11,6 +11,10 @@ class NewSpace(BaseModel):
 class UpdateSpace(BaseModel):
     type: Literal['update_space']
     group_id: str
-    creator_id: str
     name: str
+    id: str
+
+class DeleteSpace(BaseModel):
+    type: Literal['delete_space']
+    group_id: str
     id: str

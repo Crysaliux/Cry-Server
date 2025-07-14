@@ -13,3 +13,8 @@ class UpdateRole(BaseModel):
     name: str
     color:str
     id: str
+
+class DeleteRole(BaseModel):
+    type: Literal['delete_role']
+    group_id: str
+    id: str

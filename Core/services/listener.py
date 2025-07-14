@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
-from ..components.client import UpdateClient
-from ..components.group import NewGroup, UpdateGroup
-from ..components.message import NewMessage, UpdateMessage
+from ..components.client import UpdateClient, DeleteClient
+from ..components.group import NewGroup, UpdateGroup, DeleteGroup
+from ..components.message import NewMessage, UpdateMessage, DeleteMessage
 from ..components.permission import NewPermission, DeletePermission
-from ..components.role import NewRole, UpdateRole
-from ..components.room import NewRoom, UpdateRoom
-from ..components.space import NewSpace, UpdateSpace
+from ..components.role import NewRole, UpdateRole, DeleteRole
+from ..components.room import NewRoom, UpdateRoom, DeleteRoom
+from ..components.space import NewSpace, UpdateSpace, DeleteSpace
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
@@ -84,7 +84,13 @@ class Listener:
             "update_room": {"ref": NewRoom, "func": self.__on_update_room, "name": "on_update_room"},
             "update_space": {"ref": NewSpace, "func": self.__on_update_space, "name": "on_update_space"},
 
-            "delete_permission": {"ref": NewPermission, "func": ..., "name": "on_new_permission"},
+            "delete_client": {"ref": DeleteClient, "func": self.__on_delete_client, "name": "on_delete_client"},
+            "delete_group": {"ref": DeleteGroup, "func": self.__on_delete_group, "name": "on_delete_group"},
+            "delete_message": {"ref": DeleteMessage, "func": self.__on_delete_message, "name": "on_delete_message"},
+            "delete_role": {"ref": DeleteRole, "func": self.__on_delete_role, "name": "on_delete_role"},
+            "delete_room": {"ref": DeleteRoom, "func": self.__on_delete_room, "name": "on_delete_room"},
+            "delete_space": {"ref": DeleteSpace, "func": self.__on_delete_space, "name": "on_delete_space"},
+            "delete_permission": {"ref": DeletePermission, "func": self.__on_delete_permission, "name": "on_delete_permission"},
         }
     
     @executer
@@ -143,7 +149,7 @@ class Listener:
         group_id, creator_id, name, id = request.group_id, request.creator_id, request.name, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_SPACES"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_SPACES"):
                 session.add(Space(group_id=group_id, creator_id=creator_id, name=name, id=id)) 
                 await session.commit()
                 return {
@@ -166,7 +172,7 @@ class Listener:
         group_id, space_id, creator_id, name, about_room, id = request.group_id, request.space_id, request.creator_id, request.name, request.about_room, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROOMS"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROOMS"):
                 session.add(Room(group_id=group_id, space_id=space_id, creator_id=creator_id, name=name, about_room=about_room, id=id)) 
                 await session.commit()
                 return {
@@ -191,7 +197,7 @@ class Listener:
         group_id, space_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "SEND_MESSAGES") or self.__validate_room_related_permissions(group, await session.execute(select(Room).where(Room.id == room_id)), "SEND_MESSAGES"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "SEND_MESSAGES") or self.__validate_room_related_permissions(group, await session.execute(select(Room).where(Room.id == room_id)), "SEND_MESSAGES"):
                 session.add(Message(group_id=group_id, space_id=space_id, room_id=room_id, author_id=author_id, content=content, id=id)) 
                 await session.commit()
                 return {
@@ -216,7 +222,7 @@ class Listener:
         group_id, name, id = request.group_id, request.name, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
                 session.add(Role(group_id=group_id, name=name, id=id))
                 await session.commit()
                 return {
@@ -238,7 +244,7 @@ class Listener:
         group_id, role_id, room_id, body, id = request.group_id, request.role_id, request.room_id, request.body, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
                 session.add(Permission(group_id=group_id, role_id=role_id, room_id=room_id, body=body, id=id))
                 await session.commit()
                 return {
@@ -261,28 +267,29 @@ class Listener:
     #ON_UPDATE_...
     @executer
     async def __on_update_client(self, request, client: Client, operation_name: str, session):
-        nickname, about_me, avatar_url, color_theme, id = request.nickname, request.about_me, request.avatr_url, request.color_theme, request.id
-        await session.execute(update(Client).where(Client.id == id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme))
-        return {
-            "operation": operation_name, 
-            "status": True, 
-            "error": None,
+        nickname, about_me, avatar_url, color_theme = request.nickname, request.about_me, request.avatr_url, request.color_theme
+        update_status = await session.execute(update(Client).where(Client.id == client.id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme).returning(Client.id))
+        if update_status is not None:
+            return {
+                "operation": operation_name, 
+                "status": True, 
+                "error": None,
             
-            "body": {
-                "nickname": nickname,
-                "about_me": about_me,
-                "avatar_url": avatar_url,
-                "color_theme": color_theme,
-                "id": id,
+                "body": {
+                    "nickname": nickname,
+                    "about_me": about_me,
+                    "avatar_url": avatar_url,
+                    "color_theme": color_theme,
+                }
             }
-        }
+        else: return {"operation": operation_name, "status": False, "error": "{Client} object has not been found uhm. what the hell-"}
     
     @executer
     async def __on_update_group(self, request, client: Client, operation_name: str, session):
-        owner_id, name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = request.owner_id, request.name, request.about_group, request.icon_url, request.nsfw, request.content_filter, request.content_filter_level, request.id
+        name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = request.owner_id, request.name, request.about_group, request.icon_url, request.nsfw, request.content_filter, request.content_filter_level, request.id
         group = await session.execute(select(Group).where(Group.id == id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_GROUP"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_GROUP"):
                 await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level))
                 return {
                     "operation": operation_name, 
@@ -305,10 +312,10 @@ class Listener:
     
     @executer
     async def __on_update_space(self, request, client: Client, operation_name: str, session):
-        group_id, creator_id, name, id = request.group_id, request.creator_id, request.name, request.id
+        group_id, name, id = request.group_id, request.creator_id, request.name, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_SPACES"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_SPACES"):
                 update_status = await session.execute(update(Space).where(Space.id == id).values(name=name).returning(Space.id))
                 if update_status is not None:
                     return {
@@ -327,10 +334,10 @@ class Listener:
     
     @executer
     async def __on_update_room(self, request, client: Client, operation_name: str, session):
-        group_id, creator_id, name, about_room, nsfw, id = request.group_id, request.creator_id, request.name, request.about_room, request.nsfw, request.id
+        group_id, name, about_room, nsfw, id = request.group_id, request.creator_id, request.name, request.about_room, request.nsfw, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROOMS"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROOMS"):
                 update_status = await session.execute(update(Room).where(Room.id == id).values(name=name, about_room=about_room, nsfw=nsfw).returning(Room.id))
                 if update_status is not None:
                     return {
@@ -351,10 +358,10 @@ class Listener:
     
     @executer
     async def __on_update_message(self, request, client: Client, operation_name: str, session):
-        group_id, space_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
+        group_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or client == await session.execute(select(Client).where(Client.id == author_id)) or self.__validate_global_permissions(group, "MANAGE_MESSAGES") or self.__validate_room_related_permissions(group, await session.execute(select(Room).where(Room.id == room_id)), "MANAGE_MESSAGES"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or client == await session.execute(select(Client).where(Client.id == author_id)) or self.__validate_global_permissions(group, "MANAGE_MESSAGES") or self.__validate_room_related_permissions(group, await session.execute(select(Room).where(Room.id == room_id)), "MANAGE_MESSAGES"):
                 update_status = await session.execute(update(Message).where(Message.id == id).values(content=content).returning(Message.id))
                 if update_status is not None:
                     return {
@@ -376,7 +383,7 @@ class Listener:
         group_id, name, color, id = request.group_id, request.name, request.color, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
-            if group.owner == client or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
                 update_status = await session.execute(update(Role).where(Role.id == id).values(name=name, color=color).returning(Role.id))
                 if update_status is not None:
                     return {
@@ -391,6 +398,153 @@ class Listener:
                         }
                     }
                 else: return {"operation": operation_name, "status": False, "error": "{Role} object has not been found"}
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROLES] permissions!"}
+        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+
+    
+    #ON_DELETE
+    @executer
+    async def __on_delete_client(self, request, client: Client, operation_name: str, session):
+        id = request.id
+        if id == client.id:
+            deletion_status = await session.execute(delete(Client).where(Client.id == id).returning(Client.id))
+            if deletion_status is not None:
+                return {
+                        "operation": operation_name, 
+                        "status": True, 
+                        "error": None,
+            
+                        "body": {
+                            "id": id,
+                        }
+                    }
+            else: return {"operation": operation_name, "status": False, "error": "{Client} object has not been found"}
+        else: return {"operation": operation_name, "status": False, "error": "Operation prohibited"}
+    
+    @executer
+    async def __on_delete_group(self, request, client: Client, operation_name: str, session):
+        owner_id, id = request.owner_id, request.id
+        group = await session.execute(select(Group).where(Group.id == id))
+        if group is not None:
+            if group.owner.id == client.id:
+                deletion_status = await session.execute(delete(Group).where(Group.id == id).returning(Group.id))
+                if deletion_status is not None:
+                    return {
+                        "operation": operation_name, 
+                        "status": True, 
+                        "error": None,
+            
+                        "body": {
+                            "owner_id": owner_id,
+                            "id": id,
+                        }
+                    }
+                else: return {"operation": operation_name, "status": False, "error": "{Group} object refuses to be deleted!"}
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_GROUP] permissions!"}
+        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+    
+    @executer
+    async def __on_delete_space(self, request, client: Client, operation_name: str, session):
+        group_id, id = request.group_id, request.id
+        group = await session.execute(select(Group).where(Group.id == group_id))
+        if group is not None:
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_SPACES"):
+                deletion_status = await session.execute(delete(Space).where(Space.id == id).returning(Space.id))
+                if deletion_status is not None:
+                    return {
+                        "operation": operation_name, 
+                        "status": True, 
+                        "error": None,
+            
+                        "body": {
+                            "id": id,
+                        }
+                    }
+                else: return {"operation": operation_name, "status": False, "error": "{Space} object has not been found"}
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_SPACES] permissions!"}
+        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+    
+    @executer
+    async def __on_delete_room(self, request, client: Client, operation_name: str, session):
+        group_id, id = request.group_id, request.id
+        group = await session.execute(select(Group).where(Group.id == group_id))
+        if group is not None:
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROOMS"):
+                deletion_status = await session.execute(delete(Room).where(Room.id == id).returning(Room.id))
+                if deletion_status is not None:
+                    return {
+                        "operation": operation_name, 
+                        "status": True, 
+                        "error": None,
+            
+                        "body": {
+                            "id": id,
+                        }
+                    }
+                else: return {"operation": operation_name, "status": False, "error": "{Room} object has not been found"}
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROOMS] permissions!"}
+        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+    
+    @executer
+    async def __on_delete_message(self, request, client: Client, operation_name: str, session):
+        group_id, room_id, author_id, id = request.group_id, request.room_id, request.author_id, request.id
+        group = await session.execute(select(Group).where(Group.id == group_id))
+        if group is not None:
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or client == await session.execute(select(Client).where(Client.id == author_id)) or self.__validate_global_permissions(group, "MANAGE_MESSAGES") or self.__validate_room_related_permissions(group, await session.execute(select(Room).where(Room.id == room_id)), "MANAGE_MESSAGES"):
+                deletion_status = await session.execute(delete(Message).where(Message.id == id).returning(Message.id))
+                if deletion_status is not None:
+                    return {
+                        "operation": operation_name, 
+                        "status": True, 
+                        "error": None,
+            
+                        "body": {
+                            "id": id,
+                        }
+                    }
+                else: return {"operation": operation_name, "status": False, "error": "{Message} object has not been found"}
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_MESSAGES] permissions!"}
+        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+    
+    @executer
+    async def __on_delete_role(self, request, client: Client, operation_name: str, session):
+        group_id, id = request.group_id, request.id
+        group = await session.execute(select(Group).where(Group.id == group_id))
+        if group is not None:
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
+                deletion_status = await session.execute(delete(Role).where(Role.id == id).returning(Role.id))
+                if deletion_status is not None:
+                    return {
+                        "operation": operation_name, 
+                        "status": True, 
+                        "error": None,
+            
+                        "body": {
+                            "id": id,
+                        }
+                    }
+                else: return {"operation": operation_name, "status": False, "error": "{Role} object has not been found"}
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROLES] permissions!"}
+        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+
+    @executer
+    async def __on_delete_permission(self, request, client: Client, operation_name: str, session):
+        group_id, id = request.group_id, request.id
+        group = await session.execute(select(Group).where(Group.id == group_id))
+        if group is not None:
+            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
+                deletion_status = await session.execute(delete(Permission).where(Permission.id == id).returning(Permission.id))
+                if deletion_status is not None:
+                    return {
+                        "operation": operation_name, 
+                        "status": True, 
+                        "error": None,
+            
+                        "body": {
+                            "id": id,
+                        }
+                    }
+                else: return {"operation": operation_name, "status": False, "error": "{Permission} object has not been found"}
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROLES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
 

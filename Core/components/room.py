@@ -13,8 +13,12 @@ class NewRoom(BaseModel):
 class UpdateRoom(BaseModel):
     type: Literal['update_room']
     group_id: str
-    creator_id: str
     name: str
     about_room: Union[str, None]
     nsfw: bool
+    id: str
+
+class DeleteRoom(BaseModel):
+    type: Literal['delete_room']
+    group_id: str
     id: str
