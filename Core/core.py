@@ -65,7 +65,8 @@ class Core(FastAPI):
             tepmlates=self.templates, 
             hasher=self.hasher, 
             algorithm=self.algorithm, 
-            access_key=self.server_access_key
+            access_key=self.server_access_key,
+            oauth2=self.oauth2,
         )
         self.oauth.router_tasks()
 

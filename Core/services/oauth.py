@@ -7,47 +7,50 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 import jwt
 
-class ValidationRequest(BaseModel):
+class NewValidationRequest(BaseModel):
     username: str
     email: str
     password: str
 
+class ExistingValidationRequest(BaseModel):
+    email: str
+    password: str
+    token: str
+
 class Authentication:
-    def __init__(self, hasher, ws, algorithm, access_key, tepmlates: Jinja2Templates):
+    def __init__(self, hasher, ws, algorithm, access_key, oauth2, tepmlates: Jinja2Templates):
         self.access_key = access_key
         self.hasher = hasher
         self.ws = ws
         self.templates = tepmlates
         self.algorithm = algorithm
+        self.oauth2 = oauth2
         self.router = APIRouter()
-
-    def __create_token(self, data: dict):
-        encdat = data.copy()
-        encoded = jwt.encode(encdat, self.access_key, algorithm=self.algorithm)
-        return encoded
     
     @executer
-    async def __validate_client(self, request, session):
+    async def __validate_new_client(self, request, session):
         username_check, mail_check = await session.execute(select(Client).where(Client.username == request.username)), await session.execute(select(Client).where(Client.email == request.email))
         if mail_check is not None: return False, "User with this email already exists! :0"
-        if username_check is not None: return False, "This username is already take, try another! :3"
+        if username_check is not None: return False, "This username is taken, try another! :3"
         token = jwt.encode({"username": request.username, "id": request.id, "type": "client-oriented"}, self.access_key, algorithm=self.algorithm)
         session.add(Client(username=request.username, password_hashed=self.hasher.hash(request.password), email=request.email, token=token, token_expires_at=datetime.now(datetime.timezone.utc) + timedelta(days=7), id=request.id))
         return True, {"token": token}
+    
+    @executer
+    async def __validate_existing_client(self, request, session):
+        payload = jwt.decode(request.token, self.access_key, algorithm=self.algorithm)
+        username, id = payload["username"], payload["id"]
+        client = session.execute(select(Client).where(Client.username == username, Client.email == request.email, Client.id == id, Client.token == request.token))
+        if client is not None: return True, "Access granted"
+        return False, "You've entered wrong credentials!"
 
     def router_tasks(self):
-        @self.router.post("/receive_token", response_class=HTMLResponse)
-        async def receive_token(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...)):
-            status, response = await self.__validate_client(ValidationRequest(username, email, password))
-            if status:
-                ...
+        @self.router.post("/validate_new_client", response_class=HTMLResponse)
+        async def validate_new_client(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...)):
+            status, response = await self.__validate_new_client(NewValidationRequest(username, email, password))
             return JSONResponse(content={"status": status, "response": response}, status_code=201)
 
-
-        @self.router.post("/submit/login", response_class=HTMLResponse) #To be completely refactored.
-        async def sign_up(request: Request, form: Login):
-            client = await self.dmp.fetch_client_by_mail(form.email)
-            if client is None or not self.hasher.verify(client.password, form.password):
-                raise HTTPException(status_code=400, detail=f"Wrong password or mail, please try again!")
-            token = self.__create_token({"id": client.id, "username": client.username})
-            return JSONResponse(content={"redirect": f"/client/{client.id}", "token": token}, status_code=201)
+        @self.router.post("/validate_existing_client", response_class=HTMLResponse)
+        async def validate_existing_client(request: Request, email: str = Form(...), password: str = Form(...), token: str = Depends(self.oauth2)):
+            status, response = await self.__validate_existing_client(ExistingValidationRequest(email, password, token))
+            return JSONResponse(content={"status": status, "response": response}, status_code=201)
