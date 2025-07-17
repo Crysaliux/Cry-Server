@@ -6,9 +6,6 @@ from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
-from .services.worker import Worker
-from .services.listener import Listener
-from .services.oauth import Authentication
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from itertools import takewhile
@@ -16,6 +13,7 @@ from datetime import datetime
 from random import uniform
 from argon2 import PasswordHasher
 from pathlib import Path
+from .services import *
 import subprocess
 import threading
 import asyncio
@@ -38,7 +36,6 @@ class Core(FastAPI):
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
         self.templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
-        self.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")), name="static")
         self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
         self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
         
@@ -87,7 +84,7 @@ class Core(FastAPI):
         )
         self.listener.router_tasks()
 
-        self.include_router(self.auth.router, prefix="/oauth")
+        self.include_router(self.oauth.router, prefix="/oauth")
         self.include_router(self.listener.router, prefix="/api_hatch")
 
         self.main_routes = [
@@ -108,7 +105,7 @@ class Core(FastAPI):
         asyncio.run(self.__background())
 
     async def __background(self):
-        await self.dmp.start()
+        await self.worker.start()
 
     async def __main(self, request: Request):
         return self.templates.TemplateResponse("main.html", {"request": request})

@@ -1,7 +1,7 @@
-from sqlalchemy import ForeignKey, String, Boolean, DateTime, Table, Column, Integer, func, desc, JSON
+from sqlalchemy import ForeignKey, String, Boolean, DateTime, Date, Table, Column, Integer, func, desc, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Optional
 from random import uniform
 from typing import List
@@ -19,7 +19,7 @@ client_group_relationship = Table(
 friend_relationship = Table(
     'frrel', Base.metadata,
     Column('client_id', String, ForeignKey('client.id'), primary_key=True),
-    Column('client_id', String, ForeignKey('client.id'), primary_key=True)
+    Column('friend_id', String, ForeignKey('client.id'), primary_key=True)
 )
 
 client_role_relationship = Table(
@@ -35,6 +35,7 @@ class Client(Base):
     nickname: Mapped[str] = mapped_column(String(20), nullable=True)
     email: Mapped[str] = mapped_column(String(30))
     password_hashed: Mapped[str]
+    date_of_birth: Mapped[date]
     about_me: Mapped[str] = mapped_column(String(200), nullable=True)
     avatar_url: Mapped[str] = mapped_column(String(100), nullable=True)
     color_theme: Mapped[str] = mapped_column(String(10), nullable=True)
