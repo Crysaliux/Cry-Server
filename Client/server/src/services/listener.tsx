@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
 import { useNavigate } from 'react-router-dom';
-import { GlobalContext } from '../services/global_manager';
+import { GlobalContext } from './client_core';
 import { Contact, ToRemoveContact } from "../components/interface/contacts";
 import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/interface/groups";
 import { Channel, ToRemoveChannel, ToSelfCreateChannel } from "../components/interface/channels";

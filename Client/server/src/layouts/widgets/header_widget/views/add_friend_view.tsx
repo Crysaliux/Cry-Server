@@ -1,5 +1,5 @@
 import React, { useContext, useRef } from "react";
-import { GlobalContext } from 'services/global_manager';
+import { GlobalContext } from 'services/client_core';
 import { Modal } from "components/overlay/modals";
 import { Field } from "components/overlay/fields";
 

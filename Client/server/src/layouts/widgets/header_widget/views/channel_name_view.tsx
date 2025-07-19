@@ -1,7 +1,7 @@
 import React, { useContext, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Channel } from "components/interface/channels";
-import { GlobalContext } from 'services/global_manager';
+import { GlobalContext } from 'services/client_core';
 
 const ChannelNameView: React.FC = () => {
     const context_data = useContext(GlobalContext);

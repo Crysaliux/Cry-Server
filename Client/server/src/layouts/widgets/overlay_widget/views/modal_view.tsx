@@ -1,7 +1,7 @@
 import React, { useState, Dispatch, FormEvent, SetStateAction, useRef, useEffect, useContext } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { customAlphabet } from "nanoid";
-import { GlobalContext } from 'services/global_manager';
+import { GlobalContext } from 'services/client_core';
 import { ListenerHatch } from "services/listener";
 import { Modal } from "components/overlay/modals";
 import { Field } from "components/overlay/fields";

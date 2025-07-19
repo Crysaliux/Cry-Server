@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { GlobalContext } from 'services/global_manager';
+import { GlobalContext } from 'services/client_core';
 import TextareaAutosize from "react-textarea-autosize";
 import { customAlphabet } from "nanoid";
 import { Message } from "components/interface/messages";

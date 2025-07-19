@@ -13,7 +13,9 @@
   "dependencies": {
     "@lexical/markdown": "^0.32.1",
     "@lexical/react": "^0.32.1",
+    "@types/axios": "^0.14.4",
     "@types/react-router-dom": "^5.3.3",
+    "axios": "^1.10.0",
     "lexical": "^0.32.1",
     "nanoid": "^5.1.5",
     "react": "^19.1.0",

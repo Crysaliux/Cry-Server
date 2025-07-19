@@ -1,14 +1,8 @@
 import React, { createContext, Dispatch, ReactNode, SetStateAction, useState, memo, useRef, RefObject } from "react";
-import { Contact } from "components/interface/contacts";
-import { Group } from "components/interface/groups";
-import { Channel } from "components/interface/channels";
-import { Message } from "components/interface/messages";
-import { Member } from "components/interface/members";
-import { Modal } from "components/overlay/modals";
-import { FriendRequest } from "components/interface/friend_requests";
+import { Client, Group, Message, Permission, Role, Room, Space } from "components/index"
 
 
-interface ContextGlobalProperties {
+interface CoreContextGlobalProperties {
     listener_addr: RefObject<string>;
     client_id: RefObject<number | null>;
     current_group_id: number | undefined;
@@ -49,16 +43,16 @@ interface ContextGlobalProperties {
     modal_input_field_long_length: RefObject<number>;
 }
 
-interface ContextManagerProperties {
+interface CoreContextManagerProperties {
     children: ReactNode;
 }
 
-export const GlobalContext = createContext<ContextGlobalProperties | undefined>(undefined);
+export const CoreGlobalContext = createContext<CoreContextGlobalProperties | undefined>(undefined);
 
-export const ContextManager: React.FC<ContextManagerProperties> = memo(({ children }) => {
-    //GLOBAL PROPERTIES/REFERENCES
-    const listener_addr = useRef<string>('ws://localhost:8080/client/api');
-    const client_id = useRef<number | null>(1234);
+export const CoreContextManager: React.FC<CoreContextManagerProperties> = memo(({ children }) => {
+    //GLOBAL CORE PROPERTIES/REFERENCES
+    const api_oauth_addr = useRef<string>('localhost:8080/oauth/');
+    const client
     const [current_group_id, SetCurrentGroupId] = useState<number | undefined>(undefined);
     const [current_channel_id, SetCurrentChannelId] = useState<number | undefined>(undefined);
     const current_modal = useRef<Modal | null>(null);
