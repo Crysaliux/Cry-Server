@@ -1,6 +1,6 @@
 import React, { useState, createContext, Dispatch, SetStateAction, useMemo } from 'react';
 import { Routes, Route, BrowserRouter, useNavigate, Outlet } from 'react-router-dom';
-import { ContextManager } from 'services/client_core';
+import { ContextManager } from 'services/core';
 import { Listener } from 'services/listener';
 import ChannelsLayout from 'layouts/widgets/channels_widget/channels_layout';
 import ChatLayout from 'layouts/widgets/chat_widget/chat_layout';

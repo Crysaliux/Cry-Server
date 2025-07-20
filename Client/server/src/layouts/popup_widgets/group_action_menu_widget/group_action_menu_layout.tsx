@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
-import { GlobalContext } from "services/client_core";
+import { GlobalContext } from "services/core";
 import GroupActionMenuView from './views/group_action_menu_view';
 
 interface CursorPosition {

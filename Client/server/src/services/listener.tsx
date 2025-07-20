@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
-import { useNavigate } from 'react-router-dom';
-import { GlobalContext } from './client_core';
-import { Contact, ToRemoveContact } from "../components/interface/contacts";
-import { Group, ToRemoveGroup, ToLoadGroupMembers, ToRequestGroupMembers } from "../components/interface/groups";
-import { Channel, ToRemoveChannel, ToSelfCreateChannel } from "../components/interface/channels";
-import { Message, ToRemoveMessage } from "../components/interface/messages";
-import { Member } from "../components/interface/members";
-import { Modal, ModalStatus } from "../components/overlay/modals";
-import { FriendRequest } from "../components/interface/friend_requests";
+import { Group, GroupUpdateBody, Message, MessageUpdateBody, Permission, Role, Room, Space } from "components/index"
+import axios, { AxiosInstance } from "axios";
+import { useWorker } from "./worker";
 
-type ServerRequestData = Contact | Group | Channel | Message | Partial<Contact> | Partial<Group> | Partial<Channel> | Partial<Message> | ToRemoveContact | ToRemoveGroup | ToRemoveChannel | ToRemoveMessage | ToLoadGroupMembers | ModalStatus | FriendRequest | ToSelfCreateChannel;
-type ClientRequestData = ToRequestGroupMembers | Modal | Message;
+interface APIResponse {
+    operation: string;
+    status: boolean;
+    error: string | null;
+    body: GroupUpdateBody | MessageUpdateBody;
+}
 
 interface ListenerProperties {
     children: ReactNode;
@@ -22,6 +20,13 @@ interface ListenerHatchProperties {
 
 export const ListenerHatch = createContext<ListenerHatchProperties | undefined>(undefined);
 
+export const RequestHatch: AxiosInstance = axios.create({
+    baseURL: `${context_data.api_oauth_addr}`, //to be fixed
+    headers: {
+        "Content-Type": "application/json",
+    },
+});
+
 export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     const context_data = useContext(GlobalContext);
     if (!context_data) {
@@ -29,14 +34,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     }
     const SocketReference = useRef<WebSocket | null>(null);
     const navigate = useNavigate();
-
-    /*
-    Objects are automatically updated upon receiving a partial instance of themselves from the API.
-    CONTACT_EDIT,
-    MESSAGE_EDIT,
-    CHANNEL_EDIT,
-    GROUP_EDIT,
-    */
+    const { setGroup, setMessage, setPermission, setRole, setRoom, setSpace } = useWorker();
 
     useEffect(() => {
         const socket = new WebSocket(context_data.listener_addr.current);
@@ -44,8 +42,84 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
         socket.onmessage = async (event: MessageEvent) => {
             try {
-                const data: ServerRequestData = JSON.parse(event.data);
-                switch(data.type) {
+                const data: APIResponse = JSON.parse(event.data);
+                switch(data.operation) {
+                    case "new_group":
+                        const new_group_fetched = data.body as GroupUpdateBody
+                        setGroup({
+                            "type": "group",
+                            "owner_id": new_group_fetched.owner_id,
+                            "name": new_group_fetched.name,
+                            "about_group": new_group_fetched.about_group,
+                            "icon_url": new_group_fetched.icon_url,
+                            "nsfw": false,
+                            "id": new_group_fetched.id,
+
+                            "content_filter": false,
+                            "content_filter_level": "none",
+                        } as Group);
+                        break;
+                    
+                    case "new_message":
+                        const new_message_fetched = data.body as MessageUpdateBody
+                        setMessage({
+                            "type": "message",
+                            "group_id": new_message_fetched.group_id,
+                            "space_id": new_message_fetched.space_id,
+                            "room_id": new_message_fetched.room_id,
+                            "author_id": new_message_fetched.author_id,
+                            "content": new_message_fetched.content,
+                            "id": new_message_fetched.id,
+                        } as Message);
+                        break;
+
+                    case "new_permission":
+                        break;
+                    
+                    case "new_role":
+                        break;
+
+                    case "new_room":
+                        break;
+
+                    case "new_space":
+                        break;
+
+
+                    case "update_group":
+                        break
+
+                    case "update_message":
+                        break;
+
+                    case "update_role":
+                        break;
+
+                    case "update_room":
+                        break;
+
+                    case "update_space":
+                        break;
+
+                    
+                    case "delete_group":
+                        break;
+
+                    case "delete_message":
+                        break;
+
+                    case "delete_role":
+                        break;
+
+                    case "delete_room":
+                        break;
+
+                    case "delete_space":
+                        break;
+
+                    case "delete_permission":
+                        break;
+
                     case 'contact':
                         const check_contact = context_data.contacts.some(contact => contact.id === data.id);
                         if (!check_contact) {

@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, useContext } from "react";
-import { GlobalContext } from 'services/client_core';
+import { GlobalContext } from 'services/core';
 import { useParams, useNavigate } from "react-router-dom";
 import { Modal } from "components/overlay/modals";
 import { Field } from "components/overlay/fields";

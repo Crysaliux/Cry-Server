@@ -1,12 +1,13 @@
 import { useEffect, useContext } from "react";
-import { CoreGlobalContext } from "./client_core";
+import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
 
+//Fetch core global context
 const context_data = useContext(CoreGlobalContext);
-    if (!context_data) {
-        throw new Error("CoreContext for oauth module can't be defined.");
-    }
+if (!context_data) {
+    throw new Error("CoreContext for oauth module can't be defined.");
+}
 
 const ValidationRequest: AxiosInstance = axios.create({
     baseURL: `${context_data.api_oauth_addr}`, //to be fixed

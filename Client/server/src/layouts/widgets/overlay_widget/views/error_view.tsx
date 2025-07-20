@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, useContext } from "react";
-import { GlobalContext } from 'services/client_core';
+import { GlobalContext } from 'services/core';
 
 const ErrorView: React.FC = () => {
     const context_data = useContext(GlobalContext);

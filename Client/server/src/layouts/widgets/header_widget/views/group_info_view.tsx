@@ -1,5 +1,5 @@
 import React, { useContext, useRef } from "react";
-import { GlobalContext } from 'services/client_core';
+import { GlobalContext } from 'services/core';
 import { Group } from "components/interface/groups";
 
 const GroupInfoView: React.FC = () => {
