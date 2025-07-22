@@ -1,13 +1,52 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
-import { Group, GroupUpdateBody, Message, MessageUpdateBody, Permission, Role, Room, Space } from "components/index"
+import { 
+    Group, 
+    GroupNewBody, 
+    GroupUpdateBody, 
+
+    Message, 
+    MessageNewBody, 
+    MessageUpdateBody, 
+
+    Permission, 
+    PermissionNewBody, 
+
+    Role, 
+    RoleNewBody, 
+    RoleUpdateBody, 
+
+    Room, 
+    RoomNewBody, 
+    RoomUpdateBody, 
+
+    Space, 
+    SpaceNewBody, 
+    SpaceUpdateBody 
+} from "components/index";
 import axios, { AxiosInstance } from "axios";
 import { useWorker } from "./worker";
 
-interface APIResponse {
+interface GatewayResponse {
     operation: string;
     status: boolean;
     error: string | null;
-    body: GroupUpdateBody | MessageUpdateBody;
+    body: 
+        | GroupNewBody
+        | GroupUpdateBody
+
+        | MessageNewBody
+        | MessageUpdateBody
+
+        | PermissionNewBody
+
+        | RoleNewBody
+        | RoleUpdateBody
+
+        | RoomNewBody
+        | RoomUpdateBody
+
+        | SpaceNewBody
+        | SpaceUpdateBody
 }
 
 interface ListenerProperties {
@@ -42,10 +81,10 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
         socket.onmessage = async (event: MessageEvent) => {
             try {
-                const data: APIResponse = JSON.parse(event.data);
+                const data: GatewayResponse = JSON.parse(event.data);
                 switch(data.operation) {
                     case "new_group":
-                        const new_group_fetched = data.body as GroupUpdateBody
+                        const new_group_fetched = data.body as GroupNewBody;
                         setGroup({
                             "type": "group",
                             "owner_id": new_group_fetched.owner_id,
@@ -61,7 +100,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         break;
                     
                     case "new_message":
-                        const new_message_fetched = data.body as MessageUpdateBody
+                        const new_message_fetched = data.body as MessageNewBody;
                         setMessage({
                             "type": "message",
                             "group_id": new_message_fetched.group_id,
@@ -74,15 +113,51 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                         break;
 
                     case "new_permission":
+                        const new_permission_fetched = data.body as PermissionNewBody;
+                        setPermission({
+                            "type": "permission",
+                            "group_id": new_permission_fetched.group_id,
+                            "role_id": new_permission_fetched.role_id,
+                            "room_id": new_permission_fetched.room_id,
+                            "body": new_permission_fetched.body,
+                            "id": new_permission_fetched.id,
+                        } as Permission);
                         break;
                     
                     case "new_role":
+                        const new_role_fetched = data.body as RoleNewBody;
+                        setRole({
+                            "type": "role",
+                            "group_id": new_role_fetched.group_id,
+                            "name": new_role_fetched.name,
+                            "color": "#FFFFFF",
+                            "id": new_role_fetched.id,
+                        } as Role);
                         break;
 
                     case "new_room":
+                        const new_room_fetched = data.body as RoomNewBody;
+                        setRoom({
+                            "type": "room",
+                            "group_id": new_room_fetched.group_id,
+                            "space_id": new_room_fetched.space_id,
+                            "creator_id": new_room_fetched.creator_id,
+                            "name": new_room_fetched.name,
+                            "about_room": new_room_fetched.about_room,
+                            "nsfw": false,
+                            "id": new_room_fetched.id,
+                        } as Room);
                         break;
 
                     case "new_space":
+                        const new_space_fetched = data.body as SpaceNewBody;
+                        setSpace({
+                            "type": "space",
+                            "group_id": new_space_fetched.group_id,
+                            "creator_id": new_space_fetched.creator_id,
+                            "name": new_space_fetched.name,
+                            "id": new_space_fetched.id,
+                        } as Space);
                         break;
 
 

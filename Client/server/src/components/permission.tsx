@@ -3,6 +3,14 @@ export interface Permission {
     group_id: string;
     role_id: string
     room_id: string | null;
-    body: {};
+    body: object;
+    id: string;
+}
+
+export interface PermissionNewBody {
+    group_id: string;
+    role_id: string;
+    room_id: string;
+    body: object;
     id: string;
 }
