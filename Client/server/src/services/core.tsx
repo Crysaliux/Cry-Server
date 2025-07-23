@@ -1,68 +1,43 @@
 import React, { createContext, Dispatch, ReactNode, SetStateAction, useState, memo, useRef, RefObject } from "react";
+import { Client, Group, Room } from "components/index";
 
-interface CoreContextGlobalProperties {
-    
+interface CoreGlobalProperties {
+    api_oauth_addr: RefObject<string>;
+    gateway_addr: RefObject<string>;
+    client_token: RefObject<string | null>;
+    heartbeat_addr: RefObject<string>;
+    client:RefObject<Client | null>;
+    current_group: RefObject<Group | null>;
+    current_room: RefObject<Room | null>;
 }
 
-interface CoreContextManagerProperties {
+interface CoreProperties {
     children: ReactNode;
 }
 
-export const CoreGlobalContext = createContext<CoreContextGlobalProperties | undefined>(undefined);
+export const CoreGlobalContext = createContext<CoreGlobalProperties | undefined>(undefined);
 
-export const CoreContextManager: React.FC<CoreContextManagerProperties> = memo(({ children }) => {
+export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     //GLOBAL CORE PROPERTIES/REFERENCES
     const api_oauth_addr = useRef<string>('localhost:8080/oauth/');
+    const gateway_addr = useRef<string>('localhost:8080/gateway/');
+    const heartbeat_addr = useRef<string>('localhost:8080/heartbeat/');
+    const client_token = useRef<string | null>(null);
     const client = useRef<Client | null>(null);
     const current_group = useRef<Group | null>(null);
     const current_room = useRef<Room | null>(null);
 
-    //GLOBAL SETTINGS
-
-    const modal_input_field_short_length = useRef<number>(32);
-    const modal_input_field_long_length = useRef<number>(256);
-
     return (
-        <GlobalContext.Provider value = {{
-            listener_addr,
-            client_id,
-            current_group_id,
-            SetCurrentGroupId,
-            current_channel_id,
-            SetCurrentChannelId,
-            current_modal,
-            current_modal_failed_attempt,
-
-            client_display_name,
-            SetClientDisplayName,
-            client_username,
-            SetClientUsername,
-            current_group_members, 
-            SetCurrentGroupMembers,
-            contacts, 
-            SetContacts,
-            groups, 
-            SetGroups,
-            channels, 
-            SetChannels,
-            messages, 
-            SetMessages,
-            friend_requests,
-            SetFriendRequests,
-
-            modal_display_status,
-            SetModalDisplayStatus,
-            modal_submit_request,
-            SetModalSubmitRequest,
-            error,
-            SetError,
-            group_action_menu_display_status,
-            SetGroupActionMenuDisplayStatus,
-
-            modal_input_field_short_length,
-            modal_input_field_long_length,
+        <CoreGlobalContext.Provider value = {{
+            api_oauth_addr,
+            gateway_addr,
+            client_token,
+            heartbeat_addr,
+            client,
+            current_group,
+            current_room,
         }}>
             { children }
-        </GlobalContext.Provider>
+        </CoreGlobalContext.Provider>
     );
 });

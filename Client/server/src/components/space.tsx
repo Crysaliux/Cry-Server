@@ -17,3 +17,7 @@ export interface SpaceUpdateBody {
     name: string;
     id: string;
 }
+
+export interface SpaceDeleteBody {
+    id: string;
+}

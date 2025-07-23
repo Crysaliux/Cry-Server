@@ -21,3 +21,7 @@ export interface MessageUpdateBody {
     content: string;
     id: string;
 }
+
+export interface MessageDeleteBody {
+    id: string;
+}

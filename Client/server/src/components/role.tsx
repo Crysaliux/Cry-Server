@@ -17,3 +17,7 @@ export interface RoleUpdateBody {
     color: string;
     id: string;
 }
+
+export interface RoleDeleteBody {
+    id: string;
+}

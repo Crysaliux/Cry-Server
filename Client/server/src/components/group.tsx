@@ -29,3 +29,8 @@ export interface GroupUpdateBody {
     content_filter: boolean;
     content_filterlevel: string;
 }
+
+export interface GroupDeleteBody {
+    owner_id: string;
+    id: string;
+}

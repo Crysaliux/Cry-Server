@@ -6,11 +6,11 @@ import { useNavigate } from "react-router-dom";
 //Fetch core global context
 const context_data = useContext(CoreGlobalContext);
 if (!context_data) {
-    throw new Error("CoreContext for oauth module can't be defined.");
+    throw new Error("Can't load CoreGlobalContext for oauth");
 }
 
 const ValidationRequest: AxiosInstance = axios.create({
-    baseURL: `${context_data.api_oauth_addr}`, //to be fixed
+    baseURL: `${context_data.api_oauth_addr.current}`,
     headers: {
         "Content-Type": "application/json",
     },

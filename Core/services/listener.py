@@ -29,6 +29,12 @@ ClientRequest = Annotated[Union[
     UpdateRole,
     UpdateRoom,
     UpdateSpace,
+    DeleteClient,
+    DeleteGroup,
+    DeleteMessage,
+    DeleteRole,
+    DeleteRoom,
+    DeleteSpace,
     DeletePermission,
     ], _type(discriminator='type')]
 

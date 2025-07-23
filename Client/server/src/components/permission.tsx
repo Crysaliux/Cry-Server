@@ -14,3 +14,7 @@ export interface PermissionNewBody {
     body: object;
     id: string;
 }
+
+export interface PermissionDeleteBody {
+    id: string;
+}

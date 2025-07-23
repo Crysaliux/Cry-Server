@@ -24,3 +24,7 @@ export interface RoomUpdateBody {
     nsfw: boolean;
     id: string;
 }
+
+export interface RoomDeleteBody {
+    id: string;
+}
