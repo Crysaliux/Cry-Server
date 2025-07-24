@@ -38,7 +38,7 @@ if (!context_data) {
     throw new Error("Can't load CoreGlobalContext for listener");
 }
 
-interface Heartbeat {
+interface HeartbeatReceiveBody {
     interval: number | null;
 }
 
@@ -71,7 +71,7 @@ interface GatewayResponse {
         | SpaceDeleteBody
 
 
-        | Heartbeat
+        |  HeartbeatReceiveBody
 }
 
 /*
@@ -97,7 +97,7 @@ interface ListenerProperties {
 
 export const GatewayHatch = createContext<GatewayProperties | undefined>(undefined);
 
-export const RequestHatch: AxiosInstance = axios.create({
+export const APIHatch: AxiosInstance = axios.create({
     baseURL: `${context_data.api_oauth_addr.current}`,
     headers: {
         "Content-Type": "application/json",
@@ -151,7 +151,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 try {
                     const data: GatewayResponse = JSON.parse(event.data);
                     switch(data.operation) {
-                        case "new_group":
+                        case "on_new_group":
                             const new_group_fetched = data.body as GroupNewBody;
                             addGroup({
                                 "type": "group",
@@ -167,7 +167,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             } as Group);
                             break;
                     
-                        case "new_message":
+                        case "on_new_message":
                             const new_message_fetched = data.body as MessageNewBody;
                             addMessage({
                                 "type": "message",
@@ -180,7 +180,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             } as Message);
                             break;
 
-                        case "new_permission":
+                        case "on_new_permission":
                             const new_permission_fetched = data.body as PermissionNewBody;
                             addPermission({
                                 "type": "permission",
@@ -192,7 +192,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             } as Permission);
                             break;
                     
-                        case "new_role":
+                        case "on_new_role":
                             const new_role_fetched = data.body as RoleNewBody;
                             addRole({
                                 "type": "role",
@@ -203,7 +203,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             } as Role);
                             break;
 
-                        case "new_room":
+                        case "on_new_room":
                             const new_room_fetched = data.body as RoomNewBody;
                             addRoom({
                                 "type": "room",
@@ -217,7 +217,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             } as Room);
                             break;
 
-                        case "new_space":
+                        case "on_new_space":
                             const new_space_fetched = data.body as SpaceNewBody;
                             addSpace({
                                 "type": "space",
@@ -229,54 +229,54 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             break;
 
 
-                        case "update_group":
+                        case "on_update_group":
                             updateGroup(data.body as GroupUpdateBody);
                             break
 
-                        case "update_message":
+                        case "on_update_message":
                             updateMessage(data.body as MessageUpdateBody);
                             break;
 
-                        case "update_role":
+                        case "on_update_role":
                             updateRole(data.body as RoleUpdateBody);
                             break;
 
-                        case "update_room":
+                        case "on_update_room":
                             updateRoom(data.body as RoomUpdateBody);
                             break;
 
-                        case "update_space":
+                        case "on_update_space":
                             updateSpace(data.body as SpaceUpdateBody);
                             break;
 
                     
-                        case "delete_group":
+                        case "on_delete_group":
                             deleteGroup((data.body as GroupDeleteBody).id);
                             break;
 
-                        case "delete_message":
+                        case "on_delete_message":
                             deleteMessage((data.body as MessageDeleteBody).id);
                             break;
 
-                        case "delete_role":
+                        case "on_delete_role":
                             deleteRole((data.body as RoleDeleteBody).id);
                             break;
 
-                        case "delete_room":
+                        case "on_delete_room":
                             deleteRoom((data.body as RoomDeleteBody).id);
                             break;
 
-                        case "delete_space":
+                        case "on_delete_space":
                             deleteSpace((data.body as SpaceDeleteBody).id);
                             break;
 
-                        case "delete_permission":
+                        case "on_delete_permission":
                             deletePermission((data.body as PermissionDeleteBody).id);
                             break;
 
                     
-                        case "heartbeat":
-                            const heartbeat_fetched = data.body as Heartbeat;
+                        case "on_receive_heartbeat":
+                            const heartbeat_fetched = data.body as  HeartbeatReceiveBody;
                             if ((!data.status && !data.error) || (data.status && data.error)) {
                                 console.warn("Unusual server behavior, connection closed automatically");
                                 Cleanup();
@@ -287,14 +287,25 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                                 if (heartbeat_fetched.interval && heartbeat_fetched.interval !== heartbeat_interval) {
                                     console.log(`Switching to new heartbeat interval, ${heartbeat_fetched.interval} milliseconds => ${heartbeat_interval} milliseconds`);
                                     setHeartbeatInterval(heartbeat_fetched.interval);
-                                } else {
-                                    TimeoutReset();
-                                    GatewayRequest({
-                                        "type": "websocket",
-                                        "status": true,
-                                        "error": null, //true and null for now only, will change this later.
-                                    });
                                 }
+                                if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
+                                    try {
+                                        SocketReference.current.send(JSON.stringify(
+                                            {
+                                                "type": "receive_heartbeat",
+                                                "status": true,
+                                                "error": null,
+                                            }
+                                        ));
+                                        TimeoutReset();
+                                    } catch (error) {
+                                        console.error("Unable to send heartbeat data, proceeding to reconnect");
+                                        Cleanup();
+                                    }
+                                } else {
+                                    console.error("Connection closed unexpectedly, proceeding to reconnect");
+                                    Cleanup();
+                                }     
                             }
                             break;
 
@@ -321,25 +332,13 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             };
         };
 
-        const GatewayRequest = (data: object) => {
-            if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
-                try {
-                    SocketReference.current.send(JSON.stringify(data));
-                } catch (error) {
-                    console.error("Unable to send data, connection error");
-                }
-            } else {
-                console.warn("Connection closed, unable to send data");
-                //context_data.SetError('Odd, seems you cant connect to our servers, check if your internet is working or try again later');
-            }
-        };
-
         const TimeoutReset = () => {
             if (heartbeat_timeout.current) {
                 clearTimeout(heartbeat_timeout.current);
             }
             heartbeat_timeout.current = setTimeout(() => {
                 if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
+                    console.error("Server skipped heartbeat, proceeding to reconnect");
                     SocketReference.current.close();
                     Cleanup();
                 }
@@ -364,7 +363,19 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             Cleanup();
         };
     }, [heartbeat_interval]);
-                                    //gotta think about this one.
+    
+    const GatewayRequest = (data: object) => {
+        if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
+            try {
+                SocketReference.current.send(JSON.stringify(data));
+            } catch (error) {
+                console.error("Unable to send data, connection error");
+            }
+        } else {
+            console.warn("Connection seems closed, unable to send data");
+        }
+    };
+
     return (
         <GatewayHatch.Provider value={{ GatewayRequest }}>
             { children }

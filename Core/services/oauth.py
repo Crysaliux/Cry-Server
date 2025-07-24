@@ -16,6 +16,8 @@ class NewValidationRequest(BaseModel):
 class ExistingValidationRequest(BaseModel):
     email: str
     password: str
+
+class ClientSessionValidationRequest(BaseModel):
     token: str
 
 class Authentication:
@@ -51,15 +53,26 @@ class Authentication:
     
     @executer
     async def __validate_existing_client(self, request, session):
+        client = await session.execute(select(Client).where(Client.email == request.email))
+        if client is not None: 
+            if self.hasher.verify(client.hashed_password, request.password):
+                token = jwt.encode({"username": client.username, "id": client.id, "type": "client-oriented"}, self.access_key, algorithm=self.algorithm)
+                return True, {"token": token}
+        return False, "You've entered wrong credentials!"
+    
+    @executer
+    async def __validate_client_session(self, request, session):
         payload = jwt.decode(request.token, self.access_key, algorithm=self.algorithm)
         username, id = payload["username"], payload["id"]
-        client = session.execute(select(Client).where(
-            Client.username == username, 
-            Client.email == request.email, 
+        client = await session.execute(select(Client).where(
+            Client.username == username,
             Client.id == id, 
             Client.token == request.token))
-        if client is not None: return True, "Access granted"
-        return False, "You've entered wrong credentials!"
+        if client is not None: 
+            if datetime.now(datetime.timezone.utc) > client.token_expires_at:
+                return False, "Session has expired"
+            return True, "Session active, all good"
+        return False, "Wrong session, closing connection"
 
     def router_tasks(self):
         @self.router.post("/validate_new_client", response_class=HTMLResponse)
@@ -68,6 +81,11 @@ class Authentication:
             return JSONResponse(content={"status": status, "response": response}, status_code=201)
 
         @self.router.post("/validate_existing_client", response_class=HTMLResponse)
-        async def validate_existing_client(request: Request, email: str = Form(...), password: str = Form(...), token: str = Depends(self.oauth2)):
-            status, response = await self.__validate_existing_client(ExistingValidationRequest(email, password, token))
+        async def validate_existing_client(request: Request, email: str = Form(...), password: str = Form(...)):
+            status, response = await self.__validate_existing_client(ExistingValidationRequest(email, password))
+            return JSONResponse(content={"status": status, "response": response}, status_code=201)
+        
+        @self.router.post("/validate_client_session", response_class=HTMLResponse)
+        async def validate_client_session(request: Request, token: str = Depends(self.oauth2)):
+            status, response = await self.__validate_client_session(ExistingValidationRequest(token))
             return JSONResponse(content={"status": status, "response": response}, status_code=201)

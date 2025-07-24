@@ -2,19 +2,13 @@ import { useEffect, useContext } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
+import { APIHatch } from "./listener";
 
 //Fetch core global context
 const context_data = useContext(CoreGlobalContext);
 if (!context_data) {
     throw new Error("Can't load CoreGlobalContext for oauth");
 }
-
-const ValidationRequest: AxiosInstance = axios.create({
-    baseURL: `${context_data.api_oauth_addr.current}`,
-    headers: {
-        "Content-Type": "application/json",
-    },
-});
 
 export const Authentication = () => {
     const navigate = useNavigate();
@@ -24,7 +18,7 @@ export const Authentication = () => {
             //Fetching client token from local storage :3, abort if none
 
             try {
-                const response = await ValidationRequest.get("/validate_existing_client", {
+                const response = await APIHatch.get("/validate_client_session", {
                     headers: { Authorization: `Bearer ${"TOKEN"}` },
                 });
                 if (response.data.status) {
