@@ -38,7 +38,9 @@ if (!context_data) {
     throw new Error("Can't load CoreGlobalContext for listener");
 }
 
-interface HeartbeatReceiveBody {
+interface HeartbeatResponse {
+    status: boolean;
+    error: string | null;
     interval: number | null;
 }
 
@@ -69,9 +71,6 @@ interface GatewayResponse {
         | SpaceNewBody
         | SpaceUpdateBody
         | SpaceDeleteBody
-
-
-        |  HeartbeatReceiveBody
 }
 
 /*
@@ -105,7 +104,8 @@ export const APIHatch: AxiosInstance = axios.create({
 });
 
 export const Listener: React.FC<ListenerProperties> = ({ children }) => {
-    const SocketReference = useRef<WebSocket | null>(null);
+    const GatewayReference = useRef<WebSocket | null>(null);
+    const HeartbeatReference = useRef<WebSocket | null>(null);
     const { 
         addGroup, 
         addMessage, 
@@ -133,21 +133,25 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         if (!heartbeat_interval) { return; }
 
         const heartbeat_timeout = useRef<number | null>(null);
+        const reconnect_interval = 5000; // milliseconds (5 seconds)
         const max_reconnect_attempts = 5;
         const reconnect_attempts = useRef<number>(0);
-        const safety_buffer = 5000;
 
-        const GatewayConnector = () => {
+        const Connector = () => {
             if (reconnect_attempts.current >= max_reconnect_attempts) {
                 console.error("Reached reconnect attempts limit, is server dead?...");
                 return;
             }
 
-            const socket = new WebSocket(context_data.gateway_addr.current);
-            SocketReference.current = socket;
+            const gateway = new WebSocket(context_data.gateway_addr.current);
+            const heartbeat = new WebSocket(context_data.heartbeat_addr.current);
+
+            GatewayReference.current = gateway;
+            HeartbeatReference.current = heartbeat;
             reconnect_attempts.current += 1;
 
-            socket.onmessage = async (event: MessageEvent) => {
+            //Gateway websocket
+            gateway.onmessage = async (event: MessageEvent) => {
                 try {
                     const data: GatewayResponse = JSON.parse(event.data);
                     switch(data.operation) {
@@ -274,60 +278,77 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                             deletePermission((data.body as PermissionDeleteBody).id);
                             break;
 
-                    
-                        case "on_receive_heartbeat":
-                            const heartbeat_fetched = data.body as  HeartbeatReceiveBody;
-                            if ((!data.status && !data.error) || (data.status && data.error)) {
-                                console.warn("Unusual server behavior, connection closed automatically");
-                                Cleanup();
-                            } else {
-                                if (data.error) {
-                                    console.warn(`Server side error, connection might collapse, ${data.error}`);
-                                }
-                                if (heartbeat_fetched.interval && heartbeat_fetched.interval !== heartbeat_interval) {
-                                    console.log(`Switching to new heartbeat interval, ${heartbeat_fetched.interval} milliseconds => ${heartbeat_interval} milliseconds`);
-                                    setHeartbeatInterval(heartbeat_fetched.interval);
-                                }
-                                if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
-                                    try {
-                                        SocketReference.current.send(JSON.stringify(
-                                            {
-                                                "type": "receive_heartbeat",
-                                                "status": true,
-                                                "error": null,
-                                            }
-                                        ));
-                                        TimeoutReset();
-                                    } catch (error) {
-                                        console.error("Unable to send heartbeat data, proceeding to reconnect");
-                                        Cleanup();
-                                    }
-                                } else {
-                                    console.error("Connection closed unexpectedly, proceeding to reconnect");
-                                    Cleanup();
-                                }     
-                            }
-                            break;
-
                         default:
-                            console.warn(`Unknown request: ${data}`);
+                            console.warn(`Gateway received an unknown request type: ${data}`);
                     }
+
                 } catch (error) {
-                    console.error(`Failed to parse Gateway request: ${error}`);
+                    console.error(`Failed to parse gateway request: ${error}`);
                 }
             };
 
-            socket.onopen = () => {
+            //Heartbeat websocket
+            heartbeat.onmessage = async (event: MessageEvent) => {
+                try {
+                    const data: HeartbeatResponse = JSON.parse(event.data);            
+                    if ((!data.status && !data.error) || (data.status && data.error)) {
+                        console.warn(`Unusual server behavior, proceeding to reconnect in ${reconnect_interval / 1000} seconds`);
+                        Cleanup();
+                    } else {
+                        if (data.error) {
+                            console.warn(`Server side error, connection might collapse, ${data.error}`);
+                        }
+                        if (data.interval && data.interval !== heartbeat_interval) {
+                            console.log(`Switching to new heartbeat interval, ${data.interval} milliseconds => ${heartbeat_interval} milliseconds`);
+                            setHeartbeatInterval(data.interval);
+                        }
+                        if (HeartbeatReference.current && HeartbeatReference.current.readyState === WebSocket.OPEN) {
+                            try {
+                                HeartbeatReference.current.send(JSON.stringify(
+                                    {
+                                        "status": true,
+                                        "error": null,
+                                    }
+                                ));
+                                TimeoutReset();
+                            } catch (error) {
+                                console.error(`Unable to send heartbeat data, proceeding to reconnect in ${reconnect_interval / 1000} seconds`);
+                                Cleanup();
+                            }
+                        } else {
+                            console.error(`Connection closed unexpectedly, proceeding to reconnect in ${reconnect_interval / 1000} seconds`);
+                            Cleanup();
+                        }     
+                    }
+
+                } catch (error) {
+                    console.error(`Failed to parse heartbeat request: ${error}`);
+                }
+            };
+
+            //Gateway
+            gateway.onopen = () => {
                 reconnect_attempts.current = 0;
                 TimeoutReset();
-                console.log('Successfully connected to Gateway');
+                console.log('Successfully connected to gateway');
+            };
+            gateway.onerror = (error) => {
+                console.error(`An unexpected gateway error has occured: ${error}`);
+            };
+            gateway.onclose = () => {
+                Cleanup();
             };
 
-            socket.onerror = (error) => {
-                console.error(`An unexpected error has occured: ${error}`);
+            //Heartbeat
+            heartbeat.onopen = () => {
+                reconnect_attempts.current = 0;
+                TimeoutReset();
+                console.log('Successfully connected to heartbeat');
             };
-
-            socket.onclose = () => {
+            heartbeat.onerror = (error) => {
+                console.error(`An unexpected heartbeat error has occured: ${error}`);
+            };
+            heartbeat.onclose = () => {
                 Cleanup();
             };
         };
@@ -337,12 +358,11 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 clearTimeout(heartbeat_timeout.current);
             }
             heartbeat_timeout.current = setTimeout(() => {
-                if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
-                    console.error("Server skipped heartbeat, proceeding to reconnect");
-                    SocketReference.current.close();
+                if (HeartbeatReference.current && HeartbeatReference.current.readyState === WebSocket.OPEN) {
+                    console.error(`Server skipped a heartbeat, proceeding to reconnect in ${reconnect_interval / 1000} seconds`);
                     Cleanup();
                 }
-            }, heartbeat_interval + safety_buffer);
+            }, heartbeat_interval + (heartbeat_interval / 2)); // Adding a safety buffer to avoid false negtives
         };
 
         const Cleanup = () => {
@@ -350,14 +370,18 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 clearTimeout(heartbeat_timeout.current);
                 heartbeat_timeout.current = null;
             }
-            if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
-                SocketReference.current.close();
-                SocketReference.current = null;
+            if (GatewayReference.current && GatewayReference.current.readyState === WebSocket.OPEN) {
+                GatewayReference.current.close();
+                GatewayReference.current = null;
             }
-            setTimeout(GatewayConnector, 5000);
+            if (HeartbeatReference.current && HeartbeatReference.current.readyState === WebSocket.OPEN) {
+                HeartbeatReference.current.close();
+                HeartbeatReference.current = null;
+            }
+            setTimeout(Connector, 5000);
         };
 
-        GatewayConnector();
+        Connector();
 
         return () => {
             Cleanup();
@@ -365,9 +389,9 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     }, [heartbeat_interval]);
     
     const GatewayRequest = (data: object) => {
-        if (SocketReference.current && SocketReference.current.readyState === WebSocket.OPEN) {
+        if (GatewayReference.current && GatewayReference.current.readyState === WebSocket.OPEN) {
             try {
-                SocketReference.current.send(JSON.stringify(data));
+                GatewayReference.current.send(JSON.stringify(data));
             } catch (error) {
                 console.error("Unable to send data, connection error");
             }

@@ -18,15 +18,10 @@ import io
 import os
 
 
-class ReceiveHeartbeat(BaseModel):
+class HeartbeatRequest(BaseModel):
     type: Literal['receive_heartbeat']
     status: bool
     error: Union[str, None]
-
-class HeartbeatTrap(BaseModel):
-    caught: bool
-    suspicious: Union[bool, None]
-    operation_name: Union[str, None]
 
 ClientRequest = Annotated[Union[
     UpdateClient, 
@@ -48,7 +43,6 @@ ClientRequest = Annotated[Union[
     DeleteRoom,
     DeleteSpace,
     DeletePermission,
-    ReceiveHeartbeat,
     ], _type(discriminator='type')]
 
 class Listener:
@@ -106,9 +100,6 @@ class Listener:
             "delete_room": {"ref": DeleteRoom, "func": self.__on_delete_room, "name": "on_delete_room"},
             "delete_space": {"ref": DeleteSpace, "func": self.__on_delete_space, "name": "on_delete_space"},
             "delete_permission": {"ref": DeletePermission, "func": self.__on_delete_permission, "name": "on_delete_permission"},
-
-            #Base functionality
-            "receive_heartbeat": {"ref": ReceiveHeartbeat, "name": "on_receive_heartbeat"},
         }
     
     @executer
@@ -139,18 +130,6 @@ class Listener:
         if (not request.status and not request.error) or (request.status and request.error):
             return False
         return True
-    
-    async def __send_heartbeat(self, operation_name: str, socket: WebSocket):
-        await asyncio.sleep(self.heartbeat_interval // 1000)
-        try:
-            await socket.send_json({
-                "operation": operation_name,
-                "status": True,
-                "error": None,
-            })
-        except:
-            await socket.send_json({"connection_status": False, "error": "Can't connect to the client, closing connection"})
-            await socket.close()
 
     async def __total_interpreter(self, data: dict, client: Client, socket: WebSocket):
         adapter = TypeAdapter(ClientRequest)
@@ -158,15 +137,12 @@ class Listener:
         if request.type in self.types:
             if isinstance(request, self.types[request.type]["ref"]):
                 func = self.types[request.type]["func"]
-                if request.type != "receive_heartbeat":
-                    response = await func(request, client, self.types[request.type]["name"], self.ws)
-                    if response is not None:
-                        if isinstance(response, tuple):
-                            for instance in response: #In case if double, triple, etc (like... really rare, chill)
-                                await socket.send_json(instance)
-                        else: await socket.send_json(response)
-                    return HeartbeatTrap(False)
-                else: return HeartbeatTrap(True, self.__validate_heartbeat_request(request), self.types[request.type]["name"])
+                response = await func(request, client, self.types[request.type]["name"], self.ws)
+                if response is not None:
+                    if isinstance(response, tuple):
+                        for instance in response: #In case if double, triple, etc (like... really rare, chill)
+                            await socket.send_json(instance)
+                    else: await socket.send_json(response)
     
     #ON_NEW_...
     @executer
@@ -594,35 +570,47 @@ class Listener:
 
     #LISTENER
     def router_tasks(self):
-        @self.router.websocket("/listener")
+        @self.router.websocket("/gateway")
         async def listener(websocket: WebSocket, token: str = Depends(self.oauth2)):
             await websocket.accept()
             status, client = await self.__validate_request(token, self.ws)
             if status:
                 try:
-                    heartbeat_time_left = self.heartbeat_interval
                     while True:
-                        cycle_start_time = time.perf_counter()
-                        try:
-                            data = await asyncio.wait_for(websocket.receive_json(), heartbeat_time_left)
-                            heartbeat_trap = await self.__total_interpreter(data, client, websocket)
-                            if heartbeat_trap.caught:
-                                if not heartbeat_trap.suspicious:
-                                    #Write logs based on client response
-                                    asyncio.create_task(self.__send_heartbeat(heartbeat_trap.operation_name, websocket))
-                                    heartbeat_time_left = self.heartbeat_interval * 2
-                                else:
-                                    await websocket.send_json({"connection_status": False, "error": "Unusual client behavior, connection closed automatically"})
-                                    await websocket.close()
-                            else:
-                                heartbeat_time_left -= (time.perf_counter() - cycle_start_time)
-                        except asyncio.TimeoutError:
-                            await websocket.send_json({"connection_status": False, "error": "Client skipped heartbeat, proceeding to disconnect"})
-                            await websocket.close()
+                        data = await websocket.receive_json()
+                        await self.__total_interpreter(data, client, websocket)
                 except WebSocketDisconnect:
                     await websocket.close()
             else:
                 await websocket.send_json({"connection_status": False, "error": "invalid or outdated session"})
+                await websocket.close()
+
+        @self.router.websocket("/heartbeat")
+        async def listener(websocket: WebSocket, token: str = Depends(self.oauth2)):
+            await websocket.accept()
+            status, _ = await self.__validate_request(token, self.ws)
+            if status:
+                try:
+                    while True:
+                        await websocket.send_json({
+                            "status": True,
+                            "error": None,
+                            "interval": self.heartbeat_interval,
+                        })
+                        try:
+                            data = HeartbeatRequest(await asyncio.wait_for(websocket.receive_json(), (self.heartbeat_interval // 1000) // 2)) #Server waiting time is two times less than the original interval
+                            if self.__validate_heartbeat_request(data):
+                                await asyncio.sleep(self.heartbeat_interval // 1000)
+                            else:
+                                await websocket.send_json({"connection_status": False, "error": "Unusual client behaviour, connection closed automatically"})
+                                await websocket.close()
+                        except asyncio.TimeoutError:
+                            await websocket.send_json({"connection_status": False, "error": "Client skipped heartbeat, connection closed automatically"})
+                            await websocket.close()
+                except WebSocketDisconnect:
+                    await websocket.close()
+            else:
+                await websocket.send_json({"connection_status": False, "error": "Invalid or outdated session!"})
                 await websocket.close()
         
         @self.router.post("/upload_attachement", response_class=HTMLResponse) #Update code, modify

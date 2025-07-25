@@ -31,7 +31,7 @@ class Core(FastAPI):
         super().__init__()
         self.sv_host = host
         self.sv_port = port
-        self.heartbeat_interval = 20000 #milliseconds
+        self.heartbeat_interval = 10000 #milliseconds (10 seconds)
         self.worker = Worker()
         self.client_server_origin = "http://localhost:5173"
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
