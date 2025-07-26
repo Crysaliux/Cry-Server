@@ -354,11 +354,11 @@ class Listener:
     
     @executer
     async def __on_update_room(self, request, client: Client, operation_name: str, session):
-        group_id, name, about_room, nsfw, id = request.group_id, request.creator_id, request.name, request.about_room, request.nsfw, request.id
+        group_id, space_id, name, about_room, nsfw, id = request.group_id, request.space_id, request.creator_id, request.name, request.about_room, request.nsfw, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
         if group is not None:
             if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROOMS"):
-                update_status = await session.execute(update(Room).where(Room.id == id).values(name=name, about_room=about_room, nsfw=nsfw).returning(Room.id))
+                update_status = await session.execute(update(Room).where(Room.id == id).values(space_id=space_id, name=name, about_room=about_room, nsfw=nsfw).returning(Room.id))
                 if update_status is not None:
                     return {
                         "operation": operation_name, 

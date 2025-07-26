@@ -1,7 +1,7 @@
 export interface Room {
     type: "room";
     group_id: string;
-    space_id: string;
+    space_id: string | null;
     creator_id: string;
     name: string;
     about_room: string | null;
@@ -11,7 +11,7 @@ export interface Room {
 
 export interface RoomNewBody {
     group_id: string;
-    space_id: string;
+    space_id: string | null;
     creator_id: string;
     name: string;
     about_room: string | null;
@@ -19,8 +19,9 @@ export interface RoomNewBody {
 }
 
 export interface RoomUpdateBody {
+    space_id: string | null;
     name: string;
-    about_room: string;
+    about_room: string | null;
     nsfw: boolean;
     id: string;
 }

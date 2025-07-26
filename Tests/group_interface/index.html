@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="Chat with friends, have fun!">
+        <meta name="keywords" content="chat online media">
+        <meta name="author" content="Crysaliux">
+        <title>UI test</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div id="container">
+            <div id="header">
+                <div id="header-buffer"></div>
+                <div id="channel-name">
+                    Channel name
+                </div>
+                <div id="manage-members">
+                    <div id="invite">
+
+                    </div>
+                    <div id="sort-by">
+                        <div id="sort-by-arrow"></div>
+                        Roles
+                    </div>
+                    <div id="hide-members">
+
+                    </div>
+                </div>
+            </div>
+            <div id="groups">
+                <div id="to-contacts">
+                    <div id="to-contacts-shrunk"></div>
+                </div>
+                <hr class="division_line">
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <div class="group">
+                    <div class="group_shrunk"></div>
+                </div>
+                <hr class="division_line">
+                <div id="create-group">
+                    <div id="create-group-shrunk"></div>
+                </div>
+            </div>
+            <div id="rooms">
+                <div id="actions">
+                    <div id="group-header">
+                        Group name
+                        <div id="settings"></div>
+                    </div>
+                    <div class="action">Add room</div>
+                    <div class="action">Add space</div>
+                </div>
+                <hr class="division_line">
+                <div class="room">
+                    <div class="hashtag">#</div>room
+                </div>
+                <div class="room">
+                    <div class="hashtag">#</div>room
+                </div>
+                <div class="room">
+                    <div class="hashtag">#</div>room
+                </div>
+                <div class="room">
+                    <div class="hashtag">#</div>room
+                </div>
+                <div class="room">
+                    <div class="hashtag">#</div>room
+                </div>
+                <div class="room">
+                    <div class="hashtag">#</div>room
+                </div>
+                <div class="room">
+                    <div class="hashtag">#</div>room
+                </div>
+                <div class="space">
+                    <div class="space_name">space</div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                </div>
+                <div class="space">
+                    <div class="space_name">space</div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                </div>
+                <div class="space">
+                    <div class="space_name">space</div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                    <div class="room">
+                        <div class="hashtag">#</div>room
+                    </div>
+                </div>
+            </div>
+            <div id="chat">
+                <div id="messages">
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="additional_message">
+                        <div class="buffer"></div>
+                        <div class="body">
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipi
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="additional_message">
+                        <div class="buffer"></div>
+                        <div class="body">
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipi
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="additional_message">
+                        <div class="buffer"></div>
+                        <div class="body">
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipi
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="additional_message">
+                        <div class="buffer"></div>
+                        <div class="body">
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipi
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="avatar"></div>
+                        <div class="body">
+                            <div class="nickname">Nickname</div>
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel nunc fringilla, ullamcorper quam in, hendrerit mi. Duis commodo malesuada nulla, ut consequat sem euismod ut. Curabitur vel magna tempor, volutpat dolor nec, molestie lectus. Nullam egestas commodo vulputate. Ut iaculis neque erat, id maximus nunc pellentesque sed. Etiam at sapien et erat vulputate mattis nec nec tortor. Praesent suscipit blandit dui, ac interdum magna efficitur at. In quis elementum nisl, a imperdiet tortor. Aenean consectetur, elit sit amet varius porttitor, turpis dolor congue nunc, in consequat urna urna id sem. Donec ut lacus urna. Pellentesque condimentum arcu dignissim ex bibendum sodales. Sed tristique, dolor aliquam ultrices eleifend, felis tellus suscipit elit, quis efficitur urna ex nec ligula. Phasellus quis tortor in nunc hendrerit tempus id in urna. Mauris ultrices non lorem at malesuada.
+
+Aliquam vitae massa accumsan, pellentesque magna eget, faucibus elit. Morbi plac
+                            </div>
+                        </div>
+                    </div>
+                    <div class="additional_message">
+                        <div class="buffer"></div>
+                        <div class="body">
+                            <div class="content">
+                                Lorem ipsum dolor sit amet, consectetur adipi
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="chatarea">
+                    <div id="attachement"></div>
+                    <textarea autofocus id="chatbar"></textarea>
+                </div>
+            </div>
+            <div id="members">
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+                <div class="member">
+                    <div class="member_avatar">
+                        <div class="online_status">
+                            <div class="online_status_marker"></div>
+                        </div>
+                    </div>
+                    <div class="nickname">Nickname</div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -19,7 +19,8 @@ export const Authentication = () => {
             try {
                 SessionTokenReference.current = localStorage.getItem("SESSION");
             } catch (error) {
-                console.error("Failed to retrieve session token:", error); 
+                console.error("Failed to retrieve session token:", error);
+                navigate("/LOGIN");
             }
             try {
                 if (SessionTokenReference.current) {
@@ -36,8 +37,6 @@ export const Authentication = () => {
             } catch (error) {
                 console.error('Session check failed:', error);
                 navigate("/LOGIN");
-            } finally {
-                "When loaded lol"
             }
         };
 

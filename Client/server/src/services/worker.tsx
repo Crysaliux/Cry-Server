@@ -53,34 +53,34 @@ export const useObjects = create<ObjectsActionState>((set) => ({
 
 
     updateGroup: (params) => set((state) => ({
-      groups: {
-        ...state.groups,
-        [params.id]: { ...state.groups[params.id], ...params },
-      },
+        groups: {
+            ...state.groups,
+            [params.id]: { ...state.groups[params.id], ...params },
+        },
     })),
     updateMessage: (params) => set((state) => ({
-      messages: {
-        ...state.messages,
-        [params.id]: { ...state.messages[params.id], ...params },
-      },
+        messages: {
+            ...state.messages,
+            [params.id]: { ...state.messages[params.id], ...params },
+        },
     })),
     updateRole: (params) => set((state) => ({
-      roles: {
-        ...state.roles,
-        [params.id]: { ...state.roles[params.id], ...params },
-      },
+        roles: {
+            ...state.roles,
+            [params.id]: { ...state.roles[params.id], ...params },
+        },
     })),
     updateRoom: (params) => set((state) => ({
-      rooms: {
-        ...state.rooms,
-        [params.id]: { ...state.rooms[params.id], ...params },
-      },
+        rooms: {
+            ...state.rooms,
+            [params.id]: { ...state.rooms[params.id], ...params },
+        },
     })),
     updateSpace: (params) => set((state) => ({
-      spaces: {
-        ...state.spaces,
-        [params.id]: { ...state.spaces[params.id], ...params },
-      },
+        spaces: {
+            ...state.spaces,
+            [params.id]: { ...state.spaces[params.id], ...params },
+        },
     })),
 
 
@@ -114,3 +114,10 @@ export const useHeartbeat = create<HeartbeatActionState>((set) => ({
     heartbeat_interval: null,
     setHeartbeatInterval: (interval) => set({ heartbeat_interval: interval }),
 }));
+
+export const useGroups = () => useObjects((state) => Object.values(state.groups));
+export const useMessages = () => useObjects((state) => Object.values(state.messages));
+export const usePermissions = () => useObjects((state) => Object.values(state.permissions));
+export const useRoles = () => useObjects((state) => Object.values(state.roles));
+export const useRooms = () => useObjects((state) => Object.values(state.rooms));
+export const useSpaces = () => useObjects((state) => Object.values(state.spaces));

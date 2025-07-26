@@ -1,28 +1,106 @@
 import React, { useState, createContext, Dispatch, SetStateAction, useMemo } from 'react';
 import { Routes, Route, BrowserRouter, useNavigate, Outlet } from 'react-router-dom';
-import { ContextManager } from 'services/core';
+import { Core } from 'services/core';
 import { Listener } from 'services/listener';
-import ChannelsLayout from 'layouts/widgets/channels_widget/channels_layout';
-import ChatLayout from 'layouts/widgets/chat_widget/chat_layout';
-//import ConntactsLayout from 'layouts/widgets/contacts_widget/contacts_layout';
-import GroupsLayout from 'layouts/widgets/groups_widget/groups_layout';
-import HeaderLayout from 'layouts/widgets/header_widget/header_layout';
-import MembersLayout from 'layouts/widgets/members_widget/members_layout';
-import OverlayLayout from 'layouts/widgets/overlay_widget/overlay_layout';
-import GroupActionMenuLayout from 'layouts/popup_widgets/group_action_menu_widget/group_action_menu_layout';
+import { 
+    useGroups, 
+    useMessages, 
+    usePermissions, 
+    useRoles, 
+    useRooms, 
+    useSpaces 
+} from "services/worker";
+
+const GroupLayout: React.FC = () => {
+    const groups = useGroups();
+    const messages = useSpaces();
+    const permissions = usePermissions();
+    const roles = useRoles();
+    const rooms = useRooms();
+    const spaces = useSpaces();
+
+    const orphan_rooms = rooms.filter((room) => room.space_id === null);
+    const FetchChildRooms = (space_id: string) => {
+        return rooms.filter((room) => room.space_id === space_id);
+    };
+
+    return (
+        <Core>
+            <Listener>
+                <div id="container">
+
+                    <div id="header">
+                        <div id="header-buffer"></div>
+                        <div id="channel-name">
+                            Channel name
+                        </div>
+                        <div id="manage-members">
+                            <div id="invite">
+
+                            </div>
+                            <div id="sort-by">
+                                <div id="sort-by-arrow"></div>
+                                Roles
+                            </div>
+                            <div id="hide-members">
+
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="groups">
+                        <div id="to-contacts">
+                            <div id="to-contacts-shrunk"></div>
+                        </div>
+                        <hr className="division_line"></hr>
+                        
+                        {groups.map(group => (
+                            <div className="group" key={group.id}>
+                                <div className="group_shrunk"></div>
+                            </div>
+                        ))}
+
+                        <hr className="division_line"></hr>
+                        <div id="create-group">
+                            <div id="create-group-shrunk"></div>
+                        </div>
+                    </div>
+
+                    <div id="rooms">
+                        <div id="actions">
+                            <div id="group-header">
+                                Group name
+                                <div id="settings"></div>
+                            </div>
+                            <div className="action">Add room</div>
+                            <div className="action">Add space</div>
+                        </div>
+                        <hr className="division_line"></hr>
+                        {orphan_rooms.map(room => (
+                            <div className="room" key={room.id}>
+                                <div className="hashtag">#</div>{ room.name }
+                            </div>
+                        ))}
+                        {spaces.map(space => (
+                            <div className="space" key={space.id}>
+                                <div className="space_name">{ space.name }</div>
+                                {FetchChildRooms(space.id).map(room => (
+                                    <div className="room" key={room.id}>
+                                        <div className="hashtag">#</div>{ room.name }
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+
+                </div>
+            </Listener>
+        </Core>
+    );
+};
 
 const App: React.FC = () => {
-    const [contextManager, setContextManager] = useState<ContextManager | null>(null);
-    const [listener, setListener] = useState<Listener | null>(null);
-    
-    const contextValue = useMemo(() => ({
-        contextManager,
-        setContextManager,
-        listener,
-        setListener
-    }), [contextManager, listener]);
-    
-    return (
+    /*return (
         <BrowserRouter>
         <Context.Provider value={contextValue}>
             <HeaderLayout />
@@ -32,14 +110,13 @@ const App: React.FC = () => {
             <Route path="/" element={<Outlet />}>
                 <Route index element={<ChannelsLayout />} />
                 <Route path="chat" element={<ChatLayout />} />
-                {/* <Route path="contacts" element={<ConntactsLayout />} /> */}
                 <Route path="groups" element={<GroupsLayout />} />
                 <Route path="members" element={<MembersLayout />} />
             </Route>
             </Routes>
         </Context.Provider>
         </BrowserRouter>
-    );
+    ); */
 };
 
 export default App;
