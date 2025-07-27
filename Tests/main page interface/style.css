@@ -1,0 +1,186 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --widgets: #333446;
+    --active_elements: #B8CFCE;
+    --elements: #7F8CAA;
+    --highlight: #b2d1d0;
+    --background: linear-gradient(to bottom right, #EAEFEF, #7F8CAA, #333446);
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--background);
+    color: #ffffff;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#container {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+#header {
+    height: 70px;
+    width: 100%;
+    border-bottom-right-radius: 20px;
+    border-bottom-left-radius: 20px;
+    animation: elementFadeIn 1s ease-out forwards;
+    opacity: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 5%;
+    align-items: center;
+    padding-left: 2%;
+    background-color: var(--widgets);
+}
+
+#label {
+    font-size: 200%;
+    font-weight: 700;
+    user-select: none;
+    display: flex;
+    justify-content: center;
+    align-items: center; 
+    margin-bottom: 10px; 
+}
+
+.header_option {
+    font-size: 120%;
+    font-weight: 500;
+    user-select: none;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: all 0.3s ease;
+    animation: elementFadeIn 0.5s forwards;
+}
+
+#action-panel {
+    height: 100%;
+    margin-left: auto;
+    margin-right: 1%;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    user-select: none;
+}
+
+#download-app, #open-in-browser {
+    height: 40px;
+    font-size: 110%;
+    font-weight: 500;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    background-color: var(--active_elements);
+}
+
+#download-app:hover, #open-in-browser:hover {
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.header_option:hover {
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+#about-us-option {
+    animation-delay: 0.2s;
+}
+
+#tos-option {
+    animation-delay: 0.5s;
+}
+
+#privacy-policy-option {
+    animation-delay: 0.8s;
+}
+
+#main {
+    height: auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 400px;
+    padding-bottom: 20px;
+}
+
+#main > * {
+    flex: 0 0 auto;
+}
+
+#main-label {
+    height: 150px;
+    width: auto;
+    font-size: 700%;
+    font-weight: 800;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    animation: elementFadeIn 1s ease-out forwards;
+    opacity: 0;
+}
+
+.main_label_letter{
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.main_label_letter:hover {
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+#to-about-us {
+    all: unset;
+}
+
+#about-us {
+    margin-top: 500px;
+    padding: 20px;
+}
+
+#about-us-header {
+    font-size: 250%;
+    font-weight: 600;
+    user-select: none;
+}
+
+#about-us-content {
+    width: 80%;
+    font-size: 120%;
+    font-weight: 400;
+}
+
+#about-us-content::selection {
+    background: var(--highlight);
+}
+
+#about-us-content::-moz-selection {
+    background: var(--highlight);
+}
+
+/*Fading in*/
+@keyframes elementFadeIn {
+    to {
+      opacity: 1;
+    }
+}
