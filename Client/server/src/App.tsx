@@ -4,10 +4,11 @@ import GroupLayout from 'layouts/group_layout';
 import LoginLayout from 'layouts/login_layout';
 import MainPageLayout from 'layouts/main_page_layout';
 import SignUpLayout from 'layouts/signup_layout';
+import RoomLayout from 'layouts/room_layout';
 import { Listener } from 'services/listener';
 import { Core } from 'services/core';
 
-const App: React.FC = () => {
+const App: React.FC = () => { //:message_id will be use for what?
     return (
         <BrowserRouter>
             <Core>
@@ -19,7 +20,11 @@ const App: React.FC = () => {
                                 <Route path="oauth2/signup" element={<SignUpLayout />} />
                                 <Route path="oauth2/login" element={<LoginLayout />} />
 
-                                <Route path=":group_global_name" element={<GroupLayout />} />
+                                <Route path=":group_global_name" element={<GroupLayout />}>
+                                    <Route path=":room_id" element={<RoomLayout />}>
+                                        <Route path=":mesage_id" element={} />
+                                    </Route>
+                                </Route>
                             </Route>
                         </Routes>
                     </div>
