@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTML
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
-from ..services.worker import executer, Client, Group, Space, Room, Message, Role, Permission
+from ..services.worker import event_executer, Client, Group, Space, Room, Message, Role, Permission
 from sqlalchemy import insert, select, update, delete
 from ast import literal_eval
 from datetime import datetime
@@ -102,7 +102,7 @@ class Listener:
             "delete_permission": {"ref": DeletePermission, "func": self.__on_delete_permission, "name": "on_delete_permission"},
         }
     
-    @executer
+    @event_executer #?? may not work here, create extra executer?
     async def __validate_request(self, token: str, session):
         payload = jwt.decode(token, self.access_key, algorithm=self.algorithm)
         username, id = payload["username"], payload["id"]
@@ -145,7 +145,7 @@ class Listener:
                     else: await socket.send_json(response)
     
     #ON_NEW_...
-    @executer
+    @event_executer
     async def __on_new_group(self, request, client: Client, operation_name: str, session):
         owner_id, name, about_group, icon_url, id = request.owner_id, request.name, request.about_group, request.icon_url, request.id
         session.add(Group(owner_id=owner_id, name=name, about_group=about_group, icon_url=icon_url, id=id)) 
@@ -164,7 +164,7 @@ class Listener:
             }
         }
     
-    @executer
+    @event_executer
     async def __on_new_space(self, request, client: Client, operation_name: str, session):
         group_id, creator_id, name, id = request.group_id, request.creator_id, request.name, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -187,7 +187,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_SPACES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_new_room(self, request, client: Client, operation_name: str, session):
         group_id, space_id, creator_id, name, about_room, id = request.group_id, request.space_id, request.creator_id, request.name, request.about_room, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -212,7 +212,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROOMS] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_new_message(self, request, client: Client, operation_name: str, session):
         group_id, space_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -237,7 +237,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [SEND_MESSAGES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_new_role(self, request, client: Client, operation_name: str, session):
         group_id, name, id = request.group_id, request.name, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -259,7 +259,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROLES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_new_permission(self, request, client: Client, operation_name: str, session):
         group_id, role_id, room_id, body, id = request.group_id, request.role_id, request.room_id, request.body, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -285,7 +285,7 @@ class Listener:
     
 
     #ON_UPDATE_...
-    @executer
+    @event_executer
     async def __on_update_client(self, request, client: Client, operation_name: str, session):
         nickname, about_me, avatar_url, color_theme = request.nickname, request.about_me, request.avatr_url, request.color_theme
         update_status = await session.execute(update(Client).where(Client.id == client.id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme).returning(Client.id))
@@ -304,7 +304,7 @@ class Listener:
             }
         else: return {"operation": operation_name, "status": False, "error": "{Client} object has not been found uhm. what the hell-"}
     
-    @executer
+    @event_executer
     async def __on_update_group(self, request, client: Client, operation_name: str, session):
         name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = request.owner_id, request.name, request.about_group, request.icon_url, request.nsfw, request.content_filter, request.content_filter_level, request.id
         group = await session.execute(select(Group).where(Group.id == id))
@@ -330,7 +330,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_GROUP] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_update_space(self, request, client: Client, operation_name: str, session):
         group_id, name, id = request.group_id, request.creator_id, request.name, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -352,7 +352,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_SPACES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_update_room(self, request, client: Client, operation_name: str, session):
         group_id, space_id, name, about_room, nsfw, id = request.group_id, request.space_id, request.creator_id, request.name, request.about_room, request.nsfw, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -376,7 +376,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROOMS] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_update_message(self, request, client: Client, operation_name: str, session):
         group_id, room_id, author_id, content, id = request.group_id, request.space_id, request.room_id, request.author_id, request.content, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -398,7 +398,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_MESSAGES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_update_role(self, request, client: Client, operation_name: str, session):
         group_id, name, color, id = request.group_id, request.name, request.color, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -423,7 +423,7 @@ class Listener:
 
     
     #ON_DELETE
-    @executer
+    @event_executer
     async def __on_delete_client(self, request, client: Client, operation_name: str, session):
         id = request.id
         if id == client.id:
@@ -441,7 +441,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "{Client} object has not been found"}
         else: return {"operation": operation_name, "status": False, "error": "Operation prohibited"}
     
-    @executer
+    @event_executer
     async def __on_delete_group(self, request, client: Client, operation_name: str, session):
         owner_id, id = request.owner_id, request.id
         group = await session.execute(select(Group).where(Group.id == id))
@@ -463,7 +463,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_GROUP] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_delete_space(self, request, client: Client, operation_name: str, session):
         group_id, id = request.group_id, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -484,7 +484,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_SPACES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_delete_room(self, request, client: Client, operation_name: str, session):
         group_id, id = request.group_id, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -505,7 +505,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROOMS] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_delete_message(self, request, client: Client, operation_name: str, session):
         group_id, room_id, author_id, id = request.group_id, request.room_id, request.author_id, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -526,7 +526,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_MESSAGES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
-    @executer
+    @event_executer
     async def __on_delete_role(self, request, client: Client, operation_name: str, session):
         group_id, id = request.group_id, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))
@@ -547,7 +547,7 @@ class Listener:
             else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROLES] permissions!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
 
-    @executer
+    @event_executer
     async def __on_delete_permission(self, request, client: Client, operation_name: str, session):
         group_id, id = request.group_id, request.id
         group = await session.execute(select(Group).where(Group.id == group_id))

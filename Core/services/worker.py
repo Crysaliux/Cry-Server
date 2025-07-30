@@ -208,7 +208,7 @@ class Worker:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-async def executer(func):
+async def event_executer(func):
     async def wrapper(request, client, operation_name, session):
         try:
             async with session() as ssn:
