@@ -18,6 +18,7 @@ import subprocess
 import threading
 import asyncio
 import uvicorn
+import socketio
 import json
 import time
 import ast
@@ -32,13 +33,17 @@ class Core(FastAPI):
         self.sv_host = host
         self.sv_port = port
         self.heartbeat_interval = 10000 #milliseconds (10 seconds)
-        self.worker = Worker()
         self.client_server_origin = "http://localhost:5173"
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
         self.templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
+        self.gateway = socketio.AsyncServer(async_mode="asgi")
+        self.mount("/gateway", socketio.ASGIApp(self.gateway, self))
         self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
         self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
+
+        self.worker = Worker()
+        self.irchsm = IRCHSManager(self.gateway)
         
         self.server_access_key = str(uuid.uuid4())
         self.algorithm = "HS256" 
@@ -83,6 +88,7 @@ class Core(FastAPI):
             max_message_length=self.max_message_length,
             client_server_origin=self.client_server_origin,
             access_key=self.server_access_key,
+            gateway=self.gateway,
         )
         self.listener.router_tasks()
 
@@ -104,10 +110,13 @@ class Core(FastAPI):
         uvicorn.run(self, host=self.sv_host, port=self.sv_port, log_level="debug")
 
     def __start_background(self):
-        asyncio.run(self.__background())
+        asyncio.gather(self.__background_worker(), self.__background_irchsm())
 
-    async def __background(self):
+    async def __background_worker(self):
         await self.worker.start()
+
+    async def __background_irchsm(self):
+        await self.irchsm.start()
 
     async def __main(self, request: Request):
         return self.templates.TemplateResponse("main.html", {"request": request})

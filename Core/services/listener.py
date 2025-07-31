@@ -10,6 +10,7 @@ from datetime import datetime
 from ..components import *
 from PIL import Image
 import aiofiles
+import socketio
 import asyncio
 import json
 import time
@@ -60,6 +61,7 @@ class Listener:
             heartbeat_interval: int,
             algorithm, access_key, 
             addr: tuple, 
+            gateway: socketio.AsyncServer,
             tepmlates: Jinja2Templates,
         ):
         self.addr = addr
@@ -76,6 +78,7 @@ class Listener:
         self.templates = tepmlates
         self.heartbeat_interval = heartbeat_interval
         self.algorithm = algorithm
+        self.gateway = gateway
         self.router = APIRouter()
 
         self.types = { 
