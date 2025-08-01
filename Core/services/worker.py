@@ -90,7 +90,6 @@ class Space(Base):
     
     creator: Mapped["Client"] = relationship("Client", back_populates="created_spaces", foreign_keys=[creator_id])
     rooms: Mapped[List["Room"]] = relationship("Room", back_populates="space", foreign_keys="Room.space_id")
-    messages: Mapped[List["Message"]] = relationship("Message", back_populates="space", foreign_keys="Message.space_id")
 
 class Room(Base):
     __tablename__ = "room"
@@ -114,7 +113,6 @@ class Message(Base):
     __tablename__ = "message"
 
     group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
-    space_id: Mapped[str] = mapped_column(ForeignKey('space.id'))
     room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
     author_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
 
@@ -124,7 +122,6 @@ class Message(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
     group: Mapped["Group"] = relationship("Group", back_populates="messages", foreign_keys=[group_id])
-    space: Mapped["Space"] = relationship("Space", back_populates="messages", foreign_keys=[space_id])
     room: Mapped["Room"] = relationship("Room", back_populates="messages", foreign_keys=[room_id])
     author: Mapped["Client"] = relationship("Client", back_populates="messages", foreign_keys=[author_id])
 

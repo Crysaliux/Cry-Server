@@ -7,11 +7,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
+from socketio.redis_manager import AsyncRedisManager
 from pydantic import BaseModel
 from itertools import takewhile
 from datetime import datetime
 from random import uniform
 from argon2 import PasswordHasher
+import redis.asyncio as aioredis
 from pathlib import Path
 from .services import *
 import subprocess
@@ -34,16 +36,17 @@ class Core(FastAPI):
         self.sv_port = port
         self.heartbeat_interval = 10000 #milliseconds (10 seconds)
         self.client_server_origin = "http://localhost:5173"
+        self.rm = AsyncRedisManager("redis://localhost:6379/0")
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
         self.templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
-        self.gateway = socketio.AsyncServer(async_mode="asgi")
+        self.gateway = socketio.AsyncServer(async_mode="asgi", client_manager=self.rm)
         self.mount("/gateway", socketio.ASGIApp(self.gateway, self))
         self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
         self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
 
         self.worker = Worker()
-        self.irchsm = IRCHSManager(self.gateway)
+        self.cecch = CECCHManager(self.gateway)
         
         self.server_access_key = str(uuid.uuid4())
         self.algorithm = "HS256" 

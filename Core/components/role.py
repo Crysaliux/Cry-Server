@@ -1,20 +1,17 @@
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
 
-class NewRole(BaseModel):
-    type: Literal['new_role']
+class CreateRole(BaseModel):
     group_id: str
     name: str
     id: str
 
 class UpdateRole(BaseModel):
-    type: Literal['update_role']
     group_id: str
     name: str
     color:str
     id: str
 
 class DeleteRole(BaseModel):
-    type: Literal['delete_role']
     group_id: str
     id: str
