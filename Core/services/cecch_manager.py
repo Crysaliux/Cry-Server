@@ -10,7 +10,7 @@ class CECCHManager:
         self.batch_size = batch_size
         self.queue = asyncio.Queue()
 
-    def start(self):
+    async def start(self):
         for _ in range(self.concurrency):
             asyncio.create_task(self.__server())
 

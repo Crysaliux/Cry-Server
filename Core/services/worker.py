@@ -205,15 +205,20 @@ class Worker:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-async def event_executer(func):
-    async def wrapper(request, client, operation_name, session):
-        try:
-            async with session() as ssn:
-                async with ssn.begin():
-                    result = await func(request, client, ssn)
-            return result
-        except: return {"operation": operation_name, "status": False, "error": "Oops... It seems that our server is in trouble, dev team got notified!"}
-    return wrapper
+    def worker_session(self):
+        from functools import wraps
+
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                try:
+                    async with self.session() as session:
+                        async with session.begin():
+                            return await func(*args, session=session, **kwargs)
+                except Exception as e:
+                    raise e #To be changed later.
+            return wrapper
+        return decorator
 
     
     """

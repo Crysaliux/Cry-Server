@@ -46,7 +46,7 @@ class Core(FastAPI):
         self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
 
         self.worker = Worker()
-        self.cecch = CECCHManager(self.gateway)
+        self.cecchm = CECCHManager(self.gateway)
         
         self.server_access_key = str(uuid.uuid4())
         self.algorithm = "HS256" 
@@ -67,7 +67,7 @@ class Core(FastAPI):
         )
 
         self.oauth = Authentication(
-            ws=self.worker.session, #ws - worker session
+            worker_session=self.worker.worker_session(),
             tepmlates=self.templates, 
             hasher=self.hasher, 
             algorithm=self.algorithm, 
@@ -78,7 +78,7 @@ class Core(FastAPI):
 
         self.listener = Listener(
             addr=(self.sv_host, self.sv_port),
-            ws=self.worker.session, #ws - worker session
+            worker_session=self.worker.worker_session(),
             oauth2=self.oauth2,
             tepmlates=self.templates, 
             hasher=self.hasher, 
@@ -113,13 +113,13 @@ class Core(FastAPI):
         uvicorn.run(self, host=self.sv_host, port=self.sv_port, log_level="debug")
 
     def __start_background(self):
-        asyncio.gather(self.__background_worker(), self.__background_irchsm())
+        asyncio.gather(self.__background_worker(), self.__background_ceecchm())
 
     async def __background_worker(self):
         await self.worker.start()
 
-    async def __background_irchsm(self):
-        await self.irchsm.start()
+    async def __background_ceecchm(self):
+        await self.cecchm.start()
 
     async def __main(self, request: Request):
         return self.templates.TemplateResponse("main.html", {"request": request})

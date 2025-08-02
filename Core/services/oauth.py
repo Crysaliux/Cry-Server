@@ -21,10 +21,10 @@ class ClientSessionValidationRequest(BaseModel):
     token: str
 
 class Authentication:
-    def __init__(self, hasher, ws, algorithm, access_key, oauth2, tepmlates: Jinja2Templates):
+    def __init__(self, hasher, worker_session, algorithm, access_key, oauth2, tepmlates: Jinja2Templates):
         self.access_key = access_key
         self.hasher = hasher
-        self.ws = ws
+        self.worker_session = worker_session
         self.templates = tepmlates
         self.algorithm = algorithm
         self.oauth2 = oauth2
