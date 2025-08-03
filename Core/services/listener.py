@@ -103,25 +103,28 @@ class Listener:
         for event, handler in self.event_bindings.items():
             self.gateway.on(event, self.worker_session(handler))
 
-    async def __on_connect(self, sid, eviron):
-        print(f"Client {sid} has connected to the gateway")
+    async def __emit_error(self, sid, id: int, event: str, error: str):
+        await self.gateway.emit(event, {
+            "status": False,
+            "body": {"id": id},
+            "error": error,
+        }, to=sid)
+
+
+    async def __on_connect(self, sid, eviron, auth, session):
+        token = auth["session_token"]
+        valid = ClientValidator(self.access_key, self.algorithm)
+
+        if not token or not valid.session_is_valid(token):
+            raise ConnectionRefusedError("INVALID_OR_EXPIRED_TOKEN")
+        
+        client_res = await session.execute(select(Client).where(Client.id == ...))
+        client = client_res.scalar_one_or_none()
+        
+        await self.gateway.save_session(sid, {"client": ...}) #Will think about this tomorrow.
 
     async def __on_disconnect(self, sid):
-        print(f"Client {sid} has disconnected from the gateway")
-    
-    async def __validate_request(self, token: str, session): #? Might change later
-        payload = jwt.decode(token, self.access_key, algorithm=self.algorithm)
-        username, id = payload["username"], payload["id"]
-        client = session.execute(select(Client).where(
-            Client.username == username, 
-            Client.id == id, 
-            Client.token == token))
-        if client is not None:
-            if datetime.now(datetime.timezone.utc) > client.token_expires_at:
-                return False, None
-            return True, client
-        return False, None
-
+        ...
 
     #ON_CREATE_...
     async def __on_create_group(self, sid, data, session):
@@ -151,19 +154,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("space_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "space_created", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("space_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "space_created", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -180,13 +175,8 @@ class Listener:
                 "body": {"id": id}, 
                 "error": None
             }, room=f"${group_id}")
-
         else:
-            await self.gateway.emit("space_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_SPACES] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "space_created", "Missing [MANAGE_SPACES] permision!")
 
     async def __on_create_room(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -202,19 +192,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("room_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "room_created", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("room_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "room_created", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -230,13 +212,8 @@ class Listener:
                 "body": {"id": id}, 
                 "error": None
             }, room=f"${group_id}")
-
         else:
-            await self.gateway.emit("room_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_ROOMS] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "room_created", "Missing [MANAGE_ROOMS] permision!")
 
     async def __on_send_message(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -254,19 +231,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("message_sent", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "message_sent", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("message_sent", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "message_sent", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -295,13 +264,8 @@ class Listener:
                     "room_id": room_id, 
                 }, room=f"${group_id}"),
             )
-        
         else:
-            await self.gateway.emit("message_sent", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [SEND_MESSAGES] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "message_sent", "Missing [SEND_MESSAGES] permision!")
     
     async def __on_create_role(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -317,19 +281,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("role_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "role_created", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("role_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "role_created", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -344,13 +300,8 @@ class Listener:
                 "body": {"id": id}, 
                 "error": None
             }, room=f"${group_id}")
-
         else:
-            await self.gateway.emit("role_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_ROLES] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "role_created", "Missing [MANAGE_ROLES] permision!")
 
     async def __on_create_permission(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -366,19 +317,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("permission_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "permission_created", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("permision_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "permission_created", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -393,13 +336,8 @@ class Listener:
                 "body": {"id": id}, 
                 "error": None
             }, room=f"${group_id}")
-
         else:
-            await self.gateway.emit("permission_created", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_ROLES] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "permission_created", "Missing [MANAGE_ROLES] permision!")
     
 
     #ON_UPDATE_...
@@ -413,11 +351,7 @@ class Listener:
         client = client_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("client_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "client_updated", "{Client} unauthorized or non-existant")
             return
 
         update_status_res = await session.execute(update(Client).where(Client.id == client_id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme).returning(Client.id))
@@ -443,13 +377,8 @@ class Listener:
                 }, room=sid)
             )
             await asyncio.gather(*emits)
-
         else: 
-            await self.gateway.emit("client_updated", {
-                "status": False, 
-                "body": {"id": client_id}, 
-                "error": "Object {Client} has no been found, why?!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "client_updated", "Object {Client} has no been found, why?!")
 
     async def __on_update_group(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -465,39 +394,26 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("group_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "group_updated", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("group_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "group_updated", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
 
         if group.owner.id == client_id or \
         perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permissions("MANAGE_GROUP"):
+        perm_valid.has_global_permission("MANAGE_GROUP"):
             await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level))
             await self.gateway.emit("group_updated", {
                 "status": True, 
                 "body": {"id": id}, 
                 "error": None
             }, room=f"${id}")
-
         else:
-            await self.gateway.emit("group_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_GROUP] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "group_updated", "Missing [MANAGE_GROUP] permision!")
     
     async def __on_update_space(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -513,19 +429,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("space_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "space_updated", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("space_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "space_updated", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -542,18 +450,9 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.gateway.emit("space_updated", {
-                    "status": False, 
-                    "body": {"id": id}, 
-                    "error": "Object {Space} has no been found!"
-                }, to=sid)
-        
+                await self.__emit_error(sid, id, "space_updated", "Object {Space} has no been found!")
         else:
-            await self.gateway.emit("space_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_SPACES] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "space_updated", "Missing [MANAGE_SPACES] permision!")
     
     async def __on_update_room(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -569,19 +468,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("room_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "room_updated", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("room_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "room_updated", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -598,18 +489,9 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.gateway.emit("room_updated", {
-                    "status": False, 
-                    "body": {"id": id}, 
-                    "error": "Object {Room} has no been found!"
-                }, to=sid)
-        
+                await self.__emit_error(sid, id, "room_updated", "Object {Room} has no been found!")
         else:
-            await self.gateway.emit("room_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_ROOMS] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "room_updated", "Missing [MANAGE_ROOMS] permision!")
     
     async def __on_edit_message(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -630,19 +512,11 @@ class Listener:
         message = message_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("message_edited", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "message_edited", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("message_edited", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "message_edited", "Object {Group} has no been found!")
             return
         
         if not message:
@@ -669,17 +543,9 @@ class Listener:
                     "error": None
                 }, room=f"#{room_id}")
             else:
-                await self.gateway.emit("message_edited", {
-                    "status": False, 
-                    "body": {"id": id}, 
-                    "error": "Object {Message} has no been found!"
-                }, to=sid)
+                await self.__emit_error(sid, id, "message_edited", "Object {Message} has no been found!")
         else:
-            await self.gateway.emit("message_edited", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_MESSAGES] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "message_edited", "Missing [MANAGE_MESSAGES] permision!")
 
     async def __on_update_role(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -695,19 +561,11 @@ class Listener:
         group = group_res.scalar_one_or_none()
 
         if not client:
-            await self.gateway.emit("role_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "{Client} unauthorized or non-existant"
-            }, to=sid)
+            await self.__emit_error(sid, id, "role_updated", "{Client} unauthorized or non-existant")
             return
 
         if not group:
-            await self.gateway.emit("role_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Group} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "role_updated", "Object {Group} has no been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -724,17 +582,9 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.gateway.emit("role_updated", {
-                    "status": False, 
-                    "body": {"id": id}, 
-                    "error": "Object {Role} has no been found!"
-                }, to=sid)
+                await self.__emit_error(sid, id, "role_updated", "Object {Role} has no been found!")
         else:
-            await self.gateway.emit("role_updated", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Missing [MANAGE_ROLES] permisions!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "role_updated", "Missing [MANAGE_ROLES] permision!")
 #I've stopped here.
     
     #ON_DELETE
@@ -777,7 +627,7 @@ class Listener:
                         }
                     }
                 else: return {"operation": operation_name, "status": False, "error": "{Group} object refuses to be deleted!"}
-            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_GROUP] permissions!"}
+            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_GROUP] permission!"}
         else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
     
     @event_executer

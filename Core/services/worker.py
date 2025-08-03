@@ -43,7 +43,6 @@ class Client(Base):
     id : Mapped[str] = mapped_column(String(36), primary_key=True)
 
     token: Mapped[str]
-    token_expires_at: Mapped[datetime] = mapped_column(DateTime) #datetime.now(datetime.timezone.utc) + timedelta(hours=...)
     last_login: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
 
     friends = relationship("Client", secondary=friend_relationship, back_populates="friends")

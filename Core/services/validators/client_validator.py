@@ -1,0 +1,53 @@
+from sqlalchemy import insert, select, update, delete
+from sqlalchemy.orm import selectinload
+from datetime import datetime, timezone
+from ...services.worker import Client
+from jwt import ExpiredSignatureError, InvalidTokenError
+import jwt
+
+class ClientValidator:
+    def __init__(self, access_key, algorithm):
+        self.access_key = access_key
+        self.algorithm = algorithm
+
+    async def access_is_valid(self, token: str,  session):
+        try:
+            payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
+            username, id, expires_at = payload["username"], payload["id"], payload["exp"]
+            client_res = await session.execute(select(Client).where(
+                Client.username == username,
+                Client.id == id, 
+                Client.token == token))
+            client = client_res.scalar_one_or_none()
+        
+            if not client:
+                return False
+        
+            return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc)
+        except (ExpiredSignatureError, InvalidTokenError):
+            return False
+    
+    async def session_is_valid(self, token: str):
+        try:
+            payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
+            expires_at = payload["exp"]
+
+            return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc)
+        except (ExpiredSignatureError, InvalidTokenError):
+            return False
+
+
+"""
+Creating tokens:
+
+expires_at = datetime.now(datetime.timezone.utc) + timedelta(minutes=15)
+
+payload = {
+    "username: ...,
+    "id": ...,
+    "exp": int(expires_at.timestamp()),
+    "iat": int(datetime.utcnow().timestamp()),
+}
+
+session tokens do not have username or id!
+"""
