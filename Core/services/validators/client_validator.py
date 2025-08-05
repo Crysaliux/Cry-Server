@@ -10,7 +10,7 @@ class ClientValidator:
         self.access_key = access_key
         self.algorithm = algorithm
 
-    async def access_is_valid(self, token: str,  session):
+    async def access_is_valid(self, token: str, session):
         try:
             payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
             username, id, expires_at = payload["username"], payload["id"], payload["exp"]
@@ -21,20 +21,25 @@ class ClientValidator:
             client = client_res.scalar_one_or_none()
         
             if not client:
-                return False
+                return False, None
         
-            return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc)
+            return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc), client
         except (ExpiredSignatureError, InvalidTokenError):
-            return False
+            return False, None
     
-    async def session_is_valid(self, token: str):
+    async def session_is_valid(self, token: str, session):
         try:
             payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
-            expires_at = payload["exp"]
+            id, expires_at = payload["id"], payload["exp"]
+            client_res = await session.execute(select(Client).where(Client.id == id))
+            client = client_res.scalar_one_or_none()
 
-            return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc)
+            if not client:
+                return False, None
+
+            return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc), client
         except (ExpiredSignatureError, InvalidTokenError):
-            return False
+            return False, None
 
 
 """

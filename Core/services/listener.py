@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTML
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
-from ..services.worker import worker_session, Client, Group, Space, Room, Message, Role, Permission
+from ..services.worker import Client, Group, Space, Room, Message, Role, Permission
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
 from ast import literal_eval
@@ -96,6 +96,14 @@ class Listener:
             "update_room": self.__on_update_room,
             "edit_message": self.__on_edit_message,
             "update_role": self.__on_update_role,
+
+            "delete_client": self.__on_delete_client,
+            "delete_group": self.__on_delete_group,
+            "delete_space": self.__on_delete_space,
+            "delete_room": self.__on_delete_room,
+            "delete_message": self.__on_delete_message,
+            "delete_role": self.__on_delete_role,
+            "delete_permission": self.__on_delete_permission,
         }
         self.__register_event_handlers()
 
@@ -114,14 +122,12 @@ class Listener:
     async def __on_connect(self, sid, eviron, auth, session):
         token = auth["session_token"]
         valid = ClientValidator(self.access_key, self.algorithm)
+        status, client = valid.session_is_valid(token, session)
 
-        if not token or not valid.session_is_valid(token):
-            raise ConnectionRefusedError("INVALID_OR_EXPIRED_TOKEN")
+        if not status:
+            raise ConnectionRefusedError("INVALID_OR_EXPIRED_SESSION_TOKEN")
         
-        client_res = await session.execute(select(Client).where(Client.id == ...))
-        client = client_res.scalar_one_or_none()
-        
-        await self.gateway.save_session(sid, {"client": ...}) #Will think about this tomorrow.
+        await self.gateway.save_session(sid, {"client": client})
 
     async def __on_disconnect(self, sid):
         ...
@@ -158,7 +164,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "space_created", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "space_created", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -196,7 +202,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "room_created", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "room_created", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -235,7 +241,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "message_sent", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "message_sent", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -285,7 +291,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "role_created", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "role_created", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -321,7 +327,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "permission_created", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "permission_created", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -377,8 +383,8 @@ class Listener:
                 }, room=sid)
             )
             await asyncio.gather(*emits)
-        else: 
-            await self.__emit_error(sid, id, "client_updated", "Object {Client} has no been found, why?!")
+        else:
+            await self.__emit_error(sid, id, "client_updated", "Failed to update object {Client}!")
 
     async def __on_update_group(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -398,7 +404,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "group_updated", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "group_updated", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -406,12 +412,16 @@ class Listener:
         if group.owner.id == client_id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_GROUP"):
-            await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level))
-            await self.gateway.emit("group_updated", {
-                "status": True, 
-                "body": {"id": id}, 
-                "error": None
-            }, room=f"${id}")
+            update_status_res = await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level).returning(Group.id))
+            update_status = update_status_res.scalar_one_or_none()
+            if update_status:
+                await self.gateway.emit("group_updated", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${id}")
+            else:
+                await self.__emit_error(sid, id, "group_updated", "Failed to update object {Group}!")
         else:
             await self.__emit_error(sid, id, "group_updated", "Missing [MANAGE_GROUP] permision!")
     
@@ -433,7 +443,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "space_updated", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "space_updated", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -450,7 +460,7 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "space_updated", "Object {Space} has no been found!")
+                await self.__emit_error(sid, id, "space_updated", "Failed to update object {Space}!")
         else:
             await self.__emit_error(sid, id, "space_updated", "Missing [MANAGE_SPACES] permision!")
     
@@ -472,7 +482,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "room_updated", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "room_updated", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -489,7 +499,7 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "room_updated", "Object {Room} has no been found!")
+                await self.__emit_error(sid, id, "room_updated", "Failed to update object {Room}!")
         else:
             await self.__emit_error(sid, id, "room_updated", "Missing [MANAGE_ROOMS] permision!")
     
@@ -516,15 +526,11 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "message_edited", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "message_edited", "Object {Group} has not been found!")
             return
         
         if not message:
-            await self.gateway.emit("message_edited", {
-                "status": False, 
-                "body": {"id": id}, 
-                "error": "Object {Message} has no been found!"
-            }, to=sid)
+            await self.__emit_error(sid, id, "message_edited", "Object {Message} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -543,7 +549,7 @@ class Listener:
                     "error": None
                 }, room=f"#{room_id}")
             else:
-                await self.__emit_error(sid, id, "message_edited", "Object {Message} has no been found!")
+                await self.__emit_error(sid, id, "message_edited", "Failed to update object {Message}!")
         else:
             await self.__emit_error(sid, id, "message_edited", "Missing [MANAGE_MESSAGES] permision!")
 
@@ -565,7 +571,7 @@ class Listener:
             return
 
         if not group:
-            await self.__emit_error(sid, id, "role_updated", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "role_updated", "Object {Group} has not been found!")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -582,163 +588,260 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "role_updated", "Object {Role} has no been found!")
+                await self.__emit_error(sid, id, "role_updated", "Failed to update object {Role}!")
         else:
             await self.__emit_error(sid, id, "role_updated", "Missing [MANAGE_ROLES] permision!")
-#I've stopped here.
     
     #ON_DELETE
-    @event_executer
-    async def __on_delete_client(self, sid, data):
-        client_id, body = data.client_id, data.body
-        id = request.id
-        if id == client.id:
-            deletion_status = await session.execute(delete(Client).where(Client.id == id).returning(Client.id))
-            if deletion_status is not None:
-                return {
-                        "operation": operation_name, 
-                        "status": True, 
-                        "error": None,
-            
-                        "body": {
-                            "id": id,
-                        }
-                    }
-            else: return {"operation": operation_name, "status": False, "error": "{Client} object has not been found"}
-        else: return {"operation": operation_name, "status": False, "error": "Operation prohibited"}
-    
-    @event_executer
-    async def __on_delete_group(self, sid, data):
-        client_id, body = data.client_id, data.body
-        owner_id, id = request.owner_id, request.id
-        group = await session.execute(select(Group).where(Group.id == id))
-        if group is not None:
-            if group.owner.id == client.id:
-                deletion_status = await session.execute(delete(Group).where(Group.id == id).returning(Group.id))
-                if deletion_status is not None:
-                    return {
-                        "operation": operation_name, 
-                        "status": True, 
-                        "error": None,
-            
-                        "body": {
-                            "owner_id": owner_id,
-                            "id": id,
-                        }
-                    }
-                else: return {"operation": operation_name, "status": False, "error": "{Group} object refuses to be deleted!"}
-            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_GROUP] permission!"}
-        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
-    
-    @event_executer
-    async def __on_delete_space(self, sid, data):
-        client_id, body = data.client_id, data.body
-        group_id, id = request.group_id, request.id
-        group = await session.execute(select(Group).where(Group.id == group_id))
-        if group is not None:
-            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_SPACES"):
-                deletion_status = await session.execute(delete(Space).where(Space.id == id).returning(Space.id))
-                if deletion_status is not None:
-                    return {
-                        "operation": operation_name, 
-                        "status": True, 
-                        "error": None,
-            
-                        "body": {
-                            "id": id,
-                        }
-                    }
-                else: return {"operation": operation_name, "status": False, "error": "{Space} object has not been found"}
-            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_SPACES] permissions!"}
-        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
-    
-    @event_executer
-    async def __on_delete_room(self, sid, data):
-        client_id, body = data.client_id, data.body
-        group_id, id = request.group_id, request.id
-        group = await session.execute(select(Group).where(Group.id == group_id))
-        if group is not None:
-            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROOMS"):
-                deletion_status = await session.execute(delete(Room).where(Room.id == id).returning(Room.id))
-                if deletion_status is not None:
-                    return {
-                        "operation": operation_name, 
-                        "status": True, 
-                        "error": None,
-            
-                        "body": {
-                            "id": id,
-                        }
-                    }
-                else: return {"operation": operation_name, "status": False, "error": "{Room} object has not been found"}
-            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROOMS] permissions!"}
-        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
-    
-    @event_executer
-    async def __on_delete_message(self, sid, data):
-        client_id, body = data.client_id, data.body
-        group_id, room_id, author_id, id = request.group_id, request.room_id, request.author_id, request.id
-        group = await session.execute(select(Group).where(Group.id == group_id))
-        if group is not None:
-            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or client == await session.execute(select(Client).where(Client.id == author_id)) or self.__validate_global_permissions(group, "MANAGE_MESSAGES") or self.__validate_room_related_permissions(group, await session.execute(select(Room).where(Room.id == room_id)), "MANAGE_MESSAGES"):
-                deletion_status = await session.execute(delete(Message).where(Message.id == id).returning(Message.id))
-                if deletion_status is not None:
-                    return {
-                        "operation": operation_name, 
-                        "status": True, 
-                        "error": None,
-            
-                        "body": {
-                            "id": id,
-                        }
-                    }
-                else: return {"operation": operation_name, "status": False, "error": "{Message} object has not been found"}
-            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_MESSAGES] permissions!"}
-        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
-    
-    @event_executer
-    async def __on_delete_role(self, sid, data):
-        client_id, body = data.client_id, data.body
-        group_id, id = request.group_id, request.id
-        group = await session.execute(select(Group).where(Group.id == group_id))
-        if group is not None:
-            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
-                deletion_status = await session.execute(delete(Role).where(Role.id == id).returning(Role.id))
-                if deletion_status is not None:
-                    return {
-                        "operation": operation_name, 
-                        "status": True, 
-                        "error": None,
-            
-                        "body": {
-                            "id": id,
-                        }
-                    }
-                else: return {"operation": operation_name, "status": False, "error": "{Role} object has not been found"}
-            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROLES] permissions!"}
-        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+    async def __on_delete_client(self, sid, data, session):
+        client_id, _ = data.client_id, data.body
+        
+        client_res = await session.execute(select(Client).where(Client.id == client_id))
+        client = client_res.scalar_one_or_none()
 
-    @event_executer
-    async def __on_delete_permission(self, sid, data):
+        if not client:
+            await self.__emit_error(sid, client_id, "client_deleted", "{Client} unauthorized or non-existant")
+            return
+         
+        await session.execute(delete(Client).where(Client.id == client_id))
+        await self.gateway.emit("client_deleted", {
+            "status": True, 
+            "body": {"id": client_id}, 
+            "error": None
+        }, to=sid)
+    
+    async def __on_delete_group(self, sid, data, session):
         client_id, body = data.client_id, data.body
-        group_id, id = request.group_id, request.id
-        group = await session.execute(select(Group).where(Group.id == group_id))
-        if group is not None:
-            if group.owner.id == client.id or self.__validate_global_permissions(group, "CO_OWNER") or self.__validate_global_permissions(group, "MANAGE_ROLES"):
-                deletion_status = await session.execute(delete(Permission).where(Permission.id == id).returning(Permission.id))
-                if deletion_status is not None:
-                    return {
-                        "operation": operation_name, 
-                        "status": True, 
-                        "error": None,
-            
-                        "body": {
-                            "id": id,
-                        }
-                    }
-                else: return {"operation": operation_name, "status": False, "error": "{Permission} object has not been found"}
-            else: return {"operation": operation_name, "status": False, "error": "Missing [MANAGE_ROLES] permissions!"}
-        else: return {"operation": operation_name, "status": False, "error": "{Group} object has not been found"}
+        id = body.id
+
+        client_res = await session.execute(select(Client).where(Client.id == client_id))
+        client = client_res.scalar_one_or_none()
+
+        group_res = await session.execute(select(Group).where(Group.id == id))
+        group = group_res.scalar_one_or_none()
+
+        if not client:
+            await self.__emit_error(sid, id, "group_deleted", "{Client} unauthorized or non-existant")
+            return
+
+        if not group:
+            await self.__emit_error(sid, id, "group_deleted", "Object {Group} has not been found!")
+            return
+
+        if group.owner.id == client.id:
+            deletion_status_res = await session.execute(delete(Group).where(Group.id == id).returning(Group.id))
+            deletion_status = deletion_status_res.scalar_one_or_none()
+            if deletion_status:
+                await self.gateway.emit("client_deleted", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${id}")
+            else:
+                await self.__emit_error(sid, id, "group_deleted", "Object {Group} has not been found!")
+        else:
+            await self.__emit_error(sid, id, "group_deleted", "Operation has been rejected")
+
+    async def __on_delete_space(self, sid, data, session):
+        client_id, body = data.client_id, data.body
+        group_id, id = body.group_id, body.id
+        
+        client_res = await session.execute(select(Client).where(Client.id == client_id))
+        client = client_res.scalar_one_or_none()
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not client:
+            await self.__emit_error(sid, id, "group_deleted", "{Client} unauthorized or non-existant")
+            return
+
+        if not group:
+            await self.__emit_error(sid, id, "group_deleted", "Object {Group} has not been found!")
+            return
+        
+        perm_valid = PermissionValidator(client, group)
+
+        if group.owner.id == client.id or \
+        perm_valid.has_global_permission("CO_OWNER") or \
+        perm_valid.has_global_permission("MANAGE_SPACES"):
+            deletion_status_res = await session.execute(delete(Space).where(Space.id == id).returning(Space.id))
+            deletion_status = deletion_status_res.scalar_one_or_none()
+            if deletion_status:
+                await self.gateway.emit("space_deleted", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${group_id}")
+            else:
+                await self.__emit_error(sid, id, "space_deleted", "Object {Space} has not been found!")
+        else:
+            await self.__emit_error(sid, id, "space_deleted", "Missing [MANAGE_SPACES] permision!")
+    
+    async def __on_delete_room(self, sid, data, session):
+        client_id, body = data.client_id, data.body
+        group_id, id = body.group_id, body.id
+
+        client_res = await session.execute(select(Client).where(Client.id == client_id))
+        client = client_res.scalar_one_or_none()
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not client:
+            await self.__emit_error(sid, id, "room_deleted", "{Client} unauthorized or non-existant")
+            return
+
+        if not group:
+            await self.__emit_error(sid, id, "room_deleted", "Object {Group} has not been found!")
+            return
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        if group.owner.id == client.id or \
+        perm_valid.has_global_permission("CO_OWNER") or \
+        perm_valid.has_global_permission("MANAGE_ROOMS"):
+            deletion_status_res = await session.execute(delete(Room).where(Room.id == id).returning(Room.id))
+            deletion_status = deletion_status_res.scalar_one_or_none()
+            if deletion_status:
+                await self.gateway.emit("room_deleted", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${group_id}")
+            else:
+                await self.__emit_error(sid, id, "room_deleted", "Object {Room} has not been found!")
+        else:
+            await self.__emit_error(sid, id, "room_deleted", "Missing [MANAGE_ROOMS] permision!")
+    
+    async def __on_delete_message(self, sid, data, session):
+        client_id, body = data.client_id, data.body
+        group_id, room_id, id = body.group_id, body.room_id, body.id
+       
+        client_res = await session.execute(select(Client).where(Client.id == client_id))
+        client = client_res.scalar_one_or_none()
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        message_res = await session.execute(select(Message).where(Message.id == id))
+        message = message_res.scalar_one_or_none()
+
+        if not client:
+            await self.__emit_error(sid, id, "message_deleted", "{Client} unauthorized or non-existant")
+            return
+
+        if not group:
+            await self.__emit_error(sid, id, "message_deleted", "Object {Group} has no been found!")
+            return
+        
+        if not message:
+            await self.__emit_error(sid, id, "message_deleted", "Object {Message} has no been found!")
+            return
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        if group.owner.id == client_id or \
+        client_id == message.author_id or \
+        perm_valid.has_global_permission("CO_OWNER") or \
+        perm_valid.has_global_permission("MANAGE_MESSAGES") or \
+        perm_valid.has_room_permission("MANAGE_MESSAGES", room_id):
+            deletion_status_res = await session.execute(delete(Message).where(Message.id == id).returning(Message.id))
+            deletion_status = deletion_status_res.scalar_one_or_none()
+            if deletion_status:
+                await self.gateway.emit("message_deleted", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${room_id}")
+            else:
+                await self.__emit_error(sid, id, "message_deleted", "Failed to delete object {Message}")
+        else:
+            await self.__emit_error(sid, id, "message_deleted", "Missing [MANAGE_MESSAGES] permision!")
+    
+    async def __on_delete_role(self, sid, data, session):
+        client_id, body = data.client_id, data.body
+        group_id, id = body.group_id, body.id
+
+        client_res = await session.execute(select(Client).where(Client.id == client_id))
+        client = client_res.scalar_one_or_none()
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not client:
+            await self.__emit_error(sid, id, "role_deleted", "{Client} unauthorized or non-existant")
+            return
+
+        if not group:
+            await self.__emit_error(sid, id, "role_deleted", "Object {Group} has no been found!")
+            return
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        if group.owner.id == client.id or \
+        perm_valid.has_global_permission("CO_OWNER") or \
+        perm_valid.has_global_permission("MANAGE_ROLES"):
+            deletion_status_res = await session.execute(delete(Role).where(Role.id == id).returning(Role.id))
+            deletion_status = deletion_status_res.scalar_one_or_none()
+            if deletion_status:
+                await self.gateway.emit("role_deleted", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${group_id}")
+            else:
+                await self.__emit_error(sid, id, "role_deleted", "Object {Role} has no been found!")
+        else:
+            await self.__emit_error(sid, id, "role_deleted", "Missing [MANAGE_ROLES] permision!")
+
+    async def __on_delete_permission(self, sid, data, session):
+        client_id, body = data.client_id, data.body
+        group_id, id = body.group_id, body.id
+        
+        client_res = await session.execute(select(Client).where(Client.id == client_id))
+        client = client_res.scalar_one_or_none()
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not client:
+            await self.__emit_error(sid, id, "permission_deleted", "{Client} unauthorized or non-existant")
+            return
+
+        if not group:
+            await self.__emit_error(sid, id, "permission_deleted", "Object {Group} has no been found!")
+            return
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        if group.owner.id == client.id or \
+        perm_valid.has_global_permission("CO_OWNER") or \
+        perm_valid.has_global_permission("MANAGE_ROLES"):
+            deletion_status_res = await session.execute(delete(Permission).where(Permission.id == id).returning(Permission.id))
+            deletion_status = deletion_status_res.scalar_one_or_none()
+            if deletion_status is not None:
+                await self.gateway.emit("permission_deleted", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${group_id}")
+            else:
+                await self.__emit_error(sid, id, "permission_deleted", "Object {Permission} has no been found!")
+        else:
+            await self.__emit_error(sid, id, "permission_deleted", "Missing [MANAGE_ROLES] permision!")
+#I've stopped here.
+#To remove tomorrow: >
 
     #LISTENER
     def router_tasks(self):

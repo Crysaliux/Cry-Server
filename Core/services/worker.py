@@ -1,6 +1,7 @@
 from sqlalchemy import ForeignKey, String, Boolean, DateTime, Date, Table, Column, Integer, func, desc, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, date
 from typing import Optional
 from random import uniform
@@ -214,8 +215,8 @@ class Worker:
                     async with self.session() as session:
                         async with session.begin():
                             return await func(*args, session=session, **kwargs)
-                except Exception as e:
-                    raise e #To be changed later.
+                except SQLAlchemyError:
+                    await session.rollback()
             return wrapper
         return decorator
 
