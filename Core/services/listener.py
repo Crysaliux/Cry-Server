@@ -348,28 +348,45 @@ class Listener:
 
     #ON_UPDATE_...
     async def __on_update_client(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        nickname, about_me, avatar_url, color_theme = body.nickname, body.about_me, body.avatr_url, body.color_theme
-
-        client_res = await session.execute(select(Client).options(
-            selectinload(Client.groups),
-        ).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        client_session = await self.gateway.get_session(sid)
+        client = client_session["client"]
 
         if not client:
-            await self.__emit_error(sid, id, "client_updated", "{Client} unauthorized or non-existant")
+            await self.__emit_error(sid, client.id, "client_updated", "{Client} unauthorized or non-existant")
             return
 
-        update_status_res = await session.execute(update(Client).where(Client.id == client_id).values(nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme).returning(Client.id))
+        body = data.body
+        username, nickname, about_me, avatar_url, color_theme = body.username, body.nickname, body.about_me, body.avatr_url, body.color_theme
+
+        username_check_res = await session.execute(select(Client).where(Client.username == username))
+        username_check = username_check_res.scalar_one_or_none()
+
+        if username_check:
+            await self.__emit_error(sid, client.id, "client_updated", "Username already exists!")
+            return
+
+        update_status_res = await session.execute(update(Client).where(Client.id == client.id).values(username=username, nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme).returning(Client.id))
         update_status = update_status_res.scalar_one_or_none()
         if update_status:
+            client_updated_res = await session.execute(select(Client).options(
+                selectinload(Client.groups),
+            ).where(Client.id == client.id))
+            client_updated = client_updated_res.scalar_one_or_none()
+
+            if not client_updated:
+                await self.__emit_error(sid, client.id, "client_updated", "{Client} unauthorized or non-existant")
+                return
+            
+            await self.gateway.save_session(sid, {"client": client_updated})
+
             emits = [
                 self.gateway.emit("client_updated", {
                     "status": True, 
                     "body": {
+                        "username": username,
                         "nickname": nickname, 
                         "avatar_url": avatar_url, 
-                        "id": client_id,
+                        "id": client.id,
                     },
                     "error": None,
                 }, room=f"${group.id}")
@@ -378,13 +395,14 @@ class Listener:
             emits.append(
                 self.gateway.emit("client_updated", {
                     "status": True, 
-                    "body": {"id": client_id},
+                    "body": {"id": client.id},
                     "error": None,
                 }, room=sid)
             )
             await asyncio.gather(*emits)
         else:
-            await self.__emit_error(sid, id, "client_updated", "Failed to update object {Client}!")
+            await self.__emit_error(sid, client.id, "client_updated", "Failed to update object {Client}!")
+#Have "stopped" here. To do: update with client_session = await self.gateway.get_session(sid) and if not client in group.members
 
     async def __on_update_group(self, sid, data, session):
         client_id, body = data.client_id, data.body
@@ -840,54 +858,9 @@ class Listener:
                 await self.__emit_error(sid, id, "permission_deleted", "Object {Permission} has no been found!")
         else:
             await self.__emit_error(sid, id, "permission_deleted", "Missing [MANAGE_ROLES] permision!")
-#I've stopped here.
-#To remove tomorrow: >
 
-    #LISTENER
+
     def router_tasks(self):
-        @self.router.websocket("/gateway")
-        async def listener(websocket: WebSocket, token: str = Depends(self.oauth2)):
-            await websocket.accept()
-            status, client = await self.__validate_request(token, self.ws)
-            if status:
-                try:
-                    while True:
-                        data = await websocket.receive_json()
-                        await self.__total_interpreter(data, client, websocket)
-                except WebSocketDisconnect:
-                    await websocket.close()
-            else:
-                await websocket.send_json({"connection_status": False, "error": "invalid or outdated session"})
-                await websocket.close()
-
-        @self.router.websocket("/heartbeat")
-        async def listener(websocket: WebSocket, token: str = Depends(self.oauth2)):
-            await websocket.accept()
-            status, _ = await self.__validate_request(token, self.ws)
-            if status:
-                try:
-                    while True:
-                        await websocket.send_json({
-                            "status": True,
-                            "error": None,
-                            "interval": self.heartbeat_interval,
-                        })
-                        try:
-                            data = HeartbeatRequest(await asyncio.wait_for(websocket.receive_json(), (self.heartbeat_interval // 1000) // 2)) #Server waiting time is two times less than the original interval
-                            if self.__validate_heartbeat_request(data):
-                                await asyncio.sleep(self.heartbeat_interval // 1000)
-                            else:
-                                await websocket.send_json({"connection_status": False, "error": "Unusual client behaviour, connection closed automatically"})
-                                await websocket.close()
-                        except asyncio.TimeoutError:
-                            await websocket.send_json({"connection_status": False, "error": "Client skipped heartbeat, connection closed automatically"})
-                            await websocket.close()
-                except WebSocketDisconnect:
-                    await websocket.close()
-            else:
-                await websocket.send_json({"connection_status": False, "error": "Invalid or outdated session!"})
-                await websocket.close()
-        
         @self.router.post("/upload_attachement", response_class=HTMLResponse) #Update code, modify
         async def upload_attachement(request: Request, index: str = Form(...), channel_id: str = Form(...), file: UploadFile = File(...)):
             if request.headers.get('origin') != self.client_server_origin:
