@@ -111,7 +111,7 @@ class Listener:
         for event, handler in self.event_bindings.items():
             self.gateway.on(event, self.worker_session(handler))
 
-    async def __emit_error(self, sid, id: int, event: str, error: str):
+    async def __emit_error(self, sid, id: int, event: str, error: dict):
         await self.gateway.emit(event, {
             "status": False,
             "body": {"id": id},
@@ -120,24 +120,36 @@ class Listener:
 
 
     async def __on_connect(self, sid, eviron, auth, session):
-        token = auth["session_token"]
+        session_token = auth["session_token"]
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(token, session)
+        status, client = valid.session_is_valid(session_token, session)
 
         if not status:
             raise ConnectionRefusedError("INVALID_OR_EXPIRED_SESSION_TOKEN")
         
-        await self.gateway.save_session(sid, {"client": client})
+        await self.gateway.save_session(sid, {"client": client, "session_token": session_token})
 
     async def __on_disconnect(self, sid):
         ...
 
     #ON_CREATE_...
     async def __on_create_group(self, sid, data, session):
-        client_id, body = data.client_id, data.body
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
         name, about_group, icon_url, id = body.name, body.about_group, body.icon_url, body.id
 
-        session.add(Group(owner_id=client_id, name=name, about_group=about_group, icon_url=icon_url, id=id)) 
+        session.add(Group(owner_id=client.id, name=name, about_group=about_group, icon_url=icon_url, id=id)) 
         await session.commit()
 
         await self.gateway.emit("group_created", {
@@ -147,33 +159,42 @@ class Listener:
         }, to=sid)
 
     async def __on_create_space(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, name, id = body.group_id, body.name, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, name, id = body.group_id, body.name, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "space_created", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "space_created", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_SPACES"):
 
-            session.add(Space(group_id=group_id, creator_id=client_id, name=name, id=id)) 
+            session.add(Space(group_id=group_id, creator_id=client.id, name=name, id=id)) 
             await session.commit()
             
             await self.gateway.emit("space_created", {
@@ -182,35 +203,44 @@ class Listener:
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "space_created", "Missing [MANAGE_SPACES] permision!")
+            await self.__emit_error(sid, id, "space_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
 
     async def __on_create_room(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, space_id, name, about_room, id = body.group_id, body.space_id, body.name, body.about_room, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, space_id, name, about_room, id = body.group_id, body.space_id, body.name, body.about_room, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "room_created", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "room_created", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_ROOMS"):
-            session.add(Room(group_id=group_id, space_id=space_id, creator_id=client_id, name=name, about_room=about_room, id=id)) 
+            session.add(Room(group_id=group_id, space_id=space_id, creator_id=client.id, name=name, about_room=about_room, id=id)) 
             await session.commit()
 
             await self.gateway.emit("room_created", {
@@ -219,45 +249,52 @@ class Listener:
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "room_created", "Missing [MANAGE_ROOMS] permision!")
+            await self.__emit_error(sid, id, "room_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
 
     async def __on_send_message(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, room_id, content, id = body.group_id, body.room_id, body.content, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).options(
-            selectinload(Client.nickname)
-        ).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, room_id, content, id = body.group_id, body.room_id, body.content, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "message_sent", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "message_sent", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("SEND_MESSAGES") or \
         perm_valid.has_room_permission("SEND_MESSAGES", room_id):
-            session.add(Message(group_id=group_id, room_id=room_id, author_id=client_id, content=content, id=id)) 
+            session.add(Message(group_id=group_id, room_id=room_id, author_id=client.id, content=content, id=id)) 
             await session.commit()
 
             await asyncio.gather(
                 self.gateway.emit("message_sent", {
                     "status": True, 
                     "body": {
-                        "client_id": client_id,
+                        "client_id": client.id,
                         "nickname": client.nickname, 
                         "content": content, 
                         "id": id
@@ -271,32 +308,41 @@ class Listener:
                 }, room=f"${group_id}"),
             )
         else:
-            await self.__emit_error(sid, id, "message_sent", "Missing [SEND_MESSAGES] permision!")
+            await self.__emit_error(sid, id, "message_sent", {"index": "MISSING_PERMISSION", "target": "SEND_MESSAGES"})
     
     async def __on_create_role(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, name, id = body.group_id, body.name, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, name, id = body.group_id, body.name, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "role_created", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "role_created", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_ROLES"):
             session.add(Role(group_id=group_id, name=name, id=id))
@@ -307,32 +353,41 @@ class Listener:
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "role_created", "Missing [MANAGE_ROLES] permision!")
+            await self.__emit_error(sid, id, "role_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     async def __on_create_permission(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, role_id, room_id, body, id = body.group_id, body.role_id, body.room_id, body.body, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, role_id, room_id, body, id = body.group_id, body.role_id, body.room_id, body.body, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "permission_created", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "permission_created", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "permission_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_ROLES"):
             session.add(Permission(group_id=group_id, role_id=role_id, room_id=room_id, body=body, id=id))
@@ -343,16 +398,21 @@ class Listener:
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "permission_created", "Missing [MANAGE_ROLES] permision!")
+            await self.__emit_error(sid, id, "permission_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
     
 
     #ON_UPDATE_...
     async def __on_update_client(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
-        client = client_session["client"]
+        client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_updated", "{Client} unauthorized or non-existant")
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
         body = data.body
@@ -374,7 +434,7 @@ class Listener:
             client_updated = client_updated_res.scalar_one_or_none()
 
             if not client_updated:
-                await self.__emit_error(sid, client.id, "client_updated", "{Client} unauthorized or non-existant")
+                await self.__emit_error(sid, client.id, "client_updated", "Failed to update {Client}")
                 return
             
             await self.gateway.save_session(sid, {"client": client_updated})
@@ -402,32 +462,40 @@ class Listener:
             await asyncio.gather(*emits)
         else:
             await self.__emit_error(sid, client.id, "client_updated", "Failed to update object {Client}!")
-#Have "stopped" here. To do: update with client_session = await self.gateway.get_session(sid) and if not client in group.members
 
     async def __on_update_group(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = body.owner_id, body.name, body.about_group, body.icon_url, body.nsfw, body.content_filter, body.content_filter_level, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = body.owner_id, body.name, body.about_group, body.icon_url, body.nsfw, body.content_filter, body.content_filter_level, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "group_updated", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "group_updated", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "group_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_GROUP"):
             update_status_res = await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level).returning(Group.id))
@@ -441,32 +509,41 @@ class Listener:
             else:
                 await self.__emit_error(sid, id, "group_updated", "Failed to update object {Group}!")
         else:
-            await self.__emit_error(sid, id, "group_updated", "Missing [MANAGE_GROUP] permision!")
+            await self.__emit_error(sid, id, "group_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_GROUP"})
     
     async def __on_update_space(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, name, id = body.group_id, body.creator_id, body.name, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, name, id = body.group_id, body.creator_id, body.name, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "space_updated", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "space_updated", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "space_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_SPACES"):
             update_status_res = await session.execute(update(Space).where(Space.id == id).values(name=name).returning(Space.id))
@@ -480,32 +557,41 @@ class Listener:
             else:
                 await self.__emit_error(sid, id, "space_updated", "Failed to update object {Space}!")
         else:
-            await self.__emit_error(sid, id, "space_updated", "Missing [MANAGE_SPACES] permision!")
+            await self.__emit_error(sid, id, "space_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
     async def __on_update_room(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, space_id, name, about_room, nsfw, id = body.group_id, body.space_id, body.creator_id, body.name, body.about_room, body.nsfw, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
         
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, space_id, name, about_room, nsfw, id = body.group_id, body.space_id, body.creator_id, body.name, body.about_room, body.nsfw, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "room_updated", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "room_updated", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "room_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_ROOMS"):
             update_status_res = await session.execute(update(Room).where(Room.id == id).values(space_id=space_id, name=name, about_room=about_room, nsfw=nsfw).returning(Room.id))
@@ -519,18 +605,27 @@ class Listener:
             else:
                 await self.__emit_error(sid, id, "room_updated", "Failed to update object {Room}!")
         else:
-            await self.__emit_error(sid, id, "room_updated", "Missing [MANAGE_ROOMS] permision!")
+            await self.__emit_error(sid, id, "room_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
     async def __on_edit_message(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, room_id, content, id = body.group_id, body.space_id, body.room_id, body.content, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
         
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, room_id, content, id = body.group_id, body.space_id, body.room_id, body.content, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
@@ -539,25 +634,25 @@ class Listener:
         ).where(Message.id == id))
         message = message_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "message_edited", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "message_edited", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         if not message:
-            await self.__emit_error(sid, id, "message_edited", "Object {Message} has not been found!")
+            await self.__emit_error(sid, id, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
             return
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_MESSAGES") or \
         perm_valid.has_room_permission("MANAGE_MESSAGES", room_id) or \
-        message.author.id == client_id:
+        message.author.id == client.id:
             update_status_res = await session.execute(update(Message).where(Message.id == id).values(content=content).returning(Message.id))
             update_status = update_status_res.scalar_one_or_none()
             if update_status:
@@ -569,32 +664,41 @@ class Listener:
             else:
                 await self.__emit_error(sid, id, "message_edited", "Failed to update object {Message}!")
         else:
-            await self.__emit_error(sid, id, "message_edited", "Missing [MANAGE_MESSAGES] permision!")
+            await self.__emit_error(sid, id, "message_edited", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
 
     async def __on_update_role(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, name, color, id = body.group_id, body.name, body.color, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, name, color, id = body.group_id, body.name, body.color, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.owner),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "role_updated", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "role_updated", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "role_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client_id or \
+        if group.owner.id == client.id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_ROLES"):
             update_status_res = await session.execute(update(Role).where(Role.id == id).values(name=name, color=color).returning(Role.id))
@@ -608,42 +712,61 @@ class Listener:
             else:
                 await self.__emit_error(sid, id, "role_updated", "Failed to update object {Role}!")
         else:
-            await self.__emit_error(sid, id, "role_updated", "Missing [MANAGE_ROLES] permision!")
+            await self.__emit_error(sid, id, "role_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
     
     #ON_DELETE
     async def __on_delete_client(self, sid, data, session):
-        client_id, _ = data.client_id, data.body
-        
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, client_id, "client_deleted", "{Client} unauthorized or non-existant")
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
          
-        await session.execute(delete(Client).where(Client.id == client_id))
-        await self.gateway.emit("client_deleted", {
-            "status": True, 
-            "body": {"id": client_id}, 
-            "error": None
-        }, to=sid)
+        deletion_status_res = await session.execute(delete(Client).where(Client.id == client.id))
+        deletion_status = deletion_status_res.scalar_one_or_none()
+        if deletion_status:
+            await self.gateway.emit("client_deleted", {
+                "status": True, 
+                "body": {"id": client.id}, 
+                "error": None
+            }, to=sid)
+            await self.gateway.disconnect(sid)
+        else:
+            await self.__emit_error(sid, id, "role_updated", "Failed to delete object {Client}!")
     
     async def __on_delete_group(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        id = body.id
-
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
-
-        group_res = await session.execute(select(Group).where(Group.id == id))
-        group = group_res.scalar_one_or_none()
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, id, "group_deleted", "{Client} unauthorized or non-existant")
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        body = data.body
+        id = body.id
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.members),
+        ).where(Group.id == id))
+        group = group_res.scalar_one_or_none()
+
         if not group:
-            await self.__emit_error(sid, id, "group_deleted", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
 
         if group.owner.id == client.id:
@@ -656,28 +779,38 @@ class Listener:
                     "error": None
                 }, room=f"${id}")
             else:
-                await self.__emit_error(sid, id, "group_deleted", "Object {Group} has not been found!")
+                await self.__emit_error(sid, id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
         else:
             await self.__emit_error(sid, id, "group_deleted", "Operation has been rejected")
 
     async def __on_delete_space(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, id = body.group_id, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
         
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, id = body.group_id, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "group_deleted", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "group_deleted", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -694,28 +827,38 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "space_deleted", "Object {Space} has not been found!")
+                await self.__emit_error(sid, id, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "space"})
         else:
-            await self.__emit_error(sid, id, "space_deleted", "Missing [MANAGE_SPACES] permision!")
+            await self.__emit_error(sid, id, "space_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
     async def __on_delete_room(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, id = body.group_id, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, id = body.group_id, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "room_deleted", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "room_deleted", "Object {Group} has not been found!")
+            await self.__emit_error(sid, id, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -732,41 +875,51 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "room_deleted", "Object {Room} has not been found!")
+                await self.__emit_error(sid, id, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "room"})
         else:
-            await self.__emit_error(sid, id, "room_deleted", "Missing [MANAGE_ROOMS] permision!")
+            await self.__emit_error(sid, id, "room_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
     async def __on_delete_message(self, sid, data, session):
-        client_id, body = data.client_id, data.body
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
         group_id, room_id, id = body.group_id, body.room_id, body.id
-       
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
         message_res = await session.execute(select(Message).where(Message.id == id))
         message = message_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "message_deleted", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "message_deleted", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         if not message:
-            await self.__emit_error(sid, id, "message_deleted", "Object {Message} has no been found!")
+            await self.__emit_error(sid, id, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
             return
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client_id or \
-        client_id == message.author_id or \
+        if group.owner.id == client.id or \
+        client.id == message.author_id or \
         perm_valid.has_global_permission("CO_OWNER") or \
         perm_valid.has_global_permission("MANAGE_MESSAGES") or \
         perm_valid.has_room_permission("MANAGE_MESSAGES", room_id):
@@ -781,26 +934,36 @@ class Listener:
             else:
                 await self.__emit_error(sid, id, "message_deleted", "Failed to delete object {Message}")
         else:
-            await self.__emit_error(sid, id, "message_deleted", "Missing [MANAGE_MESSAGES] permision!")
+            await self.__emit_error(sid, id, "message_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
     
     async def __on_delete_role(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, id = body.group_id, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
 
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, id = body.group_id, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "role_deleted", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "role_deleted", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -817,28 +980,38 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "role_deleted", "Object {Role} has no been found!")
+                await self.__emit_error(sid, id, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "role"})
         else:
-            await self.__emit_error(sid, id, "role_deleted", "Missing [MANAGE_ROLES] permision!")
+            await self.__emit_error(sid, id, "role_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     async def __on_delete_permission(self, sid, data, session):
-        client_id, body = data.client_id, data.body
-        group_id, id = body.group_id, body.id
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
         
-        client_res = await session.execute(select(Client).where(Client.id == client_id))
-        client = client_res.scalar_one_or_none()
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        group_id, id = body.group_id, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
+            selectinload(Group.members),
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
-        if not client:
-            await self.__emit_error(sid, id, "permission_deleted", "{Client} unauthorized or non-existant")
-            return
-
         if not group:
-            await self.__emit_error(sid, id, "permission_deleted", "Object {Group} has no been found!")
+            await self.__emit_error(sid, id, "permission_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -855,10 +1028,10 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "permission_deleted", "Object {Permission} has no been found!")
+                await self.__emit_error(sid, id, "permission_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "permission"})
         else:
-            await self.__emit_error(sid, id, "permission_deleted", "Missing [MANAGE_ROLES] permision!")
-
+            await self.__emit_error(sid, id, "permission_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+#Done with client(mostly), object not found(fully) and perm errors(fully)
 
     def router_tasks(self):
         @self.router.post("/upload_attachement", response_class=HTMLResponse) #Update code, modify

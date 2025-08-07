@@ -14,7 +14,9 @@ class ClientValidator:
         try:
             payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
             username, id, expires_at = payload["username"], payload["id"], payload["exp"]
-            client_res = await session.execute(select(Client).where(
+            client_res = await session.execute(select(Client).options(
+                selectinload(Client.groups),
+            ).where(
                 Client.username == username,
                 Client.id == id, 
                 Client.token == token))
@@ -31,7 +33,9 @@ class ClientValidator:
         try:
             payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
             id, expires_at = payload["id"], payload["exp"]
-            client_res = await session.execute(select(Client).where(Client.id == id))
+            client_res = await session.execute(select(Client).options(
+                selectinload(Client.groups),
+            ).where(Client.id == id))
             client = client_res.scalar_one_or_none()
 
             if not client:
@@ -40,7 +44,15 @@ class ClientValidator:
             return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc), client
         except (ExpiredSignatureError, InvalidTokenError):
             return False, None
+        
+    async def running_session_is_valid(self, token: str):
+        try:
+            payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
+            _, expires_at = payload["id"], payload["exp"]
 
+            return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc)
+        except (ExpiredSignatureError, InvalidTokenError):
+            return False
 
 """
 Creating tokens:
