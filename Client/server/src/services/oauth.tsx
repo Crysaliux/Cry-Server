@@ -42,5 +42,11 @@ export const Authentication = () => {
 
     }, [navigate]);
 
+    const fetch_group = async () => {
+        const response = await APIHatch.get("/", {
+            headers: { token: SessionTokenReference.current },
+        });
+    };
+
     return "VALIDATION STATUS";
 };

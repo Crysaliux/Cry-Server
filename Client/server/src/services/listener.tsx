@@ -26,6 +26,7 @@ interface GatewayResponse {
     body: 
         | Basic 
         | Message 
+        | Essential<Message, "content" | "id">
         | Essential<Client, "username" | "nickname" | "avatar_url" | "id">
         | Notification
     error: Error;
@@ -42,16 +43,13 @@ interface ListenerProperties {
 export const GatewayHatch = createContext<GatewayProperties | undefined>(undefined);
 
 export const APIHatch: AxiosInstance = axios.create({
-    baseURL: `${context_data.api_oauth_addr.current}`,
+    baseURL: `${context_data.api_hatch_addr.current}`,
     headers: {
         "Content-Type": "application/json",
     },
 });
 
 export const Listener: React.FC<ListenerProperties> = ({ children }) => {
-    const GatewayReference = useRef<WebSocket | null>(null);
-    const HeartbeatReference = useRef<WebSocket | null>(null);
-
     const gateway = io(context_data.gateway_addr.current, {
         reconnection: true,
         reconnectionAttempts: context_data.max_reconnection_attempts.current,
@@ -88,52 +86,65 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const body = data.body as Basic;
             //to be continued...
         });
-        gateway.on("new_space", (data) => {
-            const new_space_fetched = data.body as SpaceNewBody;
-            addSpace({
-                "type": "space",
-                "group_id": new_space_fetched.group_id,
-                "creator_id": new_space_fetched.creator_id,
-                "name": new_space_fetched.name,
-                "id": new_space_fetched.id,
-            } as Space);
+        gateway.on("permission_created", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
 
 
-        gateway.on("update_group", (data) => {
-            updateGroup(data.body as GroupUpdateBody);
+        gateway.on("client_updated", (data) => {
+            const body = data.body as Essential<Client, "username" | "nickname" | "avatar_url" | "id">;
+            //to be continued...
         });
-        gateway.on("update_message", (data) => {
-            updateMessage(data.body as MessageUpdateBody);
+        gateway.on("group_updated", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("update_role", (data) => {
-            updateRole(data.body as RoleUpdateBody);
+        gateway.on("space_updated", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("update_room", (data) => {
-            updateRoom(data.body as RoomUpdateBody);
+        gateway.on("room_updated", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("update_space", (data) => {
-            updateSpace(data.body as SpaceUpdateBody);
+        gateway.on("message_edited", (data) => {
+            const body = data.body as Essential<Message, "content" | "id">;
+            //to be continued...
+        });
+        gateway.on("role_updated", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
 
 
-        gateway.on("delete_group", (data) => {
-            deleteGroup((data.body as GroupDeleteBody).id);
+        gateway.on("client_deleted", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("delete_message", (data) => {
-            deleteMessage((data.body as MessageDeleteBody).id);
+        gateway.on("group_deleted", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("delete_role", (data) => {
-            deleteRole((data.body as RoleDeleteBody).id);
+        gateway.on("space_deleted", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("delete_room", (data) => {
-            deleteRoom((data.body as RoomDeleteBody).id);
+        gateway.on("room_deleted", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("delete_space", (data) => {
-            deleteSpace((data.body as SpaceDeleteBody).id);
+        gateway.on("message_deleted", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
-        gateway.on("delete_permission", (data) => {
-            deletePermission((data.body as PermissionDeleteBody).id);
+        gateway.on("role_deleted", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
+        });
+        gateway.on("permission_deleted", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
         });
 
         return () => {
@@ -145,30 +156,72 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("reconnect_failed");
 
 
-            gateway.off("new_group");
-            gateway.off("new_message");
-            gateway.off("new_permission");
-            gateway.off("new_role");
-            gateway.off("new_room");
-            gateway.off("new_space");
+            gateway.off("group_created");
+            gateway.off("space_created");
+            gateway.off("room_created");
+            gateway.off("message_sent");
+            gateway.off("role_created");
+            gateway.off("permission_created");
 
 
-            gateway.off("update_group");
-            gateway.off("update_message");
-            gateway.off("update_role");
-            gateway.off("update_room");
-            gateway.off("update_space");
+            gateway.off("client_updated");
+            gateway.off("group_updated");
+            gateway.off("space_updated");
+            gateway.off("room_updated");
+            gateway.off("message_edited");
+            gateway.off("role_updated");
 
 
-            gateway.off("delete_group");
-            gateway.off("delete_message");
-            gateway.off("delete_role");
-            gateway.off("delete_room");
-            gateway.off("delete_space");
-            gateway.off("delete_permission");
+            gateway.off("client_deleted");
+            gateway.off("group_deleted");
+            gateway.off("space_deleted");
+            gateway.off("room_deleted");
+            gateway.off("message_deleted");
+            gateway.off("role_deleted");
+            gateway.off("permission_deleted");
         };
 
     }, []);
+
+
+    const fetchRooms = async (group_id: string) => {
+        const response = await APIHatch.get("/rooms", {
+            headers: { token: context_data.session_token.current, group_id: group_id },
+        });
+
+        if (!response.status) {
+            //Make response error handler.
+            return;
+        }
+
+        //Use setRooms
+    };
+
+    const fetchMessages = async (room_id: string) => {
+        const response = await APIHatch.get("/messages", {
+            headers: { token: context_data.session_token.current, room_id: room_id },
+        });
+
+        if (!response.status) {
+            //Make response error handler.
+            return;
+        }
+
+        //Use setMessages
+    };
+
+    const fetchMembers = async (room_id: string) => {
+        const response = await APIHatch.get("/members", {
+            headers: { token: context_data.session_token.current, room_id: room_id },
+        });
+
+        if (!response.status) {
+            //Make response error handler.
+            return;
+        }
+
+        //Use setMembers
+    };
     
     const sendEvent = (data: object) => {
         try {

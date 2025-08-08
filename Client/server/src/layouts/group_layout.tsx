@@ -11,9 +11,6 @@ import {
 
 const GroupLayout: React.FC = () => {
     const groups = useGroups();
-    const messages = useSpaces();
-    const permissions = usePermissions();
-    const roles = useRoles();
     const rooms = useRooms();
     const spaces = useSpaces();
 
