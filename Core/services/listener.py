@@ -138,12 +138,12 @@ class Listener:
         client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, client.id, "group_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not valid.running_session_is_valid(session_token):
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, client.id, "group_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
         body = data.body
@@ -163,12 +163,12 @@ class Listener:
         client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, client.id, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not valid.running_session_is_valid(session_token):
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, client.id, "space_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
         body = data.body
@@ -185,7 +185,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -210,12 +210,12 @@ class Listener:
         client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, client.id, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not valid.running_session_is_valid(session_token):
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, client.id, "room_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
         body = data.body
@@ -232,7 +232,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "room_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -256,12 +256,12 @@ class Listener:
         client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, client.id, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not valid.running_session_is_valid(session_token):
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, client.id, "message_sent", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
         body = data.body
@@ -278,7 +278,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "message_sent", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -305,6 +305,8 @@ class Listener:
                 self.gateway.emit("message_sent_notif", {
                     "group_id": group_id,
                     "room_id": room_id, 
+                    "nickname": client.nickname,
+                    "content": content,
                 }, room=f"${group_id}"),
             )
         else:
@@ -315,12 +317,12 @@ class Listener:
         client, session_token = client_session["client"], client_session["session_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, client.id, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not valid.running_session_is_valid(session_token):
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, client.id, "role_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
         body = data.body
@@ -337,7 +339,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "role_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -382,7 +384,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -422,7 +424,7 @@ class Listener:
         username_check = username_check_res.scalar_one_or_none()
 
         if username_check:
-            await self.__emit_error(sid, client.id, "client_updated", "Username already exists!")
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "USERNAME_EXISTS", "target": "client"})
             return
 
         update_status_res = await session.execute(update(Client).where(Client.id == client.id).values(username=username, nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme).returning(Client.id))
@@ -434,7 +436,7 @@ class Listener:
             client_updated = client_updated_res.scalar_one_or_none()
 
             if not client_updated:
-                await self.__emit_error(sid, client.id, "client_updated", "Failed to update {Client}")
+                await self.__emit_error(sid, client.id, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
                 return
             
             await self.gateway.save_session(sid, {"client": client_updated})
@@ -461,7 +463,7 @@ class Listener:
             )
             await asyncio.gather(*emits)
         else:
-            await self.__emit_error(sid, client.id, "client_updated", "Failed to update object {Client}!")
+            await self.__emit_error(sid, client.id, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
 
     async def __on_update_group(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
@@ -490,7 +492,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -507,7 +509,7 @@ class Listener:
                     "error": None
                 }, room=f"${id}")
             else:
-                await self.__emit_error(sid, id, "group_updated", "Failed to update object {Group}!")
+                await self.__emit_error(sid, id, "group_updated", {"index": "UPDATE_FAILED", "target": "group"})
         else:
             await self.__emit_error(sid, id, "group_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_GROUP"})
     
@@ -538,7 +540,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -555,7 +557,7 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "space_updated", "Failed to update object {Space}!")
+                await self.__emit_error(sid, id, "space_updated", {"index": "UPDATE_FAILED", "target": "space"})
         else:
             await self.__emit_error(sid, id, "space_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
@@ -586,7 +588,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -603,7 +605,7 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "room_updated", "Failed to update object {Room}!")
+                await self.__emit_error(sid, id, "room_updated", {"index": "UPDATE_FAILED", "target": "room"})
         else:
             await self.__emit_error(sid, id, "room_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
@@ -639,7 +641,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         if not message:
@@ -662,7 +664,7 @@ class Listener:
                     "error": None
                 }, room=f"#{room_id}")
             else:
-                await self.__emit_error(sid, id, "message_edited", "Failed to update object {Message}!")
+                await self.__emit_error(sid, id, "message_edited", {"index": "UPDATE_FAILED", "target": "message"})
         else:
             await self.__emit_error(sid, id, "message_edited", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
 
@@ -693,7 +695,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -710,7 +712,7 @@ class Listener:
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "role_updated", "Failed to update object {Role}!")
+                await self.__emit_error(sid, id, "role_updated", {"index": "UPDATE_FAILED", "target": "role"})
         else:
             await self.__emit_error(sid, id, "role_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
     
@@ -738,7 +740,7 @@ class Listener:
             }, to=sid)
             await self.gateway.disconnect(sid)
         else:
-            await self.__emit_error(sid, id, "role_updated", "Failed to delete object {Client}!")
+            await self.__emit_error(sid, id, "role_updated", {"index": "DELETION_FAILED", "target": "client"})
     
     async def __on_delete_group(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
@@ -766,7 +768,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
 
         if group.owner.id == client.id:
@@ -781,7 +783,7 @@ class Listener:
             else:
                 await self.__emit_error(sid, id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
         else:
-            await self.__emit_error(sid, id, "group_deleted", "Operation has been rejected")
+            await self.__emit_error(sid, id, "group_deleted", {"index": "DELETION_REJECTED", "target": "group"})
 
     async def __on_delete_space(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
@@ -810,7 +812,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -858,7 +860,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -909,7 +911,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         if not message:
@@ -932,7 +934,7 @@ class Listener:
                     "error": None
                 }, room=f"${room_id}")
             else:
-                await self.__emit_error(sid, id, "message_deleted", "Failed to delete object {Message}")
+                await self.__emit_error(sid, id, "message_deleted", {"index": "DELETION_FAILED", "target": "message"})
         else:
             await self.__emit_error(sid, id, "message_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
     
@@ -963,7 +965,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -1011,7 +1013,7 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", "Object {Client} isn't related to object {Group}")
+            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
@@ -1031,7 +1033,7 @@ class Listener:
                 await self.__emit_error(sid, id, "permission_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "permission"})
         else:
             await self.__emit_error(sid, id, "permission_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
-#Done with client(mostly), object not found(fully) and perm errors(fully)
+
 
     def router_tasks(self):
         @self.router.post("/upload_attachement", response_class=HTMLResponse) #Update code, modify

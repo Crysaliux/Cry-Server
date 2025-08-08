@@ -1,5 +1,4 @@
 export interface Group {
-    type: "group";
     name: string;
     about_group: string | null;
     icon_url: string | null;

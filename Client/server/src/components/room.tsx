@@ -1,5 +1,4 @@
 export interface Room {
-    type: "room";
     group_id: string;
     space_id: string | null;
     name: string;
