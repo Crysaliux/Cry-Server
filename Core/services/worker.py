@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Boolean, DateTime, Date, Table, Column, Integer, func, desc, JSON
+from sqlalchemy import ForeignKey, String, Boolean, DateTime, Date, Table, Column, Integer, func, desc, JSON, BIGINT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
@@ -135,24 +135,13 @@ class Role(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
+    global_permissions: Mapped[BIGINT] = mapped_column(default=0)
+    room_oriented_permissions: Mapped[BIGINT] = mapped_column(default=0)
+
     group: Mapped["Group"] = relationship("Group", back_populates="roles", foreign_keys=[group_id])
-    permissions: Mapped[List["Permission"]] = relationship("Permission", back_populates="role", foreign_keys="Permission.role_id")
     assignees = relationship("Client", secondary=client_group_relationship, back_populates="roles")
 
-class Permission(Base):
-    __tablename__ = "permission"
-
-    group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
-    role_id: Mapped[str] = mapped_column(ForeignKey('role.id'))
-    room_id: Mapped[str] = mapped_column(ForeignKey('room.id'), nullable=True)
-
-    body: Mapped[dict] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-
-    group: Mapped["Group"] = relationship("Group", back_populates="permissions", foreign_keys=[group_id])
-    role: Mapped["Group"] = relationship("Role", back_populates="permissions", foreign_keys=[role_id])
-    room: Mapped["Group"] = relationship("Room", back_populates="assigned_permissions", foreign_keys=[room_id])
+#Add room_id for rooms to be fetched
 
 """
 PERMISSIONS

@@ -59,7 +59,20 @@ class Core(FastAPI):
         self.max_message_length = {"default": 1024, "premium": 3000} #characters ?? gotta fix
         self.max_image_size = 500 #pixels ??
         self.max_file_size = {"default": 10, "premium": 30} #megabytes ??
-        self.perms = CONFIG[""]
+
+        class PERMISSIONS:
+            class _global:
+                pass
+            class _room_oriented:
+                pass
+        
+        for name, code in CONFIG["PERMISSIONS"]["GLOBAL"].items():
+            setattr(PERMISSIONS._global, name, 1 << code)
+
+        for name, code in CONFIG["PERMISSIONS"]["ROOM_ORIENTED"].items():
+            setattr(PERMISSIONS._room_oriented, name, 1 << code)
+
+        self.perms = PERMISSIONS
 
         self.add_middleware(
             CORSMiddleware,
@@ -95,6 +108,7 @@ class Core(FastAPI):
             client_server_origin=self.client_server_origin,
             access_key=self.server_access_key,
             gateway=self.gateway,
+            perms = self.perms,
         )
         self.listener.router_tasks()
 

@@ -86,10 +86,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const body = data.body as Basic;
             //to be continued...
         });
-        gateway.on("permission_created", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
-        });
 
 
         gateway.on("client_updated", (data) => {
@@ -142,10 +138,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const body = data.body as Basic;
             //to be continued...
         });
-        gateway.on("permission_deleted", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
-        });
 
         return () => {
             gateway.off("connect");
@@ -161,7 +153,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("room_created");
             gateway.off("message_sent");
             gateway.off("role_created");
-            gateway.off("permission_created");
 
 
             gateway.off("client_updated");
@@ -178,7 +169,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("room_deleted");
             gateway.off("message_deleted");
             gateway.off("role_deleted");
-            gateway.off("permission_deleted");
         };
 
     }, []);

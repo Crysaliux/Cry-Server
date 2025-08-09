@@ -12,6 +12,9 @@ class UpdateRole(BaseModel):
     color:str
     id: str
 
+    global_permissions: list[str]
+    room_oriented_permissions: list[str]
+
 class DeleteRole(BaseModel):
     group_id: str
     id: str

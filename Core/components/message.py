@@ -7,7 +7,7 @@ class SendMessage(BaseModel):
     content: str
     id: str
 
-class UpdateMessage(BaseModel): #.edited must be set to True
+class EditMessage(BaseModel): #.edited must be set to True
     group_id: str
     room_id: str
     content: str
