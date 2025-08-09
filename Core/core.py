@@ -28,6 +28,8 @@ import os
 import uuid
 import re
 
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.json")) as conf:
+    CONFIG = json.load(conf)
 
 class Core(FastAPI):
     def __init__(self, host: str, port: int):
@@ -54,9 +56,10 @@ class Core(FastAPI):
         self.hasher = PasswordHasher()
         self.oauth2 = OAuth2PasswordBearer(tokenUrl="token")
         
-        self.max_message_length = {"default": 1024, "premium": 3000} #characters
-        self.max_image_size = 500 #pixels
-        self.max_file_size = {"default": 10, "premium": 30} #megabytes
+        self.max_message_length = {"default": 1024, "premium": 3000} #characters ?? gotta fix
+        self.max_image_size = 500 #pixels ??
+        self.max_file_size = {"default": 10, "premium": 30} #megabytes ??
+        self.perms = CONFIG[""]
 
         self.add_middleware(
             CORSMiddleware,

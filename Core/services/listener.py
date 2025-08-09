@@ -1037,7 +1037,49 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "permission_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
-#Add error setter class, also add in client in channel check. Add fetchers to router tasks.
+    
+    async def __fetch_rooms(self, session_token: str, group_id: str, session):
+        valid = ClientValidator(self.access_key, self.algorithm)
+        status, client = valid.session_is_valid(session_token, session)
+
+        if not status:
+            return JSONResponse(content={
+                "status": False, 
+                "body": None, 
+                "error": {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"},
+            }, status_code=201)
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.rooms),
+            selectinload(Group.spaces),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not group:
+            return JSONResponse(content={
+                "status": False, 
+                "body": None, 
+                "error": {"index": "OBJECT_NON_EXISTANT", "target": "group"},
+            }, status_code=201)
+        
+        body = {
+            "spaces": [],
+            "rooms": [],
+        }
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        if group.owner.id == client.id or \
+        perm_valid.has_global_permission("VIEW_SPACES"):
+            for space in group.spaces:
+                body["spaces"].append(space)
+            for room in group.rooms:
+                if perm_valid.has_room_permission("VIEW_ROOM", room.id):
+                    body["rooms"].append(room)
+
+
+#Add fetchers to router tasks.
     def router_tasks(self):
         @self.router.post("/upload_attachement", response_class=HTMLResponse) #Update code, modify
         async def upload_attachement(request: Request, index: str = Form(...), channel_id: str = Form(...), file: UploadFile = File(...)):
@@ -1057,3 +1099,7 @@ class Listener:
             except:
                 return JSONResponse(content={"success": False}, status_code=201)
             return JSONResponse(content={"url": file_url}, status_code=201)
+        
+        @self.router.post("/rooms", response_class=HTMLResponse)
+        async def fetch_rooms(request: Request, session_token: str = Form(...), group_id: str = Form(...)):
+            

@@ -174,6 +174,7 @@ PERMISSIONS
     - KICK (this as well :> )
 
 = ROOMS (per role permissions):
+    -VIEW_ROOM
     - SEND_MESSAGES
     - SEND_MEDIA (same as in GLOBAL)
     - ATTACH_FILES (same as in GLOBAL)
