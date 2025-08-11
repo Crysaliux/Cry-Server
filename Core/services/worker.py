@@ -72,17 +72,16 @@ class Group(Base):
 
     members = relationship("Client", secondary=client_group_relationship, back_populates="groups")
     owner: Mapped["Client"] = relationship("Client", back_populates="owned_groups", foreign_keys=[owner_id])
-    roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id")
-    permissions: Mapped[List["Permission"]] = relationship("Permission", back_populates="group", foreign_keys="Permission.group_id")
-    spaces: Mapped[List["Space"]] = relationship("Space", back_populates="group", foreign_keys="Space.group_id")
-    rooms: Mapped[List["Room"]] = relationship("Room", back_populates="group", foreign_keys="Room.group_id")
-    messages: Mapped[List["Message"]] = relationship("Message", back_populates="group", foreign_keys="Message.group_id")
+    roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id", cascade="all, delete-orphan")
+    spaces: Mapped[List["Space"]] = relationship("Space", back_populates="group", foreign_keys="Space.group_id", cascade="all, delete-orphan")
+    rooms: Mapped[List["Room"]] = relationship("Room", back_populates="group", foreign_keys="Room.group_id", cascade="all, delete-orphan")
+    messages: Mapped[List["Message"]] = relationship("Message", back_populates="group", foreign_keys="Message.group_id", cascade="all, delete-orphan")
 
 class Space(Base):
     __tablename__ = "space"
 
     group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
-    creator_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
+    creator_id: Mapped[str] = mapped_column(ForeignKey('client.id', ondelete="SET NULL"), nullable=True)
 
     name: Mapped[str] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
@@ -95,8 +94,8 @@ class Room(Base):
     __tablename__ = "room"
 
     group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
-    space_id: Mapped[str] = mapped_column(ForeignKey('space.id'), nullable=True)
-    creator_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
+    space_id: Mapped[str] = mapped_column(ForeignKey('space.id', ondelete="SET NULL"), nullable=True)
+    creator_id: Mapped[str] = mapped_column(ForeignKey('client.id', ondelete="SET NULL"), nullable=True)
 
     name: Mapped[str] = mapped_column(String(20))
     about_room: Mapped[str] = mapped_column(String(150), nullable=True)
@@ -107,14 +106,15 @@ class Room(Base):
     group: Mapped["Group"] = relationship("Group", back_populates="rooms", foreign_keys=[group_id])
     space: Mapped["Space"] = relationship("Space", back_populates="rooms", foreign_keys=[space_id])
     creator: Mapped["Client"] = relationship("Client", back_populates="created_rooms", foreign_keys=[creator_id])
-    messages: Mapped[List["Message"]] = relationship("Message", back_populates="room", foreign_keys="Message.room_id")
+    messages: Mapped[List["Message"]] = relationship("Message", back_populates="room", foreign_keys="Message.room_id", cascade="all, delete-orphan")
+    role_to_room_perm_tables: Mapped[List["RoleToRoomPerms"]] = relationship("RoleToRoomPerms", back_populates="room", foreign_keys="RoleToRoomPerms.room_id")
 
 class Message(Base):
     __tablename__ = "message"
 
     group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
     room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
-    author_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
+    author_id: Mapped[str] = mapped_column(ForeignKey('client.id', ondelete="SET NULL"), nullable=True)
 
     sent_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
     content: Mapped[str] = mapped_column(String(1200))
@@ -133,13 +133,24 @@ class Role(Base):
     name: Mapped[str] = mapped_column(String(20))
     color: Mapped[str] = mapped_column(String(7), default="#FFFFFF") #HEX only! heh.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    global_permissions: Mapped[BIGINT] = mapped_column(default=0)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
-    global_permissions: Mapped[BIGINT] = mapped_column(default=0)
-    room_oriented_permissions: Mapped[BIGINT] = mapped_column(default=0)
-
     group: Mapped["Group"] = relationship("Group", back_populates="roles", foreign_keys=[group_id])
+    role_to_room_perm_tables: Mapped[List["RoleToRoomPerms"]] = relationship("RoleToRoomPerms", back_populates="role", foreign_keys="RoleToRoomPerms.role_id", cascade="all, delete-orphan")
     assignees = relationship("Client", secondary=client_group_relationship, back_populates="roles")
+
+class RoleToRoomPerms(Base):
+    __tablename__ = "role_to_room_perms"
+
+    role_id: Mapped[str] = mapped_column(ForeignKey('role.id'))
+    room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
+
+    permissions: Mapped[BIGINT] = mapped_column(default=0)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
+    role: Mapped["Role"] = relationship("Role", back_populates="role_to_room_perm_tables", foreign_keys=[role_id])
+    room: Mapped["Room"] = relationship("Room", back_populates="role_to_room_perm_tables", foreign_keys=[room_id])
 
 #Add room_id for rooms to be fetched
 

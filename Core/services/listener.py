@@ -90,6 +90,7 @@ class Listener:
             "create_room": self.__on_create_room,
             "send_message": self.__on_send_message,
             "create_role": self.__on_create_role,
+            "create_permission_table": ...,
 
             "update_client": self.__on_update_client,
             "update_group": self.__on_update_group,
@@ -97,6 +98,7 @@ class Listener:
             "update_room": self.__on_update_room,
             "edit_message": self.__on_edit_message,
             "update_role": self.__on_update_role,
+            "update_permission_table": ...,
 
             "delete_client": self.__on_delete_client,
             "delete_group": self.__on_delete_group,
@@ -104,6 +106,7 @@ class Listener:
             "delete_room": self.__on_delete_room,
             "delete_message": self.__on_delete_message,
             "delete_role": self.__on_delete_role,
+            "delete_permission_table": ...,
         }
         self.__register_event_handlers()
 
@@ -118,13 +121,7 @@ class Listener:
             "error": error,
         }, to=sid)
 
-    async def __mask_permissions(self, names: list[str]):
-        permissions = 0
-        for name in names:
-            permissions |= getattr(self.perms, name, 0)
-        return permissions
-
-
+#Listener module's main body
     async def __on_connect(self, sid, eviron, auth, session):
         session_token = auth["session_token"]
         valid = ClientValidator(self.access_key, self.algorithm)
@@ -204,10 +201,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_SPACES"):
-
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_SPACES"]):
             session.add(Space(group_id=group_id, creator_id=client.id, name=name, id=id)) 
             await session.commit()
             
@@ -255,9 +249,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_ROOMS"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROOMS"]):
             session.add(Room(group_id=group_id, space_id=space_id, creator_id=client.id, name=name, about_room=about_room, id=id)) 
             await session.commit()
 
@@ -305,10 +297,8 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("SEND_MESSAGES") or \
-        perm_valid.has_room_permission("SEND_MESSAGES", room_id):
+        if perm_valid.global_validity(["CO_OWNER", "SEND_MESSAGES"]) or \
+        perm_valid.has_room_permissions_all(room_id, ["SEND_MESSAGES"]):
             session.add(Message(group_id=group_id, room_id=room_id, author_id=client.id, content=content, id=id)) 
             await session.commit()
 
@@ -370,9 +360,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_ROLES"):
+        if perm_valid.global_validity(["CO_OWNER", "SEND_MESSAGES", "MANAGE_ROLES"]):
             session.add(Role(group_id=group_id, name=name, id=id))
             await session.commit()
             await self.gateway.emit("role_created", {
@@ -485,9 +473,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_GROUP"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_GROUP"]):
             update_status_res = await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level).returning(Group.id))
             update_status = update_status_res.scalar_one_or_none()
             if update_status:
@@ -537,9 +523,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_SPACES"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_SPACES"]):
             update_status_res = await session.execute(update(Space).where(Space.id == id).values(name=name).returning(Space.id))
             update_status = update_status_res.scalar_one_or_none()
             if update_status:
@@ -589,9 +573,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_ROOMS"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROOMS"]):
             update_status_res = await session.execute(update(Room).where(Room.id == id).values(space_id=space_id, name=name, about_room=about_room, nsfw=nsfw).returning(Room.id))
             update_status = update_status_res.scalar_one_or_none()
             if update_status:
@@ -650,10 +632,8 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_MESSAGES") or \
-        perm_valid.has_room_permission("MANAGE_MESSAGES", room_id) or \
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_MESSAGES"]) or \
+        perm_valid.has_room_permissions_all(room_id, ["MANAGE_MESSAGES"]) or \
         message.author.id == client.id:
             update_status_res = await session.execute(update(Message).where(Message.id == id).values(content=content).returning(Message.id))
             update_status = update_status_res.scalar_one_or_none()
@@ -689,7 +669,7 @@ class Listener:
             await self.__emit_error(sid, id, "role_updated", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
-        group_id, name, color, id, global_permissions, room_oriented_permissions = body.group_id, body.name, body.color, body.id, body.global_permissions, body.room_oriented_permissions
+        group_id, name, color, global_permissions, id = body.group_id, body.name, body.color, body.global_permissions, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -702,20 +682,17 @@ class Listener:
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "role_created", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, id, "role_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_ROLES"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             update_status_res = await session.execute(
                 update(Role).where(Role.id == id).values(
                     name=name, 
                     color=color, 
                     global_permissions=self.__mask_permissions(global_permissions), 
-                    room_oriented_permissions=self.__mask_permissions(room_oriented_permissions)
                 ).returning(Role.id)
             )
             update_status = update_status_res.scalar_one_or_none()
@@ -839,9 +816,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_SPACES"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_SPACES"]):
             deletion_status_res = await session.execute(delete(Space).where(Space.id == id).returning(Space.id))
             deletion_status = deletion_status_res.scalar_one_or_none()
             if deletion_status:
@@ -891,9 +866,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_ROOMS"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROOMS"]):
             deletion_status_res = await session.execute(delete(Room).where(Room.id == id).returning(Room.id))
             deletion_status = deletion_status_res.scalar_one_or_none()
             if deletion_status:
@@ -950,11 +923,9 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client.id or \
-        client.id == message.author_id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_MESSAGES") or \
-        perm_valid.has_room_permission("MANAGE_MESSAGES", room_id):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_MESSAGES"]) or \
+        perm_valid.has_room_permissions_all(room_id, ["MANAGE_MESSAGES"]) or \
+        client.id == message.author_id:
             deletion_status_res = await session.execute(delete(Message).where(Message.id == id).returning(Message.id))
             deletion_status = deletion_status_res.scalar_one_or_none()
             if deletion_status:
@@ -1004,9 +975,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permission("CO_OWNER") or \
-        perm_valid.has_global_permission("MANAGE_ROLES"):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             deletion_status_res = await session.execute(delete(Role).where(Role.id == id).returning(Role.id))
             deletion_status = deletion_status_res.scalar_one_or_none()
             if deletion_status:

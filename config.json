@@ -5,14 +5,15 @@
             "SEND_MESSAGES": 1,
             "MODIFY_GROUP": 2,
             "MODIFY_ROOMS": 3,
-            "EDIT_MESSAGES": 4
+            "MANAGE_MESSAGES": 4
         },
         "ROOM_ORIENTED": {
             "VIEW_ROOM": 5,
             "SEND_MESSAGES": 6,
             "SEND_MEDIA": 7,
             "SEND_EMOJIS": 8,
-            "SEND_STICKERS": 9
+            "SEND_STICKERS": 9,
+            "MANAGE_MESSAGES": 10
         }
     }
 }
