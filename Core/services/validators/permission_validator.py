@@ -5,20 +5,20 @@ class PermissionValidator:
         self.client = client
         self.group = group
 
-    def __mask_global_permissions(self, names: list[str]):
+    def mask_global_permissions(self, names: list[str]):
         permissions = 0
         for name in names:
             permissions |= getattr(self.perms._global, name, 0)
         return permissions
     
-    def __mask_room_permissions(self, names: list[str]):
+    def mask_room_permissions(self, names: list[str]):
         permissions = 0
         for name in names:
             permissions |= getattr(self.perms._room_oriented, name, 0)
         return permissions
 
     def has_global_permissions_all(self, names: list[str]) -> bool:
-        masked = self.__mask_global_permissions(names)
+        masked = self.mask_global_permissions(names)
         for role in self.group.roles:
             if self.client not in role.assignees:
                 continue
@@ -27,7 +27,7 @@ class PermissionValidator:
         return False
     
     def has_global_permissions_any(self, names: list[str]) -> bool:
-        masked = self.__mask_global_permissions(names)
+        masked = self.mask_global_permissions(names)
         for role in self.group.roles:
             if self.client not in role.assignees:
                 continue
@@ -36,7 +36,7 @@ class PermissionValidator:
         return False
 
     def has_room_permissions_all(self, room_id: int, names: list[str]) -> bool:
-        masked = self.__mask_room_permissions(names)
+        masked = self.mask_room_permissions(names)
         for role in self.group.roles:
             if self.client not in role.assignees:
                 continue
@@ -48,7 +48,7 @@ class PermissionValidator:
         return False
     
     def has_room_permissions_any(self, room_id: int, names: list[str]) -> bool:
-        masked = self.__mask_room_permissions(names)
+        masked = self.mask_room_permissions(names)
         for role in self.group.roles:
             if self.client not in role.assignees:
                 continue

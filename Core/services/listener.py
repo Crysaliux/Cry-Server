@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTML
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
-from ..services.worker import Client, Group, Space, Room, Message, Role, Permission
+from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
 from ast import literal_eval
@@ -90,7 +90,7 @@ class Listener:
             "create_room": self.__on_create_room,
             "send_message": self.__on_send_message,
             "create_role": self.__on_create_role,
-            "create_permission_table": ...,
+            "create_permissions_table": self.__on_create_permissions_table,
 
             "update_client": self.__on_update_client,
             "update_group": self.__on_update_group,
@@ -98,7 +98,7 @@ class Listener:
             "update_room": self.__on_update_room,
             "edit_message": self.__on_edit_message,
             "update_role": self.__on_update_role,
-            "update_permission_table": ...,
+            "update_permissions_table": self.__on_update_permissions_table,
 
             "delete_client": self.__on_delete_client,
             "delete_group": self.__on_delete_group,
@@ -106,7 +106,7 @@ class Listener:
             "delete_room": self.__on_delete_room,
             "delete_message": self.__on_delete_message,
             "delete_role": self.__on_delete_role,
-            "delete_permission_table": ...,
+            "delete_permissions_table": ...,
         }
         self.__register_event_handlers()
 
@@ -360,7 +360,7 @@ class Listener:
         
         perm_valid = PermissionValidator(client, group)
 
-        if perm_valid.global_validity(["CO_OWNER", "SEND_MESSAGES", "MANAGE_ROLES"]):
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             session.add(Role(group_id=group_id, name=name, id=id))
             await session.commit()
             await self.gateway.emit("role_created", {
@@ -370,6 +370,53 @@ class Listener:
             }, room=f"${group_id}")
         else:
             await self.__emit_error(sid, id, "role_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+
+    async def __on_create_permissions_table(self, sid, data, session):
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "permissions_table_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        if not isinstance(body, CreatePermissionsTable):
+            await self.__emit_error(sid, id, "permissions_table_created", {"index": "WRONG_REQUEST", "target": "permissions_table"})
+            return
+
+        group_id, role_id, room_id, permissions, id = body.group_id, body.role_id, body.room_id, body.permissions, body.id
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.members),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not group:
+            await self.__emit_error(sid, id, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "permissions_table_created", {"index": "UNRELATED", "target": "client<->group"})
+            return
+        
+        perm_valid = PermissionValidator(client, group)
+
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
+            session.add(RoleToRoomPerms(role_id=role_id, room_id=room_id, permissions=perm_valid.mask_room_permissions(permissions), id=id))
+            await session.commit()
+            await self.gateway.emit("permissions_table_created", {
+                "status": True, 
+                "body": {"id": id}, 
+                "error": None
+            }, room=f"${group_id}")
+        else:
+            await self.__emit_error(sid, id, "permissions_table_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     #ON_UPDATE_...
     async def __on_update_client(self, sid, data, session):
@@ -665,7 +712,7 @@ class Listener:
             return
 
         body = data.body
-        if not isinstance(body, Role):
+        if not isinstance(body, UpdateRole):
             await self.__emit_error(sid, id, "role_updated", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
@@ -692,7 +739,7 @@ class Listener:
                 update(Role).where(Role.id == id).values(
                     name=name, 
                     color=color, 
-                    global_permissions=self.__mask_permissions(global_permissions), 
+                    global_permissions=perm_valid.mask_global_permissions(global_permissions), 
                 ).returning(Role.id)
             )
             update_status = update_status_res.scalar_one_or_none()
@@ -706,6 +753,60 @@ class Listener:
                 await self.__emit_error(sid, id, "role_updated", {"index": "UPDATE_FAILED", "target": "role"})
         else:
             await self.__emit_error(sid, id, "role_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+
+    async def __on_update_permissions_table(self, sid, data, session):
+        client_session = await self.gateway.get_session(sid)
+        client, session_token = client_session["client"], client_session["session_token"]
+
+        if not client:
+            await self.__emit_error(sid, client.id, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not valid.running_session_is_valid(session_token):
+            await self.__emit_error(sid, client.id, "permissions_table_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        body = data.body
+        if not isinstance(body, UpdatePermissionsTable):
+            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "WRONG_REQUEST", "target": "role"})
+            return
+
+        group_id, permissions, id = body.group_id, body.permissions, body.id
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.members),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not group:
+            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        if not client in group.members:
+            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "UNRELATED", "target": "client<->group"})
+            return
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
+            update_status_res = await session.execute(
+                update(RoleToRoomPerms).where(RoleToRoomPerms.id == id).values(
+                    permissions=perm_valid.mask_room_permissions(permissions)
+                ).returning(RoleToRoomPerms.id)
+            )
+            update_status = update_status_res.scalar_one_or_none()
+            if update_status:
+                await self.gateway.emit("permissions_table_updated", {
+                    "status": True, 
+                    "body": {"id": id}, 
+                    "error": None
+                }, room=f"${group_id}")
+            else:
+                await self.__emit_error(sid, id, "permissions_table_updated", {"index": "UPDATE_FAILED", "target": "permissions_table"})
+        else:
+            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
     
     #ON_DELETE
     async def __on_delete_client(self, sid, data, session):
