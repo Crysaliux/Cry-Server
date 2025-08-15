@@ -21,29 +21,6 @@ import io
 import os
 
 
-class ClientRequest(BaseModel):
-    client_id: str
-    body: Union[
-        UpdateClient, 
-        CreateGroup, 
-        SendMessage, 
-        CreatePermission, 
-        CreateRole,
-        CreateRoom,
-        CreateSpace,
-        UpdateGroup,
-        UpdateMessage,
-        UpdateRole,
-        UpdateRoom,
-        UpdateSpace,
-        DeleteGroup,
-        DeleteMessage,
-        DeleteRole,
-        DeleteRoom,
-        DeleteSpace,
-        DeletePermission,
-    ]
-
 class Listener:
     def __init__(
             self, 
@@ -106,7 +83,7 @@ class Listener:
             "delete_room": self.__on_delete_room,
             "delete_message": self.__on_delete_message,
             "delete_role": self.__on_delete_role,
-            "delete_permissions_table": ...,
+            "delete_permissions_table": ..., # why? Idk
         }
         self.__register_event_handlers()
 

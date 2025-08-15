@@ -1,35 +1,33 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
 import { io } from "socket.io-client";
-import { Client, Group, Message,Permission, Role, Room, Space, Notification } from "components/index";
+import { z, ZodRawShape, ZodObject } from "zod";
+import { 
+    Client,
+    Group, 
+    Message, 
+    PermissionsTable, 
+    Role, 
+    Room, 
+    Space, 
+    Notification,
+
+    ClientSchema,
+    GroupSchema,
+    MessageSchema,
+    PermissionsTableSchema,
+    RoleSchema,
+    RoomSchema,
+    SpaceSchema,
+    NotificationSchema,
+} from "components/index";
 import axios, { AxiosInstance } from "axios";
 import { CoreGlobalContext } from "./core";
 import { useObjects } from "./worker";
+import { useErrorHandler } from "./handlers/error_handler";
 
 const context_data = useContext(CoreGlobalContext);
 if (!context_data) {
     throw new Error("Can't load CoreGlobalContext for listener");
-}
-
-type Essential<T, K extends keyof T> = Partial<T> & Required<Pick<T, K>>;
-
-interface Basic {
-    id: string;
-}
-
-interface Error {
-    index: string;
-    target: string;
-}
-
-interface GatewayResponse {
-    status: boolean;
-    body: 
-        | Basic 
-        | Message 
-        | Essential<Message, "content" | "id">
-        | Essential<Client, "username" | "nickname" | "avatar_url" | "id">
-        | Notification
-    error: Error;
 }
 
 interface GatewayProperties {
@@ -40,6 +38,58 @@ interface ListenerProperties {
     children: ReactNode;
 }
 
+function essential<T extends z.ZodRawShape, K extends keyof T>(
+  schema: z.ZodObject<T>,
+  keys: readonly K[]
+): z.ZodObject<any> {
+  const partialSchema = schema.partial();
+
+  const requiredKeys: Record<string, true> = {};
+  keys.forEach((key) => {
+    requiredKeys[key as string] = true;
+  });
+  return partialSchema.required(requiredKeys as unknown as Record<keyof T, true>);
+}
+
+const EssentialClientSchema = essential(ClientSchema, ["username", "nickname", "avatar_url", "id"]);
+const EssentialMessageSchema = essential(MessageSchema, ["content", "id"]);
+
+const BasicSchema = z.object({
+  id: z.string(),
+});
+
+const ErrorSchema = z.object({
+    index: z.string(),
+    target: z.string(),
+});
+
+const GatewayResponseSchema = z.object({
+    status: z.boolean(),
+    body: z.union([
+        BasicSchema,
+        MessageSchema,
+        EssentialMessageSchema,
+        EssentialClientSchema,
+        NotificationSchema,
+    ]),
+    error: ErrorSchema,
+});
+
+type GatewayResponse = z.infer<typeof GatewayResponseSchema>;
+
+/*
+const parseResult = BasicSchema.safeParse(data.body);
+
+if (parseResult.success) {
+  const body: z.infer<typeof BasicSchema> = parseResult.data;
+  // TS now knows body is Basic
+} else {
+  console.error("Invalid body:", parseResult.error);
+  // handle error
+}
+*/
+
+//Listener main body
 export const GatewayHatch = createContext<GatewayProperties | undefined>(undefined);
 
 export const APIHatch: AxiosInstance = axios.create({
@@ -86,6 +136,10 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const body = data.body as Basic;
             //to be continued...
         });
+        gateway.on("permissions_table_created", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
+        });
 
 
         gateway.on("client_updated", (data) => {
@@ -109,6 +163,10 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             //to be continued...
         });
         gateway.on("role_updated", (data) => {
+            const body = data.body as Basic;
+            //to be continued...
+        });
+        gateway.on("permissions_table_updated", (data) => {
             const body = data.body as Basic;
             //to be continued...
         });
@@ -153,6 +211,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("room_created");
             gateway.off("message_sent");
             gateway.off("role_created");
+            gateway.off("permissions_table_created");
 
 
             gateway.off("client_updated");
@@ -161,6 +220,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("room_updated");
             gateway.off("message_edited");
             gateway.off("role_updated");
+            gateway.off("permissions_table_updated");
 
 
             gateway.off("client_deleted");
