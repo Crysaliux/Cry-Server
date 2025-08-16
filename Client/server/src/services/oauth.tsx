@@ -1,7 +1,7 @@
 import { useEffect, useContext, useRef } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { APIHatch } from "./listener";
 
 //Fetch core global context
@@ -10,43 +10,35 @@ if (!context_data) {
     throw new Error("Can't load CoreGlobalContext for oauth");
 }
 
+
 export const Authentication = () => {
+    const location = useLocation();
     const navigate = useNavigate();
     const SessionTokenReference = useRef<string | null>(null);
 
     useEffect(() => {
-        const validate_existing_client = async () => {
-            try {
-                SessionTokenReference.current = localStorage.getItem("SESSION");
-            } catch (error) {
-                console.error("Failed to retrieve session token:", error);
-                navigate("/LOGIN");
-            }
-            try {
-                if (SessionTokenReference.current) {
-                    const response = await APIHatch.get("/validate_client_session", {
-                        headers: { token: SessionTokenReference.current },
-                    });
-                    if (response.data.status) {
-                        console.log("Client session seems valid");
-                    } else {
-                        console.error(`Session check failed: ${response.data.response}`);
-                        navigate("/LOGIN");
-                    }
-                }
-            } catch (error) {
-                console.error('Session check failed:', error);
-                navigate("/LOGIN");
-            }
+        const fetch_group = async (id: string, room_id: string) => {
+            await __fetch_group(id, room_id);
         };
 
-    }, [navigate]);
+        const parts = location.pathname.split("/").filter(Boolean);
+        if (parts.length < 1) return;
 
-    const fetch_group = async () => {
-        const response = await APIHatch.get("/", {
-            headers: { token: SessionTokenReference.current },
+        const [group_id, room_id] = parts;
+        if (group_id) fetch_group(group_id, room_id);
+
+    }, [location]);
+
+    const __fetch_group = async (id: string, room_id: string) => {
+        const response = await APIHatch.get("/fetch_group", {
+            headers: { session_token: SessionTokenReference.current, id: id, room_id: room_id },
         });
     };
-
-    return "VALIDATION STATUS";
 };
+
+/*
+To do list:
+- add session token handlers
+- add proper __fetch... handlers
+- 
+*/
