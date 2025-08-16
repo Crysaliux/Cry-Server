@@ -39,23 +39,23 @@ interface ListenerProperties {
 }
 
 function essential<T extends z.ZodRawShape, K extends keyof T>(
-  schema: z.ZodObject<T>,
-  keys: readonly K[]
+    schema: z.ZodObject<T>,
+    keys: readonly K[]
 ): z.ZodObject<any> {
-  const partialSchema = schema.partial();
+    const partialSchema = schema.partial();
 
-  const requiredKeys: Record<string, true> = {};
-  keys.forEach((key) => {
-    requiredKeys[key as string] = true;
-  });
-  return partialSchema.required(requiredKeys as unknown as Record<keyof T, true>);
+    const requiredKeys: Record<string, true> = {};
+    keys.forEach((key) => {
+        requiredKeys[key as string] = true;
+    });
+    return partialSchema.required(requiredKeys as unknown as Record<keyof T, true>);
 }
 
 const EssentialClientSchema = essential(ClientSchema, ["username", "nickname", "avatar_url", "id"]);
 const EssentialMessageSchema = essential(MessageSchema, ["content", "id"]);
 
 const BasicSchema = z.object({
-  id: z.string(),
+    id: z.string(),
 });
 
 const ErrorSchema = z.object({
@@ -117,84 +117,539 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
 
         gateway.on("group_created", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                console.warn(`Incoming request can't be processed: ${response.data}`)
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                console.warn(`Incoming request can't be processed: ${response.data}`)
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("space_created", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("room_created", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("message_sent", (data) => {
-            const body = data.body as Message;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = MessageSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof MessageSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("role_created", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("permissions_table_created", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
 
 
         gateway.on("client_updated", (data) => {
-            const body = data.body as Essential<Client, "username" | "nickname" | "avatar_url" | "id">;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = EssentialClientSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof EssentialClientSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("group_updated", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("space_updated", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("room_updated", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("message_edited", (data) => {
-            const body = data.body as Essential<Message, "content" | "id">;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = EssentialMessageSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof EssentialMessageSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("role_updated", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("permissions_table_updated", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
 
 
         gateway.on("client_deleted", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("group_deleted", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("space_deleted", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("room_deleted", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("message_deleted", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
+
         gateway.on("role_deleted", (data) => {
-            const body = data.body as Basic;
-            //to be continued...
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (error.index) {
+                    useErrorHandler(error.index, error.target);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+            }
+
+            //to be continued..
         });
 
         return () => {
