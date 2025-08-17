@@ -1,4 +1,4 @@
-import { Group, Message, Permission, Role, Room, Space } from "components/index"
+import { Group, Message, PermissionsTable, Role, Room, Space } from "components/index"
 import { create } from "zustand";
 
 export interface Identifiable {
@@ -10,7 +10,7 @@ type ObjectRecord<T extends Identifiable> = Record<string, T>;
 interface ObjectsActionState {
     groups: ObjectRecord<Group>;
     messages: ObjectRecord<Message>;
-    permissions: ObjectRecord<Permission>;
+    permissions_table: PermissionsTable | null;
     roles: ObjectRecord<Role>;
     rooms: ObjectRecord<Room>;
     spaces: ObjectRecord<Space>;
@@ -18,12 +18,13 @@ interface ObjectsActionState {
         key: keyof ObjectsActionState,
         incoming: ObjectRecord<T>
     ) => void;
+    setPermissionsTable: (table: PermissionsTable) => void;
 }
 
 export const useObjects = create<ObjectsActionState>((set) => ({
     groups: {},
     messages: {},
-    permissions: {},
+    permissions_table: null,
     roles: {},
     rooms: {},
     spaces: {},
@@ -40,12 +41,17 @@ export const useObjects = create<ObjectsActionState>((set) => ({
             }
             
             return { [key]: merged } as Partial<ObjectsActionState>;
-        })
+        }),
+
+    setPermissionsTable: (table) =>
+        set(() => ({
+            permissions_table: table,
+        })),
 }));
 
 export const useGroups = () => useObjects((state) => Object.values(state.groups));
 export const useMessages = () => useObjects((state) => Object.values(state.messages));
-export const usePermissions = () => useObjects((state) => Object.values(state.permissions));
+export const usePermissionsTable = () => useObjects((state) => state.permissions_table);
 export const useRoles = () => useObjects((state) => Object.values(state.roles));
 export const useRooms = () => useObjects((state) => Object.values(state.rooms));
 export const useSpaces = () => useObjects((state) => Object.values(state.spaces));

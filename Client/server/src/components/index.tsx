@@ -6,6 +6,7 @@ export type { Role } from "./role";
 export type { Room } from "./room";
 export type { Space } from "./space";
 export type { Notification } from "./notification";
+export type { Member } from "./member";
 
 export { ClientSchema } from "./client";
 export { GroupSchema } from "./group";
@@ -15,3 +16,4 @@ export { RoleSchema } from "./role";
 export { RoomSchema } from "./room";
 export { SpaceSchema } from "./space";
 export { NotificationSchema } from "./notification";
+export { MemberSchema } from "./member";

@@ -120,14 +120,14 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
-                console.warn(`Incoming request can't be processed: ${response.data}`)
+                console.warn(`Incoming request can't be processed: ${response.data}`); //why here only?
                 return;
             }
 
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
-                console.warn(`Incoming request can't be processed: ${response.data}`)
+                console.warn(`Incoming request can't be processed: ${response.data.body}`);
                 return;
             }
 
