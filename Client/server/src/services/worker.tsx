@@ -1,4 +1,4 @@
-import { Group, Message, PermissionsTable, Role, Room, Space } from "components/index"
+import { Group, Message, PermissionsTable, Role, Room, Space, Member } from "components/index"
 import { create } from "zustand";
 
 export interface Identifiable {
@@ -14,6 +14,7 @@ interface ObjectsActionState {
     roles: ObjectRecord<Role>;
     rooms: ObjectRecord<Room>;
     spaces: ObjectRecord<Space>;
+    members: ObjectRecord<Member>;
     setObjects: <T extends Identifiable>(
         key: keyof ObjectsActionState,
         incoming: ObjectRecord<T>
@@ -28,6 +29,7 @@ export const useObjects = create<ObjectsActionState>((set) => ({
     roles: {},
     rooms: {},
     spaces: {},
+    members: {},
 
     setObjects: (key, incoming) =>
         set((state) => {
@@ -55,3 +57,4 @@ export const usePermissionsTable = () => useObjects((state) => state.permissions
 export const useRoles = () => useObjects((state) => Object.values(state.roles));
 export const useRooms = () => useObjects((state) => Object.values(state.rooms));
 export const useSpaces = () => useObjects((state) => Object.values(state.spaces));
+export const useMembers = () => useObjects((state) => Object.values(state.members));
