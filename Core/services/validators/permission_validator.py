@@ -16,6 +16,9 @@ class PermissionValidator:
         for name in names:
             permissions |= getattr(self.perms._room_oriented, name, 0)
         return permissions
+    
+    #def unmask_global_permissions():
+        #return [name for name, bit in perm_map.items() if mask & (1 << bit)] to finish today!
 
     def has_global_permissions_all(self, names: list[str]) -> bool:
         masked = self.mask_global_permissions(names)
