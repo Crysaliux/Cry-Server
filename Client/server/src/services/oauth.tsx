@@ -47,17 +47,17 @@ const FetchedGroupSchema = z.object({
     primary_channel_id: z.string(), //latest messages
 });
 
-const ResponseSchema = z.object({
+const ResponseSchema = z.object({ //hbb - handled by backend
     status: z.boolean(),
     response: z.union([
         z.string(),
-        z.array(GroupSchema), //here we fetch all groups
-        z.array(RoleSchema), //here we fetch all roles
+        z.array(GroupSchema), //[hbb] here we fetch all groups
+        z.array(RoleSchema), //[hbb] here we fetch all roles
         PermissionsTableSchema, //fetching all permissions for some role
-        FetchedRoomsSchema, //both spaces and rooms are being fetched here
-        FetchedGroupSchema, //In case group needs to be loaded
+        FetchedRoomsSchema, //[hbb] both spaces and rooms are being fetched here
+        FetchedGroupSchema, //[hbb] In case group needs to be loaded
         z.array(MessageSchema), //messages (up too 100 at once!) are being fetched here
-        z.array(MemberSchema), //group members (up too 50 at once!) are being fetched here
+        z.array(MemberSchema), //[hbb] group members (up too 50 at once!) are being fetched here
     ]),
 });
 

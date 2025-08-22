@@ -16,5 +16,9 @@
             "SEND_STICKERS": 10,
             "MANAGE_MESSAGES": 11
         }
-    }
+    },
+    "MESSAGE_LOAD_BATCH_SIZE": 30,
+    "MAX_MESSAGE_LENGTH": 1024,
+    "MAX_IMAGE_SIZE": 500,
+    "MAX_FILE_SIZE": 10
 }

@@ -5,20 +5,30 @@ class PermissionValidator:
         self.client = client
         self.group = group
 
-    def mask_global_permissions(self, names: list[str]):
+    def mask_global_permissions(self, names: list[str]) -> int:
         permissions = 0
         for name in names:
             permissions |= getattr(self.perms._global, name, 0)
         return permissions
     
-    def mask_room_permissions(self, names: list[str]):
+    def mask_room_permissions(self, names: list[str]) -> int:
         permissions = 0
         for name in names:
             permissions |= getattr(self.perms._room_oriented, name, 0)
         return permissions
     
-    #def unmask_global_permissions():
-        #return [name for name, bit in perm_map.items() if mask & (1 << bit)] to finish today!
+    def unmask_global_permissions(self, mask: int) -> list[str]:
+        res = []
+        for name, value in vars(self.perms._room_oriented).items():
+            if name.startswith("__"): #skipping __module__ instances
+                continue
+            if mask & value:
+                res.append(name)
+        return res
+    
+    def unmask_room_permissions(self, mask: int) -> list[str]:
+        #Not implemented
+        raise NotImplementedError
 
     def has_global_permissions_all(self, names: list[str]) -> bool:
         masked = self.mask_global_permissions(names)

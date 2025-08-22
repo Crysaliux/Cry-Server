@@ -56,9 +56,10 @@ class Core(FastAPI):
         self.hasher = PasswordHasher()
         self.oauth2 = OAuth2PasswordBearer(tokenUrl="token")
         
-        self.max_message_length = {"default": 1024, "premium": 3000} #characters ?? gotta fix
-        self.max_image_size = 500 #pixels ??
-        self.max_file_size = {"default": 10, "premium": 30} #megabytes ??
+        self.message_load_batch_size = CONFIG["MESSAGE_LOAD_BATCH_SIZE"] #messages
+        self.max_message_length = CONFIG["MAX_MESSAGE_LENGTH"] #characters
+        self.max_image_size = CONFIG["MAX_IMAGE_SIZE"] #pixels
+        self.max_file_size = CONFIG["MAX_FILE_SIZE"] #megabytes
 
         class PERMISSIONS:
             class _global:
@@ -112,8 +113,18 @@ class Core(FastAPI):
         )
         self.listener.router_tasks()
 
+        self.api_listener = APIListener(
+            worker_session=self.worker.worker_session(),
+            oauth2=self.oauth2,
+            algorithm=self.algorithm, 
+            perms = self.perms,
+            message_load_batch_size = self.message_load_batch_size,
+        )
+        self.api_listener.router_tasks()
+
         self.include_router(self.oauth.router, prefix="/oauth")
-        self.include_router(self.listener.router, prefix="/api_hatch")
+        self.include_router(self.listener.router, prefix="/gateway")
+        self.include_router(self.api_listener.router, prefix="/api")
 
         self.main_routes = [
             {"path": "/", "func": self.__main, "method": ["GET"]},
