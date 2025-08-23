@@ -15,6 +15,11 @@ class RoomRelated(BaseModel):
     group_id: str
     room_id: str
 
+class RoleRelated(BaseModel):
+    group_id: str
+    room_id: str
+    role_id: str
+
 
 class APIListener:
     def __init__(
@@ -39,6 +44,7 @@ class APIListener:
             "fetch_members": self.__fetch_members,
             "fetch_roles": self.__fetch_roles,
             "fetch_messages": self.__fetch_messages,
+            "fetch_permstable": self.__fetch_permstable,
         }
         self.__register_api_call_handlers()
 
@@ -268,7 +274,7 @@ class APIListener:
         
         return await self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
 
-    async def __fetch_messages(self, session_token: str, group_id: str, room_id: str, session):
+    async def __fetch_messages(self, session_token: str, group_id: str, room_id: str, role_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
 
@@ -315,6 +321,46 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
     
+    async def __fetch_permstable(self, session_token: str, group_id: str, room_id: str, role_id: str, session):
+        valid = ClientValidator(self.access_key, self.algorithm)
+        status, client = valid.session_is_valid(session_token, session)
+
+        if not status:
+            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        rtr_res = await session.execute(select(RoleToRoomPerms).where(
+            RoleToRoomPerms.role_id == role_id,
+            RoleToRoomPerms.room_id == room_id,
+        ))
+        rtr = rtr_res.scalar_one_or_none()
+
+        if not group:
+            return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
+        
+        if not rtr:
+            return self.__emit_api_error("OBJECT_NON_EXISTANT", "permissions table")
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        if group.owner.id == client.id or \
+        perm_valid.has_global_permissions_all("MANAGE_ROLES"):
+
+            return {
+                "status": True, 
+                "body": {
+                    "permissions": perm_valid.unmask_room_permissions(rtr.permissions),
+                    "id": rtr.id,
+                }, 
+                "error": None,
+            }
+        
+        return self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
+    
 
     def router_tasks(self):
         @self.router.post("/fetch_groups")
@@ -340,3 +386,7 @@ class APIListener:
         @self.router.post("/fetch_messages")
         async def fetch_messages(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_messages(session_token, payload.group_id, payload.room_id)
+        
+        @self.router.post("/fetch_permstable")
+        async def fetch_permstable(request: Request, payload: RoleRelated, session_token: str = Depends(self.oauth2)):
+            return await self.__call_fetch_permstable(session_token, payload.group_id, payload.room_id, payload.role_id)

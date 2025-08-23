@@ -3,10 +3,11 @@ import { Outlet } from "react-router-dom";
 import { 
     useGroups, 
     useMessages, 
-    usePermissions, 
+    usePermissionsTable, 
     useRoles, 
     useRooms, 
-    useSpaces 
+    useSpaces,
+    useMembers,
 } from "services/worker";
 
 

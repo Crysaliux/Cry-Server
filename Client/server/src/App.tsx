@@ -8,7 +8,7 @@ import RoomLayout from 'layouts/room_layout';
 import { Listener } from 'services/listener';
 import { Core } from 'services/core';
 
-const App: React.FC = () => { //:message_id will be use for what?
+const App: React.FC = () => { //Logically correct, yet usable?
     return (
         <BrowserRouter>
             <Core>

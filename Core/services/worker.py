@@ -107,7 +107,7 @@ class Room(Base):
     space: Mapped["Space"] = relationship("Space", back_populates="rooms", foreign_keys=[space_id])
     creator: Mapped["Client"] = relationship("Client", back_populates="created_rooms", foreign_keys=[creator_id])
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="room", foreign_keys="Message.room_id", cascade="all, delete-orphan")
-    role_to_room_perm_tables: Mapped[List["RoleToRoomPerms"]] = relationship("RoleToRoomPerms", back_populates="room", foreign_keys="RoleToRoomPerms.room_id")
+    role_to_room_perm_tables: Mapped[List["RoleToRoomPerms"]] = relationship("RoleToRoomPerms", back_populates="room", foreign_keys="RoleToRoomPerms.room_id", cascade="all, delete-orphan")
 
 class Message(Base):
     __tablename__ = "message"
