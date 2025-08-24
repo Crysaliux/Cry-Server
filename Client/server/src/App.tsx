@@ -6,12 +6,14 @@ import MainPageLayout from 'layouts/main_page_layout';
 import SignUpLayout from 'layouts/signup_layout';
 import RoomLayout from 'layouts/room_layout';
 import { Listener } from 'services/listener';
+import { APIListener } from 'services/api_listener';
 import { Core } from 'services/core';
 
 const App: React.FC = () => { //Logically correct, yet usable?
     return (
         <BrowserRouter>
             <Core>
+                <APIListener/>
                 <Listener>
                     <div id="container">
                         <Routes>

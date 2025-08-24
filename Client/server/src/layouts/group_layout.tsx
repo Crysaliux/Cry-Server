@@ -16,9 +16,13 @@ const GroupLayout: React.FC = () => {
     const rooms = useRooms();
     const spaces = useSpaces();
 
-    const orphan_rooms = rooms.filter((room) => room.space_id === null);
+    const groups_array = Object.values(groups);
+    const rooms_array = Object.values(rooms);
+    const spaces_array =    Object.values(spaces);
+
+    const orphan_rooms = rooms_array.filter((room) => room.space_id === null);
     const FetchChildRooms = (space_id: string) => {
-        return rooms.filter((room) => room.space_id === space_id);
+        return rooms_array.filter((room) => room.space_id === space_id);
     };
 
     return (
@@ -48,7 +52,7 @@ const GroupLayout: React.FC = () => {
                 </div>
                 <hr className="division_line"></hr>
                         
-                {groups.map(group => (
+                {groups_array.map(group => (
                     <div className="group" key={group.id}>
                         <div className="group_shrunk"></div>
                     </div>
@@ -75,7 +79,7 @@ const GroupLayout: React.FC = () => {
                         <div className="hashtag">#</div>{ room.name }
                     </div>
                 ))}
-                {spaces.map(space => (
+                {spaces_array.map(space => (
                     <div className="space" key={space.id}>
                         <div className="space_name">{ space.name }</div>
                         {FetchChildRooms(space.id).map(room => (
