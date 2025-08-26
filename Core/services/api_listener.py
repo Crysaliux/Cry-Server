@@ -274,7 +274,7 @@ class APIListener:
         
         return await self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
 
-    async def __fetch_messages(self, session_token: str, group_id: str, room_id: str, role_id: str, session):
+    async def __fetch_messages(self, session_token: str, group_id: str, room_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
 

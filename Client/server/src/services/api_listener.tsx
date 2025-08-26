@@ -258,9 +258,9 @@ export const APIListener = () => {
         set_objects("roles", transform(fetched_roles));
     };
 
-    const __fetch_permstable = async (role_id: string, room_id: string, group_id: string) => {
+    const __fetch_permstable = async (group_id: string, room_id: string, role_id: string) => {
         const response = await APIHatch.get("/fetch_permstable", {
-            headers: { session_token: SessionTokenReference.current, role_id: role_id, room_id: room_id, group_id: group_id },
+            headers: { session_token: SessionTokenReference.current, group_id: group_id, room_id: room_id, role_id: role_id },
         });
 
         const parsed_response = ResponseSchema.safeParse(response);
@@ -296,15 +296,15 @@ export const APIListener = () => {
         set_permstable(fetched_permstable);
     };
 
-    const __fetch_room = async (id: string, room_id: string) => {
-        const response = await APIHatch.get("/fetch_room", {
-            headers: { session_token: SessionTokenReference.current, id: id, room_id: room_id },
+    const __fetch_messages = async (group_id: string, room_id: string) => {
+        const response = await APIHatch.get("/fetch_messages", {
+            headers: { session_token: SessionTokenReference.current, group_id: group_id, room_id: room_id },
         });
 
         const parsed_response = ResponseSchema.safeParse(response);
 
         if (!parsed_response.success) {
-            console.error(`Room fetch failed, can't process server response: ${parsed_response.data}`);
+            console.error(`Messages fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
@@ -325,7 +325,7 @@ export const APIListener = () => {
         const actual = z.array(MessageSchema).safeParse(parsed_response.data.response);
 
         if (!actual.success) {
-            console.error(`Room fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Messages fetch failed, can't process server response: ${parsed_response.data.response}`);
             return;
         }
 
