@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
-from ..services.worker import Client, Group, Space, Room, Message, Role, Permission
+from ..services.worker import Client, Group, Space, Room, Message, Role
 from sqlalchemy import insert, select, update, delete
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -27,12 +27,10 @@ class Authentication:
             algorithm,
             access_key, 
             oauth2, 
-            tepmlates: Jinja2Templates
         ):
         self.access_key = access_key
         self.hasher = hasher
         self.worker_session = worker_session
-        self.templates = tepmlates
         self.algorithm = algorithm
         self.oauth2 = oauth2
         self.router = APIRouter()

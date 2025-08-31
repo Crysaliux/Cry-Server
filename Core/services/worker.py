@@ -133,7 +133,7 @@ class Role(Base):
     name: Mapped[str] = mapped_column(String(20))
     color: Mapped[str] = mapped_column(String(7), default="#FFFFFF") #HEX only! heh.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
-    global_permissions: Mapped[BIGINT] = mapped_column(default=0)
+    global_permissions: Mapped[int] = mapped_column(default=0)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
     group: Mapped["Group"] = relationship("Group", back_populates="roles", foreign_keys=[group_id])
@@ -146,7 +146,7 @@ class RoleToRoomPerms(Base):
     role_id: Mapped[str] = mapped_column(ForeignKey('role.id'))
     room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
 
-    permissions: Mapped[BIGINT] = mapped_column(default=0)
+    permissions: Mapped[int] = mapped_column(default=0)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
     role: Mapped["Role"] = relationship("Role", back_populates="role_to_room_perm_tables", foreign_keys=[role_id])

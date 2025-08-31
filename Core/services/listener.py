@@ -38,7 +38,6 @@ class Listener:
             addr: tuple, 
             gateway: socketio.AsyncServer,
             perms,
-            tepmlates: Jinja2Templates,
         ):
         self.addr = addr
         self.access_key = access_key
@@ -51,7 +50,6 @@ class Listener:
         self.max_image_size = max_image_size
         self.max_file_size = max_file_size
         self.client_server_origin = client_server_origin
-        self.templates = tepmlates
         self.heartbeat_interval = heartbeat_interval
         self.algorithm = algorithm
         self.gateway = gateway

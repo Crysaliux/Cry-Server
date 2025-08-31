@@ -1,4 +1,4 @@
-from ..worker import worker_session, Client, Group
+from ..worker import Client, Group
 
 class PermissionValidator:
     def __init__(self, client: Client, group: Group):

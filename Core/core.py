@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
-from socketio.redis_manager import AsyncRedisManager
+from socketio.async_redis_manager import AsyncRedisManager
 from pydantic import BaseModel
 from itertools import takewhile
 from datetime import datetime
@@ -15,7 +15,7 @@ from random import uniform
 from argon2 import PasswordHasher
 import redis.asyncio as aioredis
 from pathlib import Path
-from .services import *
+from Core.services import *
 import subprocess
 import threading
 import asyncio
@@ -41,7 +41,6 @@ class Core(FastAPI):
         self.rm = AsyncRedisManager("redis://localhost:6379/0")
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
-        self.templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
         self.gateway = socketio.AsyncServer(async_mode="asgi", client_manager=self.rm)
         self.mount("/gateway", socketio.ASGIApp(self.gateway, self))
         self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
@@ -85,7 +84,6 @@ class Core(FastAPI):
 
         self.oauth = Authentication(
             worker_session=self.worker.worker_session(),
-            tepmlates=self.templates, 
             hasher=self.hasher, 
             algorithm=self.algorithm, 
             access_key=self.server_access_key,
@@ -97,7 +95,6 @@ class Core(FastAPI):
             addr=(self.sv_host, self.sv_port),
             worker_session=self.worker.worker_session(),
             oauth2=self.oauth2,
-            tepmlates=self.templates, 
             hasher=self.hasher, 
             algorithm=self.algorithm, 
             storage_images_path=self.storage_images_path, 
@@ -141,13 +138,18 @@ class Core(FastAPI):
         uvicorn.run(self, host=self.sv_host, port=self.sv_port, log_level="debug")
 
     def __start_background(self):
-        asyncio.gather(self.__background_worker(), self.__background_ceecchm())
+        asyncio.run(self.__gather_background())
+
+    async def __gather_background(self):
+        await asyncio.gather(self.__background_worker(), self.__background_ceecchm())
+
 
     async def __background_worker(self):
         await self.worker.start()
 
     async def __background_ceecchm(self):
         await self.cecchm.start()
+
 
     async def __main(self, request: Request):
         return self.templates.TemplateResponse("main.html", {"request": request})
