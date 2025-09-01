@@ -377,6 +377,7 @@ class APIListener:
             return {
                 "status": True, 
                 "body": {
+                    "group_id": group_id,
                     "permissions": perm_valid.unmask_room_permissions(rtr.permissions),
                     "id": rtr.id,
                 }, 
