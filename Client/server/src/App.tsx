@@ -9,6 +9,8 @@ import { Listener } from 'services/listener';
 import { APIListener } from 'services/api_listener';
 import { Core } from 'services/core';
 
+//:group_id can represent group's global_name as well
+
 const App: React.FC = () => { //Logically correct, yet usable?
     return (
         <BrowserRouter>
@@ -22,7 +24,7 @@ const App: React.FC = () => { //Logically correct, yet usable?
                                 <Route path="oauth2/signup" element={<SignUpLayout />} />
                                 <Route path="oauth2/login" element={<LoginLayout />} />
 
-                                <Route path=":group_global_name" element={<GroupLayout />}>
+                                <Route path=":group_id" element={<GroupLayout />}>
                                     <Route path=":room_id" element={<RoomLayout />}>
                                         <Route path=":mesage_id" element={} />
                                     </Route>

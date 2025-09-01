@@ -60,6 +60,7 @@ class Group(Base):
     owner_id: Mapped[str] = mapped_column(ForeignKey('client.id'))
 
     name: Mapped[str] = mapped_column(String(20))
+    global_name: Mapped[str] = mapped_column(String(20))
     about_group: Mapped[str] = mapped_column(String(300), nullable=True)
     icon_url: Mapped[str] = mapped_column(String(100), nullable=True)
     nsfw: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
@@ -75,6 +76,7 @@ class Group(Base):
     roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id", cascade="all, delete-orphan")
     spaces: Mapped[List["Space"]] = relationship("Space", back_populates="group", foreign_keys="Space.group_id", cascade="all, delete-orphan")
     rooms: Mapped[List["Room"]] = relationship("Room", back_populates="group", foreign_keys="Room.group_id", cascade="all, delete-orphan")
+    role_to_room_perm_tables: Mapped[List["RoleToRoomPerms"]] = relationship("RoleToRoomPerms", back_populates="group", foreign_keys="RoleToRoomPerms.group_id", cascade="all, delete-orphan")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="group", foreign_keys="Message.group_id", cascade="all, delete-orphan")
 
 class Space(Base):
@@ -143,12 +145,14 @@ class Role(Base):
 class RoleToRoomPerms(Base):
     __tablename__ = "role_to_room_perms"
 
+    group_id: Mapped[str] = mapped_column(ForeignKey('group.id'))
     role_id: Mapped[str] = mapped_column(ForeignKey('role.id'))
     room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
 
     permissions: Mapped[int] = mapped_column(default=0)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
+    group: Mapped["Group"] = relationship("Group", back_populates="role_to_room_perm_tables", foreign_keys=[group_id])
     role: Mapped["Role"] = relationship("Role", back_populates="role_to_room_perm_tables", foreign_keys=[role_id])
     room: Mapped["Room"] = relationship("Room", back_populates="role_to_room_perm_tables", foreign_keys=[room_id])
 

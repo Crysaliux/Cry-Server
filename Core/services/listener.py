@@ -129,9 +129,9 @@ class Listener:
             await self.__emit_error(sid, id, "group_created", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
-        name, about_group, icon_url, id = body.name, body.about_group, body.icon_url, body.id
+        name, global_name, about_group, icon_url, id = body.name, body.global_name, body.about_group, body.icon_url, body.id
 
-        session.add(Group(owner_id=client.id, name=name, about_group=about_group, icon_url=icon_url, id=id)) 
+        session.add(Group(owner_id=client.id, name=name, global_name=global_name, about_group=about_group, icon_url=icon_url, id=id)) 
         await session.commit()
 
         await self.gateway.emit("group_created", {
@@ -383,7 +383,7 @@ class Listener:
         perm_valid = PermissionValidator(client, group)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
-            session.add(RoleToRoomPerms(role_id=role_id, room_id=room_id, permissions=perm_valid.mask_room_permissions(permissions), id=id))
+            session.add(RoleToRoomPerms(group_id=group_id, role_id=role_id, room_id=room_id, permissions=perm_valid.mask_room_permissions(permissions), id=id))
             await session.commit()
             await self.gateway.emit("permissions_table_created", {
                 "status": True, 
@@ -477,7 +477,7 @@ class Listener:
             await self.__emit_error(sid, id, "group_updated", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
-        name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = body.owner_id, body.name, body.about_group, body.icon_url, body.nsfw, body.content_filter, body.content_filter_level, body.id
+        name, global_name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = body.owner_id, body.name, body.global_name, body.about_group, body.icon_url, body.nsfw, body.content_filter, body.content_filter_level, body.id
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -496,7 +496,7 @@ class Listener:
         perm_valid = PermissionValidator(client, group)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_GROUP"]):
-            update_status_res = await session.execute(update(Group).where(Group.id == id).values(name=name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level).returning(Group.id))
+            update_status_res = await session.execute(update(Group).where(Group.id == id).values(name=name, global_name=global_name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level).returning(Group.id))
             update_status = update_status_res.scalar_one_or_none()
             if update_status:
                 await self.gateway.emit("group_updated", {
@@ -637,7 +637,7 @@ class Listener:
 
         message_res = await session.execute(select(Message).options(
             selectinload(Message.author),
-        ).where(Message.id == id))
+        ).where(Message.id == id, Message.group_id == group_id))
         message = message_res.scalar_one_or_none()
 
         if not group:
@@ -711,7 +711,7 @@ class Listener:
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             update_status_res = await session.execute(
-                update(Role).where(Role.id == id).values(
+                update(Role).where(Role.id == id, Role.group_id == group_id).values(
                     name=name, 
                     color=color, 
                     global_permissions=perm_valid.mask_global_permissions(global_permissions), 
@@ -767,7 +767,7 @@ class Listener:
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             update_status_res = await session.execute(
-                update(RoleToRoomPerms).where(RoleToRoomPerms.id == id).values(
+                update(RoleToRoomPerms).where(RoleToRoomPerms.id == id, RoleToRoomPerms.group_id == group_id).values(
                     permissions=perm_valid.mask_room_permissions(permissions)
                 ).returning(RoleToRoomPerms.id)
             )

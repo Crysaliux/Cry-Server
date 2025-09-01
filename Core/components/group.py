@@ -3,12 +3,14 @@ from typing import List, Union, Annotated, Literal
 
 class CreateGroup(BaseModel):
     name: str
+    global_name: str
     about_group: Union[str, None]
     icon_url: Union[str, None]
     id: str
 
 class UpdateGroup(BaseModel):
     name: str
+    global_name: str
     about_group: Union[str, None]
     icon_url: Union[str, None]
     nsfw: bool

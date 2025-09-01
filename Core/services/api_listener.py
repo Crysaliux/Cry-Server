@@ -5,8 +5,10 @@ from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToR
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
+from typing import Union
 from ..components import *
 from .validators import *
+import uuid
 
 class GroupRelated(BaseModel):
     group_id: str
@@ -77,6 +79,7 @@ class APIListener:
         for group in extra_client.groups:
             groups.append({
                 "name": group.name,
+                "global_name": group.global_name,
                 "about_group": group.about_group,
                 "icon_url": group.icon_url,
                 "nsfw": group.nsfw,
@@ -138,7 +141,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
-    async def __fetch_group(self, session_token: str, group_id: str, session):
+    async def __fetch_group(self, session_token: str, group_id: str, room_id: Union[str, None], session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
 
@@ -153,22 +156,43 @@ class APIListener:
         ).where(Group.id == group_id))
         group = group_res.scalar_one_or_none()
 
+        room_res = await session.execute(select(Room).options(
+            selectinload(Room.messages),
+        ).where(Room.id == room_id))
+        room = room_res.scalar_one_or_none()
+
         if not group:
-            return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
+            try:
+                uuid.UUID(group_id)
+                return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
+            except ValueError:
+                group_res = await session.execute(select(Group).options(
+                    selectinload(Group.roles),
+                    selectinload(Group.rooms),
+                    selectinload(Group.spaces),
+                    selectinload(Group.members),
+                ).where(Group.global_name == group_id))
+                group = group_res.scalar_one_or_none()
+
+                if not group:
+                    return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
         
+        first_room = None        
         body = {
             "spaces": [],
             "rooms": [],
             "members": [],
-            "primary_channel_messages": [],
-            "primary_channel_id": None,
+            "primary_room_messages": [],
+            "primary_room_id": None,
         }
         
         perm_valid = PermissionValidator(client, group)
         
         if group.owner.id == client.id or \
         perm_valid.has_global_permissions_all("VIEW_ROOMS"):
-            first_room = group.rooms[0]
+            if not room:
+                first_room = group.rooms[0]
+            else: first_room = room
 
             for space in group.spaces:
                 body["spaces"].append({"group_id": group_id, "name": space.name, "id": space.id})
@@ -190,15 +214,15 @@ class APIListener:
                     "id": member.id, 
                 })
 
-            for message in first_room:
-                body["primary_channel_messages"].append({
+            for message in first_room.messages:
+                body["primary_room_messages"].append({
                     "client_id": message.author.id, 
                     "nickname": message.author.nickname,
                     "content": message.content,
                     "id": message.id, 
                 })
 
-            body["primary_channel_id"] = first_room.id
+            body["primary_room_id"] = first_room.id
 
             return {
                 "status": True, 

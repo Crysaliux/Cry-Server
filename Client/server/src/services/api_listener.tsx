@@ -48,8 +48,8 @@ const FetchedGroupSchema = z.object({
     spaces: z.array(SpaceSchema),
     rooms: z.array(RoomSchema),
     members: z.array(MemberSchema),
-    primary_channel_messages: z.array(MessageSchema), //first channel to be loaded
-    primary_channel_id: z.string(), //latest messages
+    primary_room_messages: z.array(MessageSchema), //first channel to be loaded
+    primary_room_id: z.string(), //latest messages
 });
 
 const ResponseSchema = z.object({ //hbb - handled by backend
@@ -89,7 +89,7 @@ export const APIListener = () => {
     };
 
     useEffect(() => {
-        const fetch_group = async (id: string, room_id: string) => {
+        const fetch_group = async (id: string, room_id: string | null) => {
             await __fetch_group(id, room_id);
         };
 
@@ -97,7 +97,10 @@ export const APIListener = () => {
         if (parts.length < 1) return;
 
         const [group_id, room_id] = parts;
-        if (group_id) fetch_group(group_id, room_id);
+        if (group_id) {
+            if (room_id) fetch_group(group_id, room_id);
+            else fetch_group(group_id, null);
+        }
 
     }, [location]);
 
@@ -335,9 +338,9 @@ export const APIListener = () => {
         set_objects("messages", transform(fetched_messages));
     };
 
-    const __fetch_group = async (id: string, group_id: string) => {
+    const __fetch_group = async (id: string, room_id: string | null) => {
         const response = await APIHatch.get("/fetch_group", {
-            headers: { session_token: SessionTokenReference.current, id: id, group_id: group_id },
+            headers: { session_token: SessionTokenReference.current, id: id, room_id: room_id },
         });
 
         const parsed_response = ResponseSchema.safeParse(response);
@@ -373,7 +376,7 @@ export const APIListener = () => {
         set_objects("spaces", transform(fetched_group.spaces));
         set_objects("rooms", transform(fetched_group.rooms));
         set_objects("members", transform(fetched_group.members));
-        set_objects("messages", transform(fetched_group.primary_channel_messages));
+        set_objects("messages", transform(fetched_group.primary_room_messages));
     };
 
     return null;

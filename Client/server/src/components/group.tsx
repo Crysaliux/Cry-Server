@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export interface Group {
     name: string;
+    global_name: string;
     about_group: string | null;
     icon_url: string | null;
     nsfw: boolean;
@@ -13,6 +14,7 @@ export interface Group {
 
 export const GroupSchema = z.object({
     name: z.string(),
+    global_name: z.string(),
     about_group: z.string().nullable(),
     icon_url: z.string().nullable(),
     nsfw: z.boolean(),
