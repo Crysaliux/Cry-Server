@@ -312,7 +312,7 @@ class APIListener:
 
         room_res = await session.execute(select(Room).options(
             selectinload(Room.messages),
-        ).where(Room.id == room_id))
+        ).where(Room.id == room_id, Room.group_id == group_id))
         room = room_res.scalar_one_or_none()
 
         if not group:
@@ -360,6 +360,7 @@ class APIListener:
         rtr_res = await session.execute(select(RoleToRoomPerms).where(
             RoleToRoomPerms.role_id == role_id,
             RoleToRoomPerms.room_id == room_id,
+            RoleToRoomPerms.group_id == group_id,
         ))
         rtr = rtr_res.scalar_one_or_none()
 
@@ -397,8 +398,8 @@ class APIListener:
             return await self.__call_fetch_rooms(session_token, payload.group_id)
 
         @self.router.post("/fetch_group")
-        async def fetch_group(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_group(session_token, payload.group_id)
+        async def fetch_group(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
+            return await self.__call_fetch_group(session_token, payload.group_id, payload.room_id)
 
         @self.router.post("/fetch_members")
         async def fetch_members(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
