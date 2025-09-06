@@ -92,18 +92,43 @@ export const APIListener = () => {
         const fetch_group = async (id: string, room_id: string | null) => {
             await __fetch_group(id, room_id);
         };
+        const fetch_messages = async (group_id: string, room_id: string) => {
+            await __fetch_messages(group_id, room_id);
+        };
 
         const parts = location.pathname.split("/").filter(Boolean);
         if (parts.length < 1) return;
 
         const [group_id, room_id] = parts;
         if (group_id) {
-            if (room_id) fetch_group(group_id, room_id);
+            if (room_id) {
+                if (!context_data.current_group.current) {
+                    throw new Error("Current group undefined, can't fetch!");
+                }
+
+                if (context_data.current_group.current.id !== group_id) fetch_group(group_id, room_id);
+                else fetch_messages(group_id, room_id);
+            }
             else fetch_group(group_id, null);
         }
 
     }, [location]);
 
+    /*
+    APIListener's url handler:
+        Every url gets fetched and checked to see whether it contains a single group url or both
+        group and room urls.
+
+        If only group url is present:
+            The corresponding group is fully fetched, yet the url might as well be the group's global name.
+            Backend accepts both.
+
+            Chat from the first group's room is fetched.
+
+        If both group and room urls are present:
+            The corresponding group is fully fetched along with the specified room's chat.
+
+    */
 
     const __fetch_groups = async () => {
         const response = await APIHatch.get("/fetch_groups", {
