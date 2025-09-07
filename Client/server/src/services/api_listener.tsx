@@ -3,7 +3,6 @@ import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
 import { z, ZodRawShape, ZodObject } from "zod";
-import { APIHatch } from "./listener";
 import { useObjects } from "./worker";
 import { useErrorHandler } from "./handlers/error_handler";
 import { 
@@ -28,11 +27,6 @@ import {
     MemberSchema,
 } from "components/index";
 
-//Fetch core global context
-const context_data = useContext(CoreGlobalContext);
-if (!context_data) {
-    throw new Error("Can't load CoreGlobalContext for oauth");
-}
 
 const ErrorSchema = z.object({
     index: z.string(),
@@ -77,6 +71,19 @@ response can be:
 */
 
 export const APIListener = () => {
+    //Fetch core global context
+    const context_data = useContext(CoreGlobalContext);
+    if (!context_data) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
+    const APIHatch: AxiosInstance = axios.create({
+        baseURL: `${context_data.api_hatch_addr.current}`,
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
     const location = useLocation();
     const navigate = useNavigate();
     const set_objects = useObjects((state) => state.setObjects);

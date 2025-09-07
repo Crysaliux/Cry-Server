@@ -1,5 +1,6 @@
 import React from "react";
 
+
 const SignUpLayout: React.FC = () => {
     return (
         <>

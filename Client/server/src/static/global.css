@@ -1,0 +1,23 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --widgets: #333446;
+    --active_elements: #B8CFCE;
+    --elements: #7F8CAA;
+    --highlight: #b2d1d0;
+    --background: linear-gradient(to bottom right, #EAEFEF, #7F8CAA, #333446);
+
+    --status_online: #3ece78;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--background);
+    color: #ffffff;
+    height: 100vh;
+    overflow: hidden;
+}

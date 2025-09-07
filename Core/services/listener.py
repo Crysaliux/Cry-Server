@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, TypeAdapter, Field as _type
 from typing import List, Union, Annotated, Literal
 from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
@@ -14,11 +13,6 @@ from PIL import Image
 import aiofiles
 import socketio
 import asyncio
-import json
-import time
-import jwt
-import io
-import os
 
 
 class Listener:
@@ -54,7 +48,6 @@ class Listener:
         self.algorithm = algorithm
         self.gateway = gateway
         self.perms = perms
-        self.router = APIRouter()
 
         self.event_bindings = {
             "connect": self.__on_connect,

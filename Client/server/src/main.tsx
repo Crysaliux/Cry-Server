@@ -1,9 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import 'static/contacts_interface.css';
-import 'static/group_interface.css';
-import 'static/global_interface.css';
+
+import "static/global.css";
+import "static/group.css";
+import "static/login.css";
+import "static/sign_up.css";
+import "static/main_page.css";
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

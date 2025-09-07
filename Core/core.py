@@ -42,9 +42,6 @@ class Core(FastAPI):
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
         self.gateway = socketio.AsyncServer(async_mode="asgi", client_manager=self.rm)
-        self.mount("/gateway", socketio.ASGIApp(self.gateway, self))
-        self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
-        self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
 
         self.worker = Worker()
         self.cecchm = CECCHManager(self.gateway)
@@ -76,21 +73,13 @@ class Core(FastAPI):
 
         self.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=[self.client_server_origin],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
 
-        self.oauth = Authentication(
-            worker_session=self.worker.worker_session(),
-            hasher=self.hasher, 
-            algorithm=self.algorithm, 
-            access_key=self.server_access_key,
-            oauth2=self.oauth2,
-        )
-        self.oauth.router_tasks()
-
+        #Initializing Listener module
         self.listener = Listener(
             addr=(self.sv_host, self.sv_port),
             worker_session=self.worker.worker_session(),
@@ -108,8 +97,18 @@ class Core(FastAPI):
             gateway=self.gateway,
             perms = self.perms,
         )
-        self.listener.router_tasks()
 
+        #Initializing Oauth module
+        self.oauth = Authentication(
+            worker_session=self.worker.worker_session(),
+            hasher=self.hasher, 
+            algorithm=self.algorithm, 
+            access_key=self.server_access_key,
+            oauth2=self.oauth2,
+        )
+        self.oauth.router_tasks()
+
+        #Initializing APIListener module
         self.api_listener = APIListener(
             worker_session=self.worker.worker_session(),
             oauth2=self.oauth2,
@@ -120,7 +119,6 @@ class Core(FastAPI):
         self.api_listener.router_tasks()
 
         self.include_router(self.oauth.router, prefix="/oauth")
-        self.include_router(self.listener.router, prefix="/gateway")
         self.include_router(self.api_listener.router, prefix="/api")
 
         self.main_routes = [
@@ -129,6 +127,10 @@ class Core(FastAPI):
 
         for route in self.main_routes:
             self.add_api_route(route["path"], route["func"], methods=route["method"], response_class=HTMLResponse)
+
+        self.mount("/gateway", socketio.ASGIApp(self.gateway, self))
+        self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
+        self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
 
     
     def start(self):

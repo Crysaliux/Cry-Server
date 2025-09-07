@@ -25,9 +25,7 @@ const App: React.FC = () => { //Logically correct, yet usable?
                                 <Route path="oauth2/login" element={<LoginLayout />} />
 
                                 <Route path=":group_id" element={<GroupLayout />}>
-                                    <Route path=":room_id" element={<RoomLayout />}>
-                                        <Route path=":mesage_id" element={} />
-                                    </Route>
+                                    <Route path=":room_id" element={<RoomLayout />} />
                                 </Route>
                             </Route>
                         </Routes>

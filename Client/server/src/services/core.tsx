@@ -2,6 +2,7 @@ import React, { createContext, Dispatch, ReactNode, SetStateAction, useState, me
 import { Client, Group, Room } from "components/index";
 
 interface CoreGlobalProperties {
+    server_host: RefObject<string>;
     api_oauth_addr: RefObject<string>;
     gateway_addr: RefObject<string>;
     api_hatch_addr: RefObject<string>;
@@ -23,8 +24,9 @@ export const CoreGlobalContext = createContext<CoreGlobalProperties | undefined>
 
 export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     //GLOBAL CORE PROPERTIES/REFERENCES
+    const server_host = useRef<string>('localhost:8080');
     const api_oauth_addr = useRef<string>('localhost:8080/oauth/');
-    const gateway_addr = useRef<string>('localhost:8080/gateway/');
+    const gateway_addr = useRef<string>('/gateway/socket.io');
     const api_hatch_addr = useRef<string>('localhost:8080/api_hatch/');
     const session_token = useRef<string | null>(null);
     const max_reconnection_attempts = useRef<number>(5);
@@ -37,6 +39,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
 
     return (
         <CoreGlobalContext.Provider value = {{
+            server_host,
             api_oauth_addr,
             gateway_addr,
             api_hatch_addr,
