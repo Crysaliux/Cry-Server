@@ -11,7 +11,7 @@ from ..components import *
 from .validators import *
 from PIL import Image
 import aiofiles
-import socketio
+from socketio.async_server import AsyncServer
 import asyncio
 
 
@@ -30,7 +30,7 @@ class Listener:
             heartbeat_interval: int,
             algorithm, access_key, 
             addr: tuple, 
-            gateway: socketio.AsyncServer,
+            gateway: AsyncServer,
             perms,
         ):
         self.addr = addr
@@ -89,14 +89,22 @@ class Listener:
             "error": error,
         }, to=sid)
 
+    async def __emit_access_error(self, sid, event: str, error: dict):
+        await self.gateway.emit(event, {
+            "error": error,
+        }, to=sid)
+
 #Listener module's main body
     async def __on_connect(self, sid, eviron, auth, session):
-        session_token = auth["session_token"]
+        try: session_token = auth["session_token"]
+        except KeyError:
+            return False
+        
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.session_is_valid(session_token, session)
 
         if not status:
-            raise ConnectionRefusedError("INVALID_OR_EXPIRED_SESSION_TOKEN")
+            return False
         
         await self.gateway.save_session(sid, {"client": client, "session_token": session_token})
 
@@ -1060,7 +1068,7 @@ class Listener:
 
 
 #Add fetchers to router tasks.
-    def router_tasks(self):
+    """def router_tasks(self):
         @self.router.post("/upload_attachement", response_class=HTMLResponse) #Update code, modify
         async def upload_attachement(request: Request, index: str = Form(...), channel_id: str = Form(...), file: UploadFile = File(...)):
             if request.headers.get('origin') != self.client_server_origin:
@@ -1078,4 +1086,4 @@ class Listener:
                     await buffer.write(data)
             except:
                 return JSONResponse(content={"success": False}, status_code=201)
-            return JSONResponse(content={"url": file_url}, status_code=201)
+            return JSONResponse(content={"url": file_url}, status_code=201)"""

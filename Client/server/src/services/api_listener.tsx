@@ -4,7 +4,7 @@ import axios, { AxiosInstance } from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
 import { z, ZodRawShape, ZodObject } from "zod";
 import { useObjects } from "./worker";
-import { useErrorHandler } from "./handlers/error_handler";
+import { ErrorHandler } from "./handlers/error_handler";
 import { 
     Client,
     Group, 
@@ -160,7 +160,7 @@ export const APIListener = () => {
                 return;
             }
 
-            useErrorHandler(error.data.index, error.data.target);
+            ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
         const actual = z.array(GroupSchema).safeParse(parsed_response.data.response);
@@ -199,7 +199,7 @@ export const APIListener = () => {
                 return;
             }
 
-            useErrorHandler(error.data.index, error.data.target);
+            ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
         const actual = FetchedRoomsSchema.safeParse(parsed_response.data.response);
@@ -238,7 +238,7 @@ export const APIListener = () => {
                 return;
             }
 
-            useErrorHandler(error.data.index, error.data.target);
+            ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
         const actual = z.array(MemberSchema).safeParse(parsed_response.data.response);
@@ -277,7 +277,7 @@ export const APIListener = () => {
                 return;
             }
 
-            useErrorHandler(error.data.index, error.data.target);
+            ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
         const actual = z.array(RoleSchema).safeParse(parsed_response.data.response);
@@ -316,7 +316,7 @@ export const APIListener = () => {
                 return;
             }
 
-            useErrorHandler(error.data.index, error.data.target);
+            ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
         const actual = PermissionsTableSchema.safeParse(parsed_response.data.response);
@@ -354,7 +354,7 @@ export const APIListener = () => {
                 return;
             }
 
-            useErrorHandler(error.data.index, error.data.target);
+            ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
         const actual = z.array(MessageSchema).safeParse(parsed_response.data.response);
@@ -393,7 +393,7 @@ export const APIListener = () => {
                 return;
             }
 
-            useErrorHandler(error.data.index, error.data.target);
+            ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
         const actual = FetchedGroupSchema.safeParse(parsed_response.data.response);

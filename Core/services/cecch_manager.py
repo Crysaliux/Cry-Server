@@ -1,10 +1,10 @@
-import socketio
+from socketio.async_server import AsyncServer
 import asyncio
 import uuid
 #Client Event Clusters Connection Handling Manager
 
 class CECCHManager:
-    def __init__(self, gateway: socketio.AsyncServer, concurrency: int = 10, batch_size: int = 100):
+    def __init__(self, gateway: AsyncServer, concurrency: int = 10, batch_size: int = 100):
         self.gateway = gateway
         self.concurrency = concurrency
         self.batch_size = batch_size

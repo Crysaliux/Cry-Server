@@ -203,7 +203,7 @@ This is pretty simple:
 
 class Worker:
     def __init__(self):
-        self.engine = create_async_engine("sqlite+aiosqlite://", echo=True)
+        self.engine = create_async_engine("sqlite+aiosqlite://", echo=False) #make True for precise logging
         self.session = sessionmaker(bind=self.engine, class_=AsyncSession, expire_on_commit=False)
 
     async def start(self):

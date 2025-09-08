@@ -1,20 +1,18 @@
-import { useNavigate } from "react-router-dom";
+import { NavigateFunction, useNavigate } from "react-router-dom";
 
-export function useErrorHandler(index: string, target: string) {
-    const navigate = useNavigate();
-
+export const ErrorHandler = (index: string, target: string, navigate: NavigateFunction) => {
     switch (index) {
         case "OBJECT_NON_EXISTANT":
             if (target === "client") {
                 try {
                     navigate("/login")
                 } catch(error) {
-                    console.error(`Failed to navigate to /login: ${error}`)
+                    console.error(`Failed to navigate to /login: ${error}`);
                 }
             }
             break;
         case "INVALID_OR_EXPIRED_SESSION_TOKEN":
-            //
+            console.log("INVALID_OR_EXPIRED_SESSION_TOKEN"); //test
             break;
         case "UNRELATED":
             //

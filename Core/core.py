@@ -8,6 +8,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from socketio.async_redis_manager import AsyncRedisManager
+from socketio.async_server import AsyncServer
+from socketio.asgi import ASGIApp
 from pydantic import BaseModel
 from itertools import takewhile
 from datetime import datetime
@@ -21,12 +23,16 @@ import threading
 import asyncio
 import uvicorn
 import socketio
+import logging
 import json
 import time
 import ast
 import os
 import uuid
 import re
+
+#logging
+logging.basicConfig(level=logging.DEBUG)
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.json")) as conf:
     CONFIG = json.load(conf)
@@ -41,7 +47,12 @@ class Core(FastAPI):
         self.rm = AsyncRedisManager("redis://localhost:6379/0")
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
-        self.gateway = socketio.AsyncServer(async_mode="asgi", client_manager=self.rm)
+        self.gateway = AsyncServer(
+            async_mode="asgi", 
+            client_manager=self.rm, 
+            logger=True, 
+            cors_allowed_origins=self.client_server_origin
+        ) #Disable logger later
 
         self.worker = Worker()
         self.cecchm = CECCHManager(self.gateway)
@@ -128,7 +139,9 @@ class Core(FastAPI):
         for route in self.main_routes:
             self.add_api_route(route["path"], route["func"], methods=route["method"], response_class=HTMLResponse)
 
-        self.mount("/gateway", socketio.ASGIApp(self.gateway, self))
+        self.gt_app = ASGIApp(self.gateway, other_asgi_app=self, socketio_path="gateway")
+
+        self.mount("/gateway", self.gt_app)
         self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
         self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
 

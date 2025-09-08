@@ -23,7 +23,8 @@ import {
 import axios, { AxiosInstance } from "axios";
 import { CoreGlobalContext } from "./core";
 import { useObjects } from "./worker";
-import { useErrorHandler } from "./handlers/error_handler";
+import { ErrorHandler } from "./handlers/error_handler";
+import { useNavigate } from "react-router-dom";
 
 
 interface GatewayProperties {
@@ -54,10 +55,14 @@ const BasicSchema = z.object({
     id: z.string(),
 });
 
-const ErrorSchema = z.object({
+export const ErrorSchema = z.object({
     index: z.string(),
     target: z.string(),
 });
+
+const AccessErrorSchema = z.object({
+    error: ErrorSchema,
+})
 
 const GatewayResponseSchema = z.object({
     status: z.boolean(),
@@ -96,12 +101,15 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
     const gateway = io(context_data.server_host.current, {
         path: context_data.gateway_addr.current,
+        auth: {"session_token": "UwUAwA"}, //test
         reconnection: true,
         transports: ["websocket"],
         reconnectionAttempts: context_data.max_reconnection_attempts.current,
         reconnectionDelay: context_data.reconnection_delay.current,
         reconnectionDelayMax: context_data.max_reconnection_delay.current,
     });
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         gateway.on("connect", () => console.log("Successfully connected to gateway"));
@@ -111,6 +119,24 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         gateway.on("reconnect_attempt", () => console.log("Attempting to reconnect to gateway..."));
         gateway.on("reconnect_failed", () => console.error("Reconnection to gateway failed, is the server dead?"));
 
+        //Access handlers
+        gateway.on("connection_refused", (data) => {
+            const response = AccessErrorSchema.safeParse(data);
+            
+            if (!response.success) {
+                console.warn(`Incoming request can't be processed: ${response.data}`); //why here only?
+                return;
+            }
+
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (error.index) {
+                    ErrorHandler(error.index, error.target, navigate);
+                } else {
+                    console.error("Can't display exact error, no index provided");
+                }
+                return;
+        });
 
         gateway.on("group_created", (data) => {
             const response = GatewayResponseSchema.safeParse(data);
@@ -132,7 +158,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -160,7 +186,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -188,7 +214,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -216,7 +242,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -244,7 +270,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -272,7 +298,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -301,7 +327,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -329,7 +355,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -357,7 +383,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -385,7 +411,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -413,7 +439,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -441,7 +467,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -469,7 +495,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -498,7 +524,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -526,7 +552,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -554,7 +580,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -582,7 +608,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -610,7 +636,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -638,7 +664,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    useErrorHandler(error.index, error.target);
+                    ErrorHandler(error.index, error.target, navigate);
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -656,6 +682,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("reconnect_attempt");
             gateway.off("reconnect_failed");
 
+            gateway.off("connection_refused");
 
             gateway.off("group_created");
             gateway.off("space_created");

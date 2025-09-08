@@ -24,7 +24,7 @@ export const CoreGlobalContext = createContext<CoreGlobalProperties | undefined>
 
 export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     //GLOBAL CORE PROPERTIES/REFERENCES
-    const server_host = useRef<string>('localhost:8080');
+    const server_host = useRef<string>('http://localhost:8080');
     const api_oauth_addr = useRef<string>('localhost:8080/oauth/');
     const gateway_addr = useRef<string>('/gateway/socket.io');
     const api_hatch_addr = useRef<string>('localhost:8080/api_hatch/');
