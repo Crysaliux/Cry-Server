@@ -15,7 +15,7 @@ const App: React.FC = () => { //Logically correct, yet usable?
     return (
         <BrowserRouter>
             <Core>
-                <APIListener/>
+                <APIListener>
                 <Listener>
                     <div id="container">
                         <Routes>
@@ -31,6 +31,7 @@ const App: React.FC = () => { //Logically correct, yet usable?
                         </Routes>
                     </div>
                 </Listener>
+                </APIListener>
             </Core>
         </BrowserRouter>
     );

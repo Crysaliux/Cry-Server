@@ -47,6 +47,7 @@ class APIListener:
             "fetch_roles": self.__fetch_roles,
             "fetch_messages": self.__fetch_messages,
             "fetch_permstable": self.__fetch_permstable,
+            "fetch_primary_room": self.__fetch_primary_room,
         }
         self.__register_api_call_handlers()
 
@@ -120,11 +121,11 @@ class APIListener:
         perm_valid = PermissionValidator(client, group)
         
         if group.owner.id == client.id or \
-        perm_valid.has_global_permissions_all("VIEW_ROOMS"):
+        perm_valid.has_global_permissions_all(["VIEW_ROOMS"]):
             for space in group.spaces:
                 body["spaces"].append({"group_id": group_id, "name": space.name, "id": space.id})
             for room in group.rooms:
-                if perm_valid.has_room_permission("VIEW_ROOM", room.id):
+                if perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"]):
                     body["rooms"].append({
                         "group_id": group_id, 
                         "space_id": room.space_id, 
@@ -141,7 +142,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
-    async def __fetch_group(self, session_token: str, group_id: str, room_id: Union[str, None], session):
+    async def __fetch_group(self, session_token: str, group_id: str, room_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
 
@@ -177,28 +178,26 @@ class APIListener:
                 if not group:
                     return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
         
-        first_room = None        
+        if not room:
+            return self.__emit_api_error("OBJECT_NON_EXISTANT", "room")
+             
         body = {
             "spaces": [],
             "rooms": [],
             "members": [],
             "primary_room_messages": [],
-            "primary_room_id": None,
         }
         
         perm_valid = PermissionValidator(client, group)
         
-        if group.owner.id == client.id or \
-        perm_valid.has_global_permissions_all("VIEW_ROOMS"):
-            if not room:
-                first_room = group.rooms[0]
-            else: first_room = room
-
+        owner = group.owner.id == client.id
+        if owner or \
+        (perm_valid.has_global_permissions_all(["VIEW_ROOMS"]) and perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"])):
             for space in group.spaces:
                 body["spaces"].append({"group_id": group_id, "name": space.name, "id": space.id})
 
             for room in group.rooms:
-                if perm_valid.has_room_permission("VIEW_ROOM", room.id):
+                if perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"]) or owner:
                     body["rooms"].append({
                         "group_id": group_id, 
                         "space_id": room.space_id, 
@@ -214,7 +213,7 @@ class APIListener:
                     "id": member.id, 
                 })
 
-            for message in first_room.messages:
+            for message in room.messages:
                 body["primary_room_messages"].append({
                     "client_id": message.author.id, 
                     "nickname": message.author.nickname,
@@ -222,7 +221,6 @@ class APIListener:
                     "id": message.id, 
                 })
 
-            body["primary_room_id"] = first_room.id
 
             return {
                 "status": True, 
@@ -279,7 +277,7 @@ class APIListener:
         perm_valid = PermissionValidator(client, group)
         
         if group.owner.id == client.id or \
-        perm_valid.has_global_permissions_all("MANAGE_ROLES"):
+        perm_valid.has_global_permissions_all(["MANAGE_ROLES"]):
             
             for role in group.roles:
                 roles.append({
@@ -326,8 +324,8 @@ class APIListener:
         perm_valid = PermissionValidator(client, group)
         
         if group.owner.id == client.id or \
-        perm_valid.has_global_permissions_all("VIEW_ROOMS") or \
-        perm_valid.has_room_permissions_all("VIEW_ROOM"):
+        perm_valid.has_global_permissions_all(["VIEW_ROOMS"]) or \
+        perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"]):
             
             for message in room.messages[-self.message_load_batch_size:]:
                 messages.append({
@@ -373,7 +371,7 @@ class APIListener:
         perm_valid = PermissionValidator(client, group)
         
         if group.owner.id == client.id or \
-        perm_valid.has_global_permissions_all("MANAGE_ROLES"):
+        perm_valid.has_global_permissions_all(["MANAGE_ROLES"]):
 
             return {
                 "status": True, 
@@ -387,32 +385,74 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
     
+    async def __fetch_primary_room(self, session_token: str, group_id: str, session):
+        valid = ClientValidator(self.access_key, self.algorithm)
+        status, client = valid.session_is_valid(session_token, session)
+
+        if not status:
+            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.rooms),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        if not group:
+            return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
+        
+        perm_valid = PermissionValidator(client, group)
+        
+        owner = group.owner.id == client.id
+        if owner or \
+        perm_valid.has_global_permissions_all(["VIEW_ROOMS"]):
+            room_id = None
+
+            for room in group.rooms:
+                if room_id: break
+                if perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"]) or owner:
+                    room_id = room.id
+
+            return {
+                "status": True, 
+                "body": {
+                    "room_id": room_id,
+                }, 
+                "error": None,
+            }
+        
+        return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
+    
 
     def router_tasks(self):
-        @self.router.post("/fetch_groups")
+        @self.router.get("/fetch_groups")
         async def fetch_groups(request: Request, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_groups(session_token)
 
-        @self.router.post("/fetch_rooms")
+        @self.router.get("/fetch_rooms")
         async def fetch_rooms(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_rooms(session_token, payload.group_id)
 
-        @self.router.post("/fetch_group")
+        @self.router.get("/fetch_group")
         async def fetch_group(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_group(session_token, payload.group_id, payload.room_id)
 
-        @self.router.post("/fetch_members")
+        @self.router.get("/fetch_members")
         async def fetch_members(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_members(session_token, payload.group_id)
 
-        @self.router.post("/fetch_roles")
+        @self.router.get("/fetch_roles")
         async def fetch_roles(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_roles(session_token, payload.group_id)
 
-        @self.router.post("/fetch_messages")
+        @self.router.get("/fetch_messages")
         async def fetch_messages(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_messages(session_token, payload.group_id, payload.room_id)
         
-        @self.router.post("/fetch_permstable")
+        @self.router.get("/fetch_permstable")
         async def fetch_permstable(request: Request, payload: RoleRelated, session_token: str = Depends(self.oauth2)):
             return await self.__call_fetch_permstable(session_token, payload.group_id, payload.room_id, payload.role_id)
+        
+        @self.router.get("/fetch_primary_room")
+        async def fetch_primary_room(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
+            return await self.__call_fetch_primary_room(session_token, payload.group_id)

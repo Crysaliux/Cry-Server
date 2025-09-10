@@ -1,4 +1,4 @@
-import { useEffect, useContext, useRef } from "react";
+import { useEffect, useContext, useRef, createContext, ReactNode } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -49,6 +49,7 @@ const FetchedGroupSchema = z.object({
 const ResponseSchema = z.object({ //hbb - handled by backend
     status: z.boolean(),
     response: z.union([
+        z.string(),
         ErrorSchema,
         z.array(GroupSchema), //[hbb] here we fetch all groups
         z.array(RoleSchema), //[hbb] here we fetch all roles
@@ -70,16 +71,34 @@ response can be:
 - arrays or spaces & rooms & members &  primary channel's messages and primary channel's id
 */
 
-export const APIListener = () => {
+interface APIListenerProperties {
+    children: ReactNode;
+}
+
+interface APIProperties {
+    fetchGroups: () => void;
+    fetchRooms: (group_id: string) => void;
+    fetchMembers: (group_id: string) => void;
+    fetchRoles: (group_id: string) => void;
+    fetchPermstable: (group_id: string, room_id: string, role_id: string) => void;
+    fetchMessages: (group_id: string, room_id: string) => void;
+    fetchGroup: (id: string, room_id: string) => void;
+    fetchPrimaryRoom: (group_id: string) => void;
+}
+
+export const APIHatch = createContext<APIProperties | undefined>(undefined);
+
+export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     //Fetch core global context
     const context_data = useContext(CoreGlobalContext);
     if (!context_data) {
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
-    const APIHatch: AxiosInstance = axios.create({
-        baseURL: `${context_data.api_hatch_addr.current}`,
+    const APIrs: AxiosInstance = axios.create({
+        baseURL: `${context_data.core_server_host.current}${context_data.api_hatch_addr.current}`,
         headers: {
+            "session_token": `${context_data.session_token}`,
             "Content-Type": "application/json",
         },
     });
@@ -95,50 +114,9 @@ export const APIListener = () => {
         return transobj
     };
 
-    useEffect(() => {
-        const fetch_group = async (id: string, room_id: string | null) => {
-            await __fetch_group(id, room_id);
-        };
-        const fetch_messages = async (group_id: string, room_id: string) => {
-            await __fetch_messages(group_id, room_id);
-        };
-
-        const parts = location.pathname.split("/").filter(Boolean);
-        if (parts.length < 1) return;
-
-        const [group_id, room_id] = parts;
-        if (group_id) {
-            if (room_id) {
-                if (!context_data.current_group.current) {
-                    throw new Error("Current group undefined, can't fetch!");
-                }
-
-                if (context_data.current_group.current.id !== group_id) fetch_group(group_id, room_id);
-                else fetch_messages(group_id, room_id);
-            }
-            else fetch_group(group_id, null);
-        }
-
-    }, [location]);
-
-    /*
-    APIListener's url handler:
-        Every url gets fetched and checked to see whether it contains a single group url or both
-        group and room urls.
-
-        If only group url is present:
-            The corresponding group is fully fetched, yet the url might as well be the group's global name.
-            Backend accepts both.
-
-            Chat from the first group's room is fetched.
-
-        If both group and room urls are present:
-            The corresponding group is fully fetched along with the specified room's chat.
-
-    */
 
     const __fetch_groups = async () => {
-        const response = await APIHatch.get("/fetch_groups", {
+        const response = await APIrs.get("/fetch_groups", {
             headers: { session_token: SessionTokenReference.current },
         });
 
@@ -177,7 +155,7 @@ export const APIListener = () => {
     };
 
     const __fetch_rooms = async (group_id: string) => {
-        const response = await APIHatch.get("/fetch_rooms", {
+        const response = await APIrs.get("/fetch_rooms", {
             headers: { session_token: SessionTokenReference.current, group_id: group_id },
         });
 
@@ -216,7 +194,7 @@ export const APIListener = () => {
     };
 
     const __fetch_members = async (group_id: string) => {
-        const response = await APIHatch.get("/fetch_members", {
+        const response = await APIrs.get("/fetch_members", {
             headers: { session_token: SessionTokenReference.current, group_id: group_id },
         });
 
@@ -255,7 +233,7 @@ export const APIListener = () => {
     };
 
     const __fetch_roles = async (group_id: string) => {
-        const response = await APIHatch.get("/fetch_roles", {
+        const response = await APIrs.get("/fetch_roles", {
             headers: { session_token: SessionTokenReference.current, group_id: group_id },
         });
 
@@ -294,7 +272,7 @@ export const APIListener = () => {
     };
 
     const __fetch_permstable = async (group_id: string, room_id: string, role_id: string) => {
-        const response = await APIHatch.get("/fetch_permstable", {
+        const response = await APIrs.get("/fetch_permstable", {
             headers: { session_token: SessionTokenReference.current, group_id: group_id, room_id: room_id, role_id: role_id },
         });
 
@@ -332,7 +310,7 @@ export const APIListener = () => {
     };
 
     const __fetch_messages = async (group_id: string, room_id: string) => {
-        const response = await APIHatch.get("/fetch_messages", {
+        const response = await APIrs.get("/fetch_messages", {
             headers: { session_token: SessionTokenReference.current, group_id: group_id, room_id: room_id },
         });
 
@@ -370,8 +348,8 @@ export const APIListener = () => {
         set_objects("messages", transform(fetched_messages));
     };
 
-    const __fetch_group = async (id: string, room_id: string | null) => {
-        const response = await APIHatch.get("/fetch_group", {
+    const __fetch_group = async (id: string, room_id: string) => {
+        const response = await APIrs.get("/fetch_group", {
             headers: { session_token: SessionTokenReference.current, id: id, room_id: room_id },
         });
 
@@ -411,5 +389,89 @@ export const APIListener = () => {
         set_objects("messages", transform(fetched_group.primary_room_messages));
     };
 
-    return null;
+    const __fetch_primary_room = async (group_id: string) => {
+        const response = await APIrs.get("/fetch_group", {
+            headers: { session_token: SessionTokenReference.current, group_id: group_id },
+        });
+
+        const parsed_response = ResponseSchema.safeParse(response);
+
+        if (!parsed_response.success) {
+            console.error(`Primary room id fetch failed, can't process server response: ${parsed_response.data}`);
+            return;
+        }
+
+        if (!parsed_response.data.status) {
+            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            if (!error.success) {
+                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                return;
+            }
+            if (!error.data.index) {
+                console.error("Can't display exact error, no index provided");
+                return;
+            }
+
+            ErrorHandler(error.data.index, error.data.target, navigate);
+        }
+
+        const actual = z.string().safeParse(parsed_response.data.response);
+
+        if (!actual.success) {
+            console.error(`Primary room id fetch failed, can't process server response: ${parsed_response.data.response}`);
+            return;
+        }
+
+        const room_id: z.infer<typeof z.string> = actual.data;
+
+        return room_id;
+    };
+
+    const fetchGroups = async () => {
+        await __fetch_groups();
+    };
+
+    const fetchRooms = async (group_id: string) => {
+        await __fetch_rooms(group_id);
+    };
+
+    const fetchMembers = async (group_id: string) => {
+        await __fetch_members(group_id);
+    };
+
+    const fetchRoles = async (group_id: string) => {
+        await __fetch_roles(group_id);
+    };
+
+    const fetchPermstable = async (group_id: string, room_id: string, role_id: string) => {
+        await __fetch_permstable(group_id, room_id, role_id);
+    };
+
+    const fetchMessages = async (group_id: string, room_id: string) => {
+        await __fetch_messages(group_id, room_id);
+    };
+
+    const fetchGroup = async (id: string, room_id: string) => {
+        await __fetch_group(id, room_id);
+    };
+
+    const fetchPrimaryRoom = async (group_id: string) => {
+        return await __fetch_primary_room(group_id);
+    };
+
+
+    return (
+        <APIHatch.Provider value={{ 
+            fetchGroups,
+            fetchRooms,
+            fetchMembers,
+            fetchRoles,
+            fetchPermstable,
+            fetchMessages,
+            fetchGroup,
+            fetchPrimaryRoom,
+         }}>
+            { children }
+        </APIHatch.Provider>
+    );
 };

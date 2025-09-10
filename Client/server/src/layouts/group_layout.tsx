@@ -1,4 +1,8 @@
 import React from "react";
+import { useContext } from "react";
+import { CoreGlobalContext } from "services/core";
+import { APIHatch } from "services/api_listener";
+import { useNavigate, useParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { 
     useGroups,  
@@ -8,13 +12,35 @@ import {
 
 
 const GroupLayout: React.FC = () => {
+    const context_data = useContext(CoreGlobalContext);
+        if (!context_data) {
+            throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
+    const api_hatch = useContext(APIHatch);
+        if (!api_hatch) {
+            throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+    const navigate = useNavigate();
+
+    const { group_id, room_id } = useParams();
+
+    if (!context_data.current_group.current) {
+        if (group_id) {
+            if (room_id) api_hatch.fetchGroup(group_id, room_id);
+            else api_hatch.fetchGroup(group_id, null); //will fix, fetchPromaryRoom => room_id (string)
+        } else {
+            //404 not found page!
+        }
+    }
+
     const groups = useGroups();
     const rooms = useRooms();
     const spaces = useSpaces();
 
     const groups_array = Object.values(groups);
     const rooms_array = Object.values(rooms);
-    const spaces_array =    Object.values(spaces);
+    const spaces_array = Object.values(spaces);
 
     const orphan_rooms = rooms_array.filter((room) => room.space_id === null);
     const FetchChildRooms = (space_id: string) => {

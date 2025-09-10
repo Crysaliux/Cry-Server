@@ -88,7 +88,7 @@ class Authentication:
         return {
             "status": True, 
             "body": {
-                "access_token": access_token, #does frontend need it?
+                "access_token": access_token,
                 "session_token": session_token
             }, 
             "error": None,
@@ -121,7 +121,7 @@ class Authentication:
             return {
                 "status": True, 
                 "body": {
-                    "access_token": access_token, #does frontend need it?
+                    "access_token": access_token,
                     "session_token": session_token
                 }, 
                 "error": None,

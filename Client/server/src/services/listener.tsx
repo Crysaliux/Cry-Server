@@ -76,7 +76,6 @@ const GatewayResponseSchema = z.object({
     error: ErrorSchema,
 });
 
-type GatewayResponse = z.infer<typeof GatewayResponseSchema>;
 
 /*
 const parseResult = BasicSchema.safeParse(data.body);
@@ -99,9 +98,9 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         throw new Error("Can't load CoreGlobalContext for listener");
     }
 
-    const gateway = io(context_data.server_host.current, {
+    const gateway = io(context_data.core_server_host.current, {
         path: context_data.gateway_addr.current,
-        auth: {"session_token": "UwUAwA"}, //test
+        auth: {"session_token": `${context_data.session_token}`},
         reconnection: true,
         transports: ["websocket"],
         reconnectionAttempts: context_data.max_reconnection_attempts.current,

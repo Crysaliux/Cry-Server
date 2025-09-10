@@ -2,11 +2,10 @@ import React, { createContext, Dispatch, ReactNode, SetStateAction, useState, me
 import { Client, Group, Room } from "components/index";
 
 interface CoreGlobalProperties {
-    server_host: RefObject<string>;
+    core_server_host: RefObject<string>;
     api_oauth_addr: RefObject<string>;
     gateway_addr: RefObject<string>;
     api_hatch_addr: RefObject<string>;
-    session_token: RefObject<string | null>;
     max_reconnection_attempts: RefObject<number>;
     reconnection_delay: RefObject<number>;
     max_reconnection_delay: RefObject<number>;
@@ -14,6 +13,8 @@ interface CoreGlobalProperties {
     client:RefObject<Client | null>;
     current_group: RefObject<Group | null>;
     current_room: RefObject<Room | null>;
+    session_token: string | null;
+    setSessionToken: Dispatch<SetStateAction<string | null>>;
 }
 
 interface CoreProperties {
@@ -24,26 +25,28 @@ export const CoreGlobalContext = createContext<CoreGlobalProperties | undefined>
 
 export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     //GLOBAL CORE PROPERTIES/REFERENCES
-    const server_host = useRef<string>('http://localhost:8080');
-    const api_oauth_addr = useRef<string>('localhost:8080/oauth/');
+    const core_server_host = useRef<string>('http://localhost:8080');
+    const api_oauth_addr = useRef<string>('/oauth');
     const gateway_addr = useRef<string>('/gateway/socket.io');
-    const api_hatch_addr = useRef<string>('localhost:8080/api_hatch/');
-    const session_token = useRef<string | null>(null);
+    const api_hatch_addr = useRef<string>('/api');
+
     const max_reconnection_attempts = useRef<number>(5);
     const reconnection_delay = useRef<number>(1000);
     const max_reconnection_delay = useRef<number>(5000);
     const message_sent_delta = useRef<number>(60000); //milliseconds
+
     const client = useRef<Client | null>(null);
     const current_group = useRef<Group | null>(null);
     const current_room = useRef<Room | null>(null);
 
+    const [session_token, setSessionToken] = useState<string | null>(null);
+
     return (
         <CoreGlobalContext.Provider value = {{
-            server_host,
+            core_server_host,
             api_oauth_addr,
             gateway_addr,
             api_hatch_addr,
-            session_token,
             max_reconnection_attempts,
             reconnection_delay,
             max_reconnection_delay,
@@ -51,6 +54,8 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             client,
             current_group,
             current_room,
+            session_token,
+            setSessionToken,
         }}>
             { children }
         </CoreGlobalContext.Provider>
