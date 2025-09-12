@@ -4,6 +4,7 @@ import { CoreGlobalContext } from "services/core";
 import { APIHatch } from "services/api_listener";
 import { useNavigate, useParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
+import { validate, version } from 'uuid';
 import { 
     useGroups,  
     useRooms, 
@@ -22,17 +23,34 @@ const GroupLayout: React.FC = () => {
             throw new Error("Can't load CoreGlobalContext for oauth");
     }
     const navigate = useNavigate();
-
     const { group_id, room_id } = useParams();
 
-    if (!context_data.current_group.current) {
-        if (group_id) {
-            if (room_id) api_hatch.fetchGroup(group_id, room_id);
-            else api_hatch.fetchGroup(group_id, null); //will fix, fetchPromaryRoom => room_id (string)
+    if (group_id) {
+
+        if (!room_id) {
+            const id = api_hatch.fetchPrimaryRoom(group_id);
+            if (validate(id)) {
+                navigate(`/${group_id}/${room_id}`);
+            } else {
+                //404 not found, this group might not have any open rooms!
+            }
         } else {
-            //404 not found page!
+            if (context_data.current_group.current) {
+                if (context_data.current_group.current.id !== group_id) {
+                    api_hatch.fetchGroup(group_id, room_id);
+                    //setting current group, preferrably in fetchGroup()
+                } else {
+                    api_hatch.fetchMessages(group_id, room_id);
+                    //setting current room, preferrably in fetchMessages()
+                }
+            } else api_hatch.fetchGroup(group_id, room_id);
+            //setting current group, preferrably in fetchGroup()
         }
+
+    } else {
+        //404 not found page!
     }
+    
 
     const groups = useGroups();
     const rooms = useRooms();

@@ -1,29 +1,24 @@
-import { useEffect, useContext, useRef, createContext, ReactNode } from "react";
+import { useContext, useRef, createContext, ReactNode } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
-import { useLocation, useNavigate } from "react-router-dom";
-import { z, ZodRawShape, ZodObject } from "zod";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { useObjects } from "./worker";
 import { ErrorHandler } from "./handlers/error_handler";
 import { 
-    Client,
     Group, 
     Message, 
-    PermissionsTable, 
     Role, 
     Room, 
     Space, 
-    Notification,
     Member,
 
-    ClientSchema,
     GroupSchema,
     MessageSchema,
     PermissionsTableSchema,
     RoleSchema,
     RoomSchema,
     SpaceSchema,
-    NotificationSchema,
     MemberSchema,
 } from "components/index";
 
@@ -103,7 +98,6 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         },
     });
 
-    const location = useLocation();
     const navigate = useNavigate();
     const set_objects = useObjects((state) => state.setObjects);
     const set_permstable = useObjects((state) => state.setPermissionsTable);
