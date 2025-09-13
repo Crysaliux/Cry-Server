@@ -5,7 +5,7 @@ export const ErrorHandler = (index: string, target: string, navigate: NavigateFu
         case "OBJECT_NON_EXISTANT":
             if (target === "client") {
                 try {
-                    navigate("/login")
+                    navigate("/login") // unnnecessary.
                 } catch(error) {
                     console.error(`Failed to navigate to /login: ${error}`);
                 }

@@ -7,6 +7,9 @@ interface CoreGlobalProperties {
     api_oauth_addr: RefObject<string>;
     gateway_addr: RefObject<string>;
     api_hatch_addr: RefObject<string>;
+    main_path: RefObject<string>;
+    login_path: RefObject<string>;
+    signup_path: RefObject<string>;
     max_reconnection_attempts: RefObject<number>;
     reconnection_delay: RefObject<number>;
     max_reconnection_delay: RefObject<number>;
@@ -17,7 +20,7 @@ interface CoreGlobalProperties {
     session_token: string | null;
     setSessionToken: Dispatch<SetStateAction<string | null>>;
     access_token: any;
-    setAccessToken: (name: "access_token", options?: any) => void;
+    setAccessToken: (name: "access_token", value: any, options?: any) => void;
     removeAccessToken: (name: "access_token", options?: any) => void;
 }
 
@@ -29,10 +32,14 @@ export const CoreGlobalContext = createContext<CoreGlobalProperties | undefined>
 
 export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     //GLOBAL CORE PROPERTIES/REFERENCES
-    const core_server_host = useRef<string>('http://localhost:8080');
-    const api_oauth_addr = useRef<string>('/oauth');
-    const gateway_addr = useRef<string>('/gateway/socket.io');
-    const api_hatch_addr = useRef<string>('/api');
+    const core_server_host = useRef<string>("http://localhost:8080"); //Main core's host
+    const api_oauth_addr = useRef<string>("/oauth");
+    const gateway_addr = useRef<string>("/gateway/socket.io");
+    const api_hatch_addr = useRef<string>("/api");
+
+    const main_path = useRef<string>("/");
+    const login_path = useRef<string>("/oauth2/login");
+    const signup_path = useRef<string>("/oauth2/signup");
 
     const max_reconnection_attempts = useRef<number>(5);
     const reconnection_delay = useRef<number>(1000);
@@ -52,6 +59,9 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             api_oauth_addr,
             gateway_addr,
             api_hatch_addr,
+            main_path,
+            login_path,
+            signup_path,
             max_reconnection_attempts,
             reconnection_delay,
             max_reconnection_delay,
@@ -65,7 +75,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             setAccessToken,
             removeAccessToken,
         }}>
-            { children }
+            { children } 
         </CoreGlobalContext.Provider>
     );
 });

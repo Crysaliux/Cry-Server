@@ -2,7 +2,7 @@ import { useContext, useRef, createContext, ReactNode } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
-import { z } from "zod";
+import { nullable, z } from "zod";
 import { useObjects } from "./worker";
 import { ErrorHandler } from "./handlers/error_handler";
 import { 
@@ -43,9 +43,8 @@ const FetchedGroupSchema = z.object({
 
 const ResponseSchema = z.object({ //hbb - handled by backend
     status: z.boolean(),
-    response: z.union([
+    body: z.union([
         z.string(),
-        ErrorSchema,
         z.array(GroupSchema), //[hbb] here we fetch all groups
         z.array(RoleSchema), //[hbb] here we fetch all roles
         PermissionsTableSchema, //fetching all permissions for some role
@@ -54,6 +53,7 @@ const ResponseSchema = z.object({ //hbb - handled by backend
         z.array(MessageSchema), //messages (up too 100 at once!) are being fetched here
         z.array(MemberSchema), //[hbb] group members (up too 50 at once!) are being fetched here
     ]),
+    error: z.union([ErrorSchema.nullable()]),
 });
 
 /*
@@ -122,7 +122,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -135,10 +135,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = z.array(GroupSchema).safeParse(parsed_response.data.response);
+        const actual = z.array(GroupSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Groups fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Groups fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -161,7 +161,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -174,10 +174,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = FetchedRoomsSchema.safeParse(parsed_response.data.response);
+        const actual = FetchedRoomsSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Rooms fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Rooms fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 
@@ -200,7 +200,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -213,10 +213,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = z.array(MemberSchema).safeParse(parsed_response.data.response);
+        const actual = z.array(MemberSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Members fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Members fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -239,7 +239,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -252,10 +252,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = z.array(RoleSchema).safeParse(parsed_response.data.response);
+        const actual = z.array(RoleSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Roles fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Roles fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -278,7 +278,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -291,10 +291,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = PermissionsTableSchema.safeParse(parsed_response.data.response);
+        const actual = PermissionsTableSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Permissions table fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Permissions table fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -316,7 +316,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -329,10 +329,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = z.array(MessageSchema).safeParse(parsed_response.data.response);
+        const actual = z.array(MessageSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Messages fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Messages fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 
@@ -355,7 +355,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -368,10 +368,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = FetchedGroupSchema.safeParse(parsed_response.data.response);
+        const actual = FetchedGroupSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Group fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Group fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 
@@ -396,7 +396,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         }
 
         if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.response);
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
                 return;
@@ -409,10 +409,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             ErrorHandler(error.data.index, error.data.target, navigate);
         }
 
-        const actual = z.string().safeParse(parsed_response.data.response);
+        const actual = z.string().safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Primary room id fetch failed, can't process server response: ${parsed_response.data.response}`);
+            console.error(`Primary room id fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 
