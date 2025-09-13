@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="300mm"
+   height="300mm"
+   viewBox="0 0 300 300"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1"
+     transform="translate(45,1.5)">
+    <g
+       id="g2">
+      <rect
+         style="fill:#b2d1d0;stroke-width:0.264583"
+         id="rect1"
+         width="70"
+         height="300"
+         x="70"
+         y="-1.5"
+         ry="35" />
+      <rect
+         style="fill:#b2d1d0;stroke-width:0.264583"
+         id="rect2"
+         width="300"
+         height="70"
+         x="-45"
+         y="113.5"
+         ry="35" />
+    </g>
+  </g>
+</svg>

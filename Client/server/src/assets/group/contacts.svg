@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Creator: CorelDRAW -->
+
+<svg
+   xml:space="preserve"
+   width="1199.2748"
+   height="991.80524"
+   style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+   viewBox="0 0 1199.2748 991.80524"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+ <defs
+   id="defs1"><style
+     type="text/css"
+     id="style1">
+   <![CDATA[
+    .fil0 {fill:none}
+    .fil1 {fill:#424242;fill-rule:nonzero}
+   ]]>
+  </style></defs>
+ <g
+   id="Layer_x0020_1"
+   transform="translate(-424.36262,-528.09738)">
+  <metadata
+   id="CorelCorpID_0Corel-Layer" />
+  <g
+   id="_388238120">
+   <rect
+   id="_388238960"
+   class="fil0"
+   width="2048"
+   height="2048"
+   x="0"
+   y="0" />
+   <rect
+   id="_388236368"
+   class="fil0"
+   x="255.99899"
+   y="255.99899"
+   width="1536"
+   height="1536" />
+  </g>
+  
+ <g
+   id="g3"><path
+     class="fil1"
+     d="M 523.05927,528.09738 H 1524.9448 c 26.7,0 51.0933,11.87798 68.8786,31.00905 18.3955,19.78578 29.814,47.25746 29.814,77.62931 v 435.37406 c 0,30.3719 -11.4184,57.8425 -29.814,77.6293 -17.7871,19.1311 -42.1786,31.0081 -68.8786,31.0081 h -146.1403 l -219.2876,274.1653 -51.9804,64.9901 10.9518,-88.3535 31.0876,-250.8019 H 523.05599 c -26.69986,0 -51.09328,-11.8769 -68.87845,-31.0081 -18.39558,-19.7868 -29.81492,-47.2574 -29.81492,-77.6293 V 636.73574 c 0,-30.37185 11.41934,-57.84243 29.81406,-77.62931 17.78696,-19.13328 42.17954,-31.00905 68.87939,-31.00905 z"
+     id="path1"
+     style="fill:#b2d1d0;fill-opacity:1;stroke-width:0.847852" /><g
+     id="g2"
+     transform="translate(228.63803,-165.85031)"><circle
+       style="fill:#eaefef;fill-opacity:1;stroke-width:0.865243"
+       id="path2"
+       cx="517.65399"
+       cy="1024"
+       r="90" /><circle
+       style="clip-rule:evenodd;fill:#eaefef;fill-opacity:1;fill-rule:evenodd;stroke-width:0.865243;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+       id="path2-2"
+       cx="795.36194"
+       cy="1024"
+       r="90" /><circle
+       style="clip-rule:evenodd;fill:#eaefef;fill-opacity:1;fill-rule:evenodd;stroke-width:0.865243;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+       id="path2-7"
+       cx="1073.0699"
+       cy="1024"
+       r="90" /></g></g></g>
+</svg>

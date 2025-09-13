@@ -91,7 +91,7 @@ input:-moz-autofill {
 #show-password {
     height: 35px;
     width: 35px;
-    background-image: url('eye_closed.svg');
+    background-image: url('../assets/oauth/eye_closed.svg');
     border-radius: 5px;
     transition: all 0.3s ease;
     background-position: center;
@@ -129,6 +129,18 @@ input:-moz-autofill {
 #login:hover {
     opacity: 0.8;
     cursor: pointer;
+}
+
+#signup-instead {
+    margin-top: 15px;
+    user-select: none;
+    text-decoration: underline;
+    color: var(--highlight);
+}
+
+#signup-instead:hover {
+    cursor: pointer;
+    opacity: 0.8;
 }
 
 #forgot-password {

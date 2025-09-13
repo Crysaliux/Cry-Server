@@ -92,7 +92,6 @@ input:-moz-autofill {
 #show-password {
     height: 35px;
     width: 35px;
-    background-image: url('eye_closed.svg');
     border-radius: 5px;
     transition: all 0.3s ease;
     background-position: center;
@@ -117,7 +116,6 @@ input:-moz-autofill {
     padding: 10px;
     border-radius: 10px;
     margin-top: auto;
-    margin-bottom: 20px;
     font-size: 110%;
     user-select: none;
     transition: all 0.3s ease;
@@ -127,4 +125,17 @@ input:-moz-autofill {
 #create-account:hover {
     opacity: 0.8;
     cursor: pointer;
+}
+
+#login-instead {
+    margin-top: 15px;
+    margin-bottom: 20px;
+    user-select: none;
+    text-decoration: underline;
+    color: var(--highlight);
+}
+
+#login-instead:hover {
+    cursor: pointer;
+    opacity: 0.8;
 }
