@@ -2,6 +2,7 @@ import React, { ReactNode, createContext, useContext } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
+import { ErrorHandler } from "./handlers/error_handler";
 import { z } from "zod";
 
 
@@ -33,7 +34,9 @@ interface AuthenticationProperties {
 }
 
 interface AuthProperties {
-    //
+    refresh: () => void;
+    login: (email: string, password: string) => void;
+    signup: (username: string, email: string, password: string, date_of_birth: string) => void;
 }
 
 export const AuthHatch = createContext<AuthProperties | undefined>(undefined);
@@ -88,28 +91,109 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         const actual = RefreshSchema.safeParse(parsed_response.data.body);
         
         if (!actual.success) {
-            console.error(`Refresh, can't process server response: ${parsed_response.data.body}`);
+            console.error(`Refresh failed, can't process server response: ${parsed_response.data.body}`);
             navigate(context_data.login_path.current);
             return;
         }
                 
         const refresh: z.infer<typeof RefreshSchema> = actual.data;
 
-        context_data.setAccessToken("access_token", refresh, { path: "/" });
+        context_data.setSessionToken(refresh.session_token);
     };
 
-    const __login = async () => {
-        //
+    const __login = async (email: string, password: string) => {
+        const response = await Authrs.get("/login", {
+            headers: { email: email, password: password },
+        });
+
+        const parsed_response = ResponseSchema.safeParse(response);
+        
+        if (!parsed_response.success) {
+            console.error(`Login failed, can't process server response: ${parsed_response.data}`);
+            return;
+        }
+        
+        if (!parsed_response.data.status) {
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
+            if (!error.success) {
+                console.error(`Can't display exact error, login failed: ${error.error.issues}`);
+                return;
+            }
+            if (!error.data.index) {
+                console.error("Can't display exact error, no index provided");
+                return;
+            }
+        
+            ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+        }
+        
+        const actual = Oauth2Schema.safeParse(parsed_response.data.body);
+        
+        if (!actual.success) {
+            console.error(`Login failed, can't process server response: ${parsed_response.data.body}`);
+            return;
+        }
+                
+        const login: z.infer<typeof Oauth2Schema> = actual.data;
+
+        context_data.setAccessToken("access_token", login.access_token, { path: "/" });
+        context_data.setSessionToken(login.session_token);
     };
 
-    const __signup = async () => {
+    const __signup = async (username: string, email: string, password: string, date_of_birth: string) => {
+        const response = await Authrs.get("/signup", {
+            headers: { username: username, email: email, password: password, date_of_birth: date_of_birth },
+        });
 
+        const parsed_response = ResponseSchema.safeParse(response);
+        
+        if (!parsed_response.success) {
+            console.error(`Signup failed, can't process server response: ${parsed_response.data}`);
+            return;
+        }
+        
+        if (!parsed_response.data.status) {
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
+            if (!error.success) {
+                console.error(`Can't display exact error, signup failed: ${error.error.issues}`);
+                return;
+            }
+            if (!error.data.index) {
+                console.error("Can't display exact error, no index provided");
+                return;
+            }
+        
+            ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+        }
+        
+        const actual = Oauth2Schema.safeParse(parsed_response.data.body);
+        
+        if (!actual.success) {
+            console.error(`Signup failed, can't process server response: ${parsed_response.data.body}`);
+            return;
+        }
+                
+        const signup: z.infer<typeof Oauth2Schema> = actual.data;
+
+        context_data.setAccessToken("access_token", signup.access_token, { path: "/" });
+        context_data.setSessionToken(signup.session_token);
+    };
+
+
+    const login = async (email: string, password: string) => {
+        await __login(email, password);
+    };
+
+    const signup = async (username: string, email: string, password: string, date_of_birth: string) => {
+        await __signup(username, email, password, date_of_birth);
     };
 
 
     return (
         <AuthHatch.Provider value={{
-            //
+            refresh,
+            login,
+            signup,
         }}>
             { children }
         </AuthHatch.Provider>

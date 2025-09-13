@@ -3,7 +3,7 @@ import React from "react";
 
 const SignUpLayout: React.FC = () => {
     return (
-        <>
+        <div id="signup-container">
             <div id="sign-up-form">
                 <div className="section_header">general</div>
                 <input type="text" placeholder="Your username" className="field" maxLength={35} id="username"></input>
@@ -23,7 +23,7 @@ const SignUpLayout: React.FC = () => {
                 <div className="section_header">Almost there!</div>
                 <div id="create-account">Create acount!</div>
             </div>
-        </>
+        </div>
     );
 };
 

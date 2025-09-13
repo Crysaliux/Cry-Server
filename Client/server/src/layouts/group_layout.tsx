@@ -66,7 +66,7 @@ const GroupLayout: React.FC = () => {
     };
 
     return (
-        <>
+        <div id="group-container">
             <div id="header">
                 <div id="header-buffer"></div>
                 <div id="channel-name">
@@ -131,7 +131,7 @@ const GroupLayout: React.FC = () => {
                 ))}
             </div>
             <Outlet />
-        </>
+        </div>
     );
 };
 

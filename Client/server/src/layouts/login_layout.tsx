@@ -1,10 +1,10 @@
 import React from "react";
 
-
+//<div id="signup-instead">Signup instead</div>
 const LoginLayout: React.FC = () => {
     return (
-        <>
-            <div id="sign-up-form">
+        <div id="login-container">
+            <div id="login-form">
                 <div className="section_header">Welcome back!</div>
                 <input type="email" placeholder="Your email" className="field" maxLength={35} id="email"></input>
                 <div id="password-section">
@@ -14,7 +14,7 @@ const LoginLayout: React.FC = () => {
                 <div id="login">Log in</div>
                 <div id="forgot-password">Forgot your password?</div>
             </div>
-        </>
+        </div>
     );
 };
 

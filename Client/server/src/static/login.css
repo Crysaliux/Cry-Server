@@ -11,7 +11,7 @@ input:-moz-autofill {
     color: white
 }
 
-#container {
+#login-container {
     height: 100%;
     width: 100%;
     display: flex;
@@ -20,7 +20,7 @@ input:-moz-autofill {
     justify-content: center;
 }
 
-#sign-up-form {
+#login-form {
     width: 350px;
     border-radius: 10px;
     display: flex;

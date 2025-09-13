@@ -1,9 +1,18 @@
-import React from "react";
+import React, { ReactHTMLElement, useContext, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { CoreGlobalContext } from "services/core";
 
 
 const MainPageLayout: React.FC = () => {
+    const context_data = useContext(CoreGlobalContext);
+    if (!context_data) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
+    const navigate = useNavigate();
+
     return (
-        <>
+        <div id="main-page-container">
             <div id="header">
                 <div id="label">
                     Name
@@ -18,10 +27,10 @@ const MainPageLayout: React.FC = () => {
                     Our Privacy Policy
                 </div>
                 <div id="action-panel">
-                    <div id="open-in-browser">
+                    <div id="open-in-browser" onClick={() => navigate(context_data.login_path.current)}>
                         Open in browser
                     </div>
-                    <div id="download-app">
+                    <div id="download-app" onClick={() => navigate("/unknown")}>
                         Download our app
                     </div>
                 </div>
@@ -65,7 +74,7 @@ const MainPageLayout: React.FC = () => {
             <div id="footer">
 
             </div>
-        </>
+        </div>
     );
 };
 

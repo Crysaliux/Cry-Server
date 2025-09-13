@@ -14,7 +14,7 @@
     --status_online: #3ece78;
 }
 
-body {
+#root {
     font-family: 'Segoe UI', sans-serif;
     background: var(--background);
     color: #ffffff;
