@@ -36,7 +36,7 @@ interface AuthenticationProperties {
 interface AuthProperties {
     refresh: () => void;
     login: (email: string, password: string) => void;
-    signup: (username: string, email: string, password: string, date_of_birth: string) => void;
+    signup: (username: string, email: string, password: string, date_of_birth: string) => Promise<boolean>;
 }
 
 export const AuthHatch = createContext<AuthProperties | undefined>(undefined);
@@ -101,7 +101,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         context_data.setSessionToken(refresh.session_token);
     };
 
-    const __login = async (email: string, password: string) => {
+    const login = async (email: string, password: string) => {
         const response = await Authrs.get("/login", {
             headers: { email: email, password: password },
         });
@@ -140,7 +140,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         context_data.setSessionToken(login.session_token);
     };
 
-    const __signup = async (username: string, email: string, password: string, date_of_birth: string) => {
+    const signup = async (username: string, email: string, password: string, date_of_birth: string) => {
         const response = await Authrs.get("/signup", {
             headers: { username: username, email: email, password: password, date_of_birth: date_of_birth },
         });
@@ -149,18 +149,18 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         
         if (!parsed_response.success) {
             console.error(`Signup failed, can't process server response: ${parsed_response.data}`);
-            return;
+            return false;
         }
         
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, signup failed: ${error.error.issues}`);
-                return;
+                return false;
             }
             if (!error.data.index) {
                 console.error("Can't display exact error, no index provided");
-                return;
+                return false;
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
@@ -170,22 +170,15 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         
         if (!actual.success) {
             console.error(`Signup failed, can't process server response: ${parsed_response.data.body}`);
-            return;
+            return false;
         }
                 
         const signup: z.infer<typeof Oauth2Schema> = actual.data;
 
         context_data.setAccessToken("access_token", signup.access_token, { path: "/" });
         context_data.setSessionToken(signup.session_token);
-    };
 
-
-    const login = async (email: string, password: string) => {
-        await __login(email, password);
-    };
-
-    const signup = async (username: string, email: string, password: string, date_of_birth: string) => {
-        await __signup(username, email, password, date_of_birth);
+        return true;
     };
 
 

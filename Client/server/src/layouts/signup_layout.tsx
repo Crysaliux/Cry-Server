@@ -1,7 +1,22 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useMemo, useRef, useState } from "react";
 import { CoreGlobalContext } from "services/core";
 import { useNavigate } from "react-router-dom";
+import { AuthHatch } from "services/oauth";
+import { 
+    Select, 
+    MenuItem, 
+    makeStyles,
+    Box, 
+    FormControl, 
+    InputLabel, 
+    SelectChangeEvent
+} from '@mui/material';
 
+
+interface InputConfig {
+    type: string;
+    background_svg: string;
+}
 
 const SignUpLayout: React.FC = () => {
     const context_data = useContext(CoreGlobalContext);
@@ -9,26 +24,94 @@ const SignUpLayout: React.FC = () => {
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
+    const auth_hatch = useContext(AuthHatch);
+        if (!auth_hatch) {
+            throw new Error("Can't load AuthHatch for oauth");
+        }
+
     const navigate = useNavigate();
 
+    const username_field_ref = useRef<HTMLInputElement>(null);
+    const email_field_ref = useRef<HTMLInputElement>(null);
     const password_field_ref = useRef<HTMLInputElement>(null);
-    const show_password_ref = useRef<HTMLDivElement>(null);
-    const password_saved = useRef<string>("");
 
-    const [password_field_type, setPasswordFieldType] = useState<string>("password");
+    const [input_config, setInputConfig] = useState<InputConfig>({"type": "password", 
+        "background_svg": "../public/oauth/eye_closed.svg"});
+
+    const [year, setYear] = useState<string>("2025");
+    const [month, setMonth] = useState<string>("");
+    const [day, setDay] = useState<string>("");
+
+    const current_year = new Date().getFullYear();
+    let years = Array.from({ length: current_year + 1 - 1930 }, (_, i) => i + 1930);
+    let months = [
+        {"name": "January", "index": 1},
+        {"name": "February", "index": 1},
+        {"name": "March", "index": 1},
+        {"name": "April", "index": 1},
+        {"name": "May", "index": 1},
+        {"name": "June", "index": 1},
+        {"name": "July", "index": 1},
+        {"name": "August", "index": 1},
+        {"name": "September", "index": 1},
+        {"name": "October", "index": 1},
+        {"name": "November", "index": 1},
+        {"name": "December", "index": 1},
+    ];
+    let days = Array.from({ length: 30 }, (_, i) => i + 1);
+
+    const handleYear = (event: SelectChangeEvent) => {
+        setYear(event.target.value as string);
+    };
+
+    const handleMonth = (event: SelectChangeEvent) => {
+        setMonth(event.target.value as string);
+    };
+
+    const handleDay = (event: SelectChangeEvent) => {
+        setDay(event.target.value as string);
+    };
 
     const showPassword = () => {
-        if (password_field_ref.current && show_password_ref.current) {
-            password_saved.current = password_field_ref.current.value;
+        if (password_field_ref.current) {
             if (password_field_ref.current.type === "password") {
-                setPasswordFieldType("text");
-                show_password_ref.current.style.backgroundImage = "../assets/oauth/eye_opened.svg"
-                password_field_ref.current.value = password_saved.current;
+                setInputConfig({"type": "text", 
+                    "background_svg": "../oauth/eye_opened.svg"});
             } else {
-                setPasswordFieldType("password");
-                show_password_ref.current.style.backgroundImage = "../assets/oauth/eye_closed.svg"
-                password_field_ref.current.value = password_saved.current;
+                setInputConfig({"type": "password",
+                    "background_svg": "../oauth/eye_closed.svg"});
             }
+        }
+    };
+
+    const submitData = async () => {
+        if (username_field_ref.current && email_field_ref.current && password_field_ref.current) {
+            if (username_field_ref.current.value === "") {
+                //
+                console.warn("Username field can't be empty!");
+                return;
+            }
+
+            if (email_field_ref.current.value === "") {
+                //
+                console.warn("Email field can't be empty!");
+                return;
+            }
+
+            if (password_field_ref.current.value === "") {
+                //
+                console.warn("Password field can't be empty!");
+                return;
+            }
+
+            const status = await auth_hatch.signup(
+                username_field_ref.current.value,
+                email_field_ref.current.value,
+                password_field_ref.current.value,
+                "1234",
+            );
+
+            if (status) navigate(context_data.client_path.current);
         }
     };
 
@@ -36,22 +119,100 @@ const SignUpLayout: React.FC = () => {
         <div id="signup-container">
             <div id="sign-up-form">
                 <div className="section_header">general</div>
-                <input type="text" placeholder="Your username" className="field" maxLength={35} id="username"></input>
+                <input type="text" placeholder="Your username" className="field" maxLength={35} id="username" ref={username_field_ref}></input>
                 <div className="help">
                     - lowercase characters only!
                 </div>
                 <div className="section_header">safety</div>
-                <input type="email" placeholder="Your email" className="field" maxLength={35} id="email"></input>
+                <input type="email" placeholder="Your email" className="field" maxLength={35} id="email" ref={email_field_ref}></input>
                 <div id="password-section">
-                    <input type={password_field_type} placeholder="Your password" maxLength={35} id="password" ref={password_field_ref}></input>
-                    <div id="show-password" onClick={() => showPassword()} ref={show_password_ref}></div>
+                    <input type={input_config.type} placeholder="Your password" maxLength={35} id="password" ref={password_field_ref}></input>
+                    <div id="signup-show-password" onClick={() => showPassword()} style={{backgroundImage: `url(${input_config.background_svg})`}}></div>
                 </div>
                 <div className="help">
                     - make sure it's a strong one <br></br>
                     - don't share it with anyone, even us!
                 </div>
                 <div className="section_header">Almost there!</div>
-                <div id="create-account">Create account!</div>
+
+                <Box sx={{ 
+                    width: "90%",
+                    display: "flex", 
+                    flexDirection: "row",
+                    gap: 1,
+                    marginTop: 5,
+                }}>
+                    <FormControl fullWidth>
+                        <InputLabel sx={{ color: "var(--highlight)" }} id="select-year">Year</InputLabel>
+                        <Select sx={{ color: "var(--highlight)", width: 100 }}
+                            labelId="select-year-label"
+                            id="select-year-label"
+                            value={year}
+                            label="Year"
+                            onChange={handleYear}
+                            MenuProps={{
+                                PaperProps: {
+                                    className: 'hide_scrollbar',
+                                },
+                                style: {
+                                    maxHeight: 250,
+                                }
+                            }}
+                        >   
+                            {years.reverse().map(yr => (
+                                <MenuItem value={yr}>{yr}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth>
+                        <InputLabel sx={{ color: "var(--highlight)" }} id="select-month">Month</InputLabel>
+                        <Select sx={{ color: "var(--highlight)", width: 100 }}
+                            labelId="select-month-label"
+                            id="select-month-label"
+                            value={month}
+                            label="Month"
+                            onChange={handleMonth}
+                            MenuProps={{
+                                PaperProps: {
+                                    className: 'hide_scrollbar',
+                                },
+                                style: {
+                                    maxHeight: 250,
+                                }
+                            }}
+                        >   
+                            {months.reverse().map(mn => (
+                                <MenuItem value={mn.name}>{mn.name}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth>
+                        <InputLabel sx={{ color: "var(--highlight)" }} id="select-day">Day</InputLabel>
+                        <Select sx={{ color: "var(--highlight)", width: 100 }}
+                            labelId="select-day-label"
+                            id="select-day-label"
+                            value={day}
+                            label="Day"
+                            onChange={handleDay}
+                            MenuProps={{
+                                PaperProps: {
+                                    className: 'hide_scrollbar',
+                                },
+                                style: {
+                                    maxHeight: 250,
+                                },
+                            }}
+                        >   
+                            {days.reverse().map(dy => (
+                                <MenuItem value={dy}>{dy}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+
+                <div id="create-account" onClick={() => submitData()}>Create account!</div>
                 <div id="login-instead" onClick={() => navigate(context_data.login_path.current)}>I already have an account!</div>
             </div>
         </div>

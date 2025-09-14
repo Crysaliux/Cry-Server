@@ -8,7 +8,19 @@ input:-webkit-autofill {
 /*Firefox*/
 input:-moz-autofill {
     background-color: transparent !important;
-    color: white
+    color: rgb(255, 255, 255)
+}
+
+.hide_scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide_scrollbar {
+  scrollbar-width: none;
+}
+
+.hide_scrollbar {
+  -ms-overflow-style: none;
 }
 
 #signup-container {
@@ -21,7 +33,7 @@ input:-moz-autofill {
 }
 
 #sign-up-form {
-    height: 500px;
+    height: 550px;
     width: 350px;
     border-radius: 10px;
     display: flex;
@@ -89,7 +101,7 @@ input:-moz-autofill {
     background-color: var(--elements);
 }
 
-#show-password {
+#signup-show-password {
     height: 35px;
     width: 35px;
     border-radius: 5px;
@@ -99,7 +111,7 @@ input:-moz-autofill {
     background-size: 80% 80%;
 }
 
-#show-password:hover {
+#signup-show-password:hover {
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.1);
 }

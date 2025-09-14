@@ -88,7 +88,7 @@ input:-moz-autofill {
     background-color: var(--elements);
 }
 
-#show-password {
+#login-show-password {
     height: 35px;
     width: 35px;
     background-image: url('../assets/oauth/eye_closed.svg');
@@ -99,7 +99,7 @@ input:-moz-autofill {
     background-size: 80% 80%;
 }
 
-#show-password:hover {
+#login-show-password:hover {
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.1);
 }
