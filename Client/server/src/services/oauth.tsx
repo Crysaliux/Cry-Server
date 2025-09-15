@@ -55,14 +55,13 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
     const Authrs: AxiosInstance = axios.create({
         baseURL: `${context_data.core_server_host.current}${context_data.api_oauth_addr.current}`,
         headers: {
-            "access_token": `${context_data.access_token}`,
             "Content-Type": "application/json",
         },
     });
 
 
-    const refresh = async () => { //leave async for now.
-        const response = await Authrs.get("/refresh_session");
+    const refresh = async () => {
+        const response = await Authrs.post("/refresh_session", {access_token: `${context_data.access_token}`});
 
         const parsed_response = ResponseSchema.safeParse(response);
         
@@ -102,8 +101,8 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
     };
 
     const login = async (email: string, password: string) => {
-        const response = await Authrs.get("/login", {
-            headers: { email: email, password: password },
+        const response = await Authrs.post("/login", {
+            email: email, password: password,
         });
 
         const parsed_response = ResponseSchema.safeParse(response);
@@ -141,8 +140,8 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
     };
 
     const signup = async (username: string, email: string, password: string, date_of_birth: string) => {
-        const response = await Authrs.get("/signup", {
-            headers: { username: username, email: email, password: password, date_of_birth: date_of_birth },
+        const response = await Authrs.post("/signup", {
+            username: username, email: email, password: password, date_of_birth: date_of_birth,
         });
 
         const parsed_response = ResponseSchema.safeParse(response);

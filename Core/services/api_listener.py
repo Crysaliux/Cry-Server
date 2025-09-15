@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, W
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
@@ -27,33 +28,32 @@ class APIListener:
     def __init__(
             self,
             oauth2,
-            worker_session,
+            session,
             algorithm,
             perms,
             message_load_batch_size: int,
         ):
         self.oauth2 = oauth2
-        self.worker_session = worker_session
+        self.session = session
         self.algorithm = algorithm
         self.perms = perms
         self.message_load_batch_size = message_load_batch_size
         self.router = APIRouter()
 
-        self.api_call_bindings = {
-            "fetch_groups": self.__fetch_groups,
-            "fetch_rooms": self.__fetch_rooms,
-            "fetch_group": self.__fetch_group,
-            "fetch_members": self.__fetch_members,
-            "fetch_roles": self.__fetch_roles,
-            "fetch_messages": self.__fetch_messages,
-            "fetch_permstable": self.__fetch_permstable,
-            "fetch_primary_room": self.__fetch_primary_room,
-        }
-        self.__register_api_call_handlers()
+    def __worker_session(self):
+        from functools import wraps
 
-    def __register_api_call_handlers(self):
-        for api_call, handler in self.api_call_bindings.items():
-            setattr(self, f"__call_{api_call}", self.worker_session(handler))
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                try:
+                    async with self.session() as session:
+                        async with session.begin():
+                            return await func(*args, session=session, **kwargs)
+                except SQLAlchemyError:
+                    await session.rollback()
+            return wrapper
+        return decorator
 
     def __emit_api_error(index: str, target: str):
         return {
@@ -63,6 +63,7 @@ class APIListener:
         }
     
 
+    @__worker_session
     async def __fetch_groups(self, session_token: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -96,6 +97,7 @@ class APIListener:
             "error": None,
         }
 
+    @__worker_session
     async def __fetch_rooms(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -142,6 +144,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
+    @__worker_session
     async def __fetch_group(self, session_token: str, group_id: str, room_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -230,6 +233,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
+    @__worker_session
     async def __fetch_members(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, _ = valid.session_is_valid(session_token, session)
@@ -257,6 +261,7 @@ class APIListener:
             "error": None,
         }
     
+    @__worker_session
     async def __fetch_roles(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -296,6 +301,7 @@ class APIListener:
         
         return await self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
 
+    @__worker_session
     async def __fetch_messages(self, session_token: str, group_id: str, room_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -343,6 +349,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
     
+    @__worker_session
     async def __fetch_permstable(self, session_token: str, group_id: str, room_id: str, role_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -385,6 +392,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
     
+    @__worker_session
     async def __fetch_primary_room(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -425,34 +433,34 @@ class APIListener:
     
 
     def router_tasks(self):
-        @self.router.get("/fetch_groups")
+        @self.router.post("/fetch_groups")
         async def fetch_groups(request: Request, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_groups(session_token)
+            return await self.__fetch_groups(session_token)
 
-        @self.router.get("/fetch_rooms")
+        @self.router.post("/fetch_rooms")
         async def fetch_rooms(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_rooms(session_token, payload.group_id)
+            return await self.__fetch_rooms(session_token, payload.group_id)
 
-        @self.router.get("/fetch_group")
+        @self.router.post("/fetch_group")
         async def fetch_group(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_group(session_token, payload.group_id, payload.room_id)
+            return await self.__fetch_group(session_token, payload.group_id, payload.room_id)
 
-        @self.router.get("/fetch_members")
+        @self.router.post("/fetch_members")
         async def fetch_members(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_members(session_token, payload.group_id)
+            return await self.__fetch_members(session_token, payload.group_id)
 
-        @self.router.get("/fetch_roles")
+        @self.router.post("/fetch_roles")
         async def fetch_roles(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_roles(session_token, payload.group_id)
+            return await self.__fetch_roles(session_token, payload.group_id)
 
-        @self.router.get("/fetch_messages")
+        @self.router.post("/fetch_messages")
         async def fetch_messages(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_messages(session_token, payload.group_id, payload.room_id)
+            return await self.__fetch_messages(session_token, payload.group_id, payload.room_id)
         
-        @self.router.get("/fetch_permstable")
+        @self.router.post("/fetch_permstable")
         async def fetch_permstable(request: Request, payload: RoleRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_permstable(session_token, payload.group_id, payload.room_id, payload.role_id)
+            return await self.__fetch_permstable(session_token, payload.group_id, payload.room_id, payload.role_id)
         
-        @self.router.get("/fetch_primary_room")
+        @self.router.post("/fetch_primary_room")
         async def fetch_primary_room(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_primary_room(session_token, payload.group_id)
+            return await self.__fetch_primary_room(session_token, payload.group_id)

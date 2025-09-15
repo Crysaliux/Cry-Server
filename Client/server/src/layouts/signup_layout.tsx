@@ -39,33 +39,46 @@ const SignUpLayout: React.FC = () => {
         "background_svg": "../public/oauth/eye_closed.svg"});
 
     const [year, setYear] = useState<string>("2025");
-    const [month, setMonth] = useState<string>("");
-    const [day, setDay] = useState<string>("");
+    const [month, setMonth] = useState<string>("January");
+    const [day, setDay] = useState<string>("1");
+
+    const getMonthDays = (year: number, month: number) => {
+        return Array.from({ length: new Date(year, month, 0).getDate() }, (_, i) => i + 1);
+    };
 
     const current_year = new Date().getFullYear();
     let years = Array.from({ length: current_year + 1 - 1930 }, (_, i) => i + 1930);
     let months = [
         {"name": "January", "index": 1},
-        {"name": "February", "index": 1},
-        {"name": "March", "index": 1},
-        {"name": "April", "index": 1},
-        {"name": "May", "index": 1},
-        {"name": "June", "index": 1},
-        {"name": "July", "index": 1},
-        {"name": "August", "index": 1},
-        {"name": "September", "index": 1},
-        {"name": "October", "index": 1},
-        {"name": "November", "index": 1},
-        {"name": "December", "index": 1},
+        {"name": "February", "index": 2},
+        {"name": "March", "index": 3},
+        {"name": "April", "index": 4},
+        {"name": "May", "index": 5},
+        {"name": "June", "index": 6},
+        {"name": "July", "index": 7},
+        {"name": "August", "index": 8},
+        {"name": "September", "index": 9},
+        {"name": "October", "index": 10},
+        {"name": "November", "index": 11},
+        {"name": "December", "index": 12},
     ];
-    let days = Array.from({ length: 30 }, (_, i) => i + 1);
+
+    const fetchMonth = (month_name: string) => {
+        const num_mn = months.find(mn => mn.name === month)?.index;
+        if (num_mn) return num_mn;
+        return 1;
+    };
+
+    const [days, setDays] = useState<number[]>(getMonthDays(Number(year), fetchMonth(month)));
 
     const handleYear = (event: SelectChangeEvent) => {
         setYear(event.target.value as string);
+        setDays(getMonthDays(Number(year), fetchMonth(month)));
     };
 
     const handleMonth = (event: SelectChangeEvent) => {
         setMonth(event.target.value as string);
+        setDays(getMonthDays(Number(year), fetchMonth(month)));
     };
 
     const handleDay = (event: SelectChangeEvent) => {
@@ -104,11 +117,12 @@ const SignUpLayout: React.FC = () => {
                 return;
             }
 
+            const bday_date = new Date(Number(year), fetchMonth(month), Number(day));
             const status = await auth_hatch.signup(
                 username_field_ref.current.value,
                 email_field_ref.current.value,
                 password_field_ref.current.value,
-                "1234",
+                bday_date.toISOString(),
             );
 
             if (status) navigate(context_data.client_path.current);
@@ -133,18 +147,32 @@ const SignUpLayout: React.FC = () => {
                     - make sure it's a strong one <br></br>
                     - don't share it with anyone, even us!
                 </div>
-                <div className="section_header">Almost there!</div>
+                <div className="section_header">
+                    now state your birthday date!
+                </div>
 
                 <Box sx={{ 
                     width: "90%",
                     display: "flex", 
                     flexDirection: "row",
                     gap: 1,
-                    marginTop: 5,
+                    marginTop: 2,
                 }}>
                     <FormControl fullWidth>
                         <InputLabel sx={{ color: "var(--highlight)" }} id="select-year">Year</InputLabel>
-                        <Select sx={{ color: "var(--highlight)", width: 100 }}
+                        <Select sx={{ 
+                            color: "var(--highlight)", 
+                            width: 100,
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--elements)",
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--active_elements)",
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--active_elements)",
+                            },
+                        }}
                             labelId="select-year-label"
                             id="select-year-label"
                             value={year}
@@ -152,7 +180,10 @@ const SignUpLayout: React.FC = () => {
                             onChange={handleYear}
                             MenuProps={{
                                 PaperProps: {
-                                    className: 'hide_scrollbar',
+                                    sx: {
+                                        backgroundColor: "var(--elements)",
+                                    },
+                                    className: "hide_scrollbar",
                                 },
                                 style: {
                                     maxHeight: 250,
@@ -160,14 +191,26 @@ const SignUpLayout: React.FC = () => {
                             }}
                         >   
                             {years.reverse().map(yr => (
-                                <MenuItem value={yr}>{yr}</MenuItem>
+                                <MenuItem sx={{color: "white"}} value={yr}>{yr}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
 
                     <FormControl fullWidth>
                         <InputLabel sx={{ color: "var(--highlight)" }} id="select-month">Month</InputLabel>
-                        <Select sx={{ color: "var(--highlight)", width: 100 }}
+                        <Select sx={{ 
+                            color: "var(--highlight)", 
+                            width: 100,
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--elements)",
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--active_elements)",
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--active_elements)",
+                            },
+                        }}
                             labelId="select-month-label"
                             id="select-month-label"
                             value={month}
@@ -175,6 +218,9 @@ const SignUpLayout: React.FC = () => {
                             onChange={handleMonth}
                             MenuProps={{
                                 PaperProps: {
+                                    sx: {
+                                        backgroundColor: "var(--elements)",
+                                    },
                                     className: 'hide_scrollbar',
                                 },
                                 style: {
@@ -182,15 +228,27 @@ const SignUpLayout: React.FC = () => {
                                 }
                             }}
                         >   
-                            {months.reverse().map(mn => (
-                                <MenuItem value={mn.name}>{mn.name}</MenuItem>
+                            {months.map(mn => (
+                                <MenuItem sx={{color: "white"}} value={mn.name}>{mn.name}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
 
                     <FormControl fullWidth>
                         <InputLabel sx={{ color: "var(--highlight)" }} id="select-day">Day</InputLabel>
-                        <Select sx={{ color: "var(--highlight)", width: 100 }}
+                        <Select sx={{ 
+                            color: "var(--highlight)", 
+                            width: 100,
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--elements)",
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--active_elements)",
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: "var(--active_elements)",
+                            },
+                        }}
                             labelId="select-day-label"
                             id="select-day-label"
                             value={day}
@@ -198,6 +256,9 @@ const SignUpLayout: React.FC = () => {
                             onChange={handleDay}
                             MenuProps={{
                                 PaperProps: {
+                                    sx: {
+                                        backgroundColor: "var(--elements)",
+                                    },
                                     className: 'hide_scrollbar',
                                 },
                                 style: {
@@ -205,8 +266,8 @@ const SignUpLayout: React.FC = () => {
                                 },
                             }}
                         >   
-                            {days.reverse().map(dy => (
-                                <MenuItem value={dy}>{dy}</MenuItem>
+                            {days.map(dy => (
+                                <MenuItem sx={{color: "white"}} value={dy}>{dy}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
