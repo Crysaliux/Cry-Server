@@ -5,10 +5,12 @@ from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToR
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
+from worker import worker_session
 from pydantic import BaseModel
 from typing import Union
 from ..components import *
 from .validators import *
+from functools import wraps
 import uuid
 
 class GroupRelated(BaseModel):
@@ -40,20 +42,17 @@ class APIListener:
         self.message_load_batch_size = message_load_batch_size
         self.router = APIRouter()
 
-    def __worker_session(self):
-        from functools import wraps
+        self.ignore = [
+            "router_tasks", 
+            "__emit_api_error",
+        ]
 
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                try:
-                    async with self.session() as session:
-                        async with session.begin():
-                            return await func(*args, session=session, **kwargs)
-                except SQLAlchemyError:
-                    await session.rollback()
-            return wrapper
-        return decorator
+        for attr_name in dir(self):
+            if attr_name in self.ignore:
+                continue
+            attr = getattr(self, attr_name)
+            if callable(attr):
+                setattr(self, attr_name, worker_session(attr))
 
     def __emit_api_error(index: str, target: str):
         return {
@@ -63,7 +62,6 @@ class APIListener:
         }
     
 
-    @__worker_session
     async def __fetch_groups(self, session_token: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -97,7 +95,6 @@ class APIListener:
             "error": None,
         }
 
-    @__worker_session
     async def __fetch_rooms(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -144,7 +141,6 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
-    @__worker_session
     async def __fetch_group(self, session_token: str, group_id: str, room_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -233,7 +229,6 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
-    @__worker_session
     async def __fetch_members(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, _ = valid.session_is_valid(session_token, session)
@@ -261,7 +256,6 @@ class APIListener:
             "error": None,
         }
     
-    @__worker_session
     async def __fetch_roles(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -301,7 +295,6 @@ class APIListener:
         
         return await self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
 
-    @__worker_session
     async def __fetch_messages(self, session_token: str, group_id: str, room_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -349,7 +342,6 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
     
-    @__worker_session
     async def __fetch_permstable(self, session_token: str, group_id: str, room_id: str, role_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)
@@ -392,7 +384,6 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
     
-    @__worker_session
     async def __fetch_primary_room(self, session_token: str, group_id: str, session):
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.session_is_valid(session_token, session)

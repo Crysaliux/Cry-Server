@@ -80,18 +80,17 @@ class Listener:
         }
         self.__register_event_handlers()
 
-    def __worker_session(self):
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                try:
-                    async with self.session() as session:
-                        async with session.begin():
-                            return await func(*args, session=session, **kwargs)
-                except SQLAlchemyError:
-                    await session.rollback()
-            return wrapper
-        return decorator
+    @staticmethod
+    def __worker_session(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                async with self.session() as session:
+                    async with session.begin():
+                        return await func(*args, session=session, **kwargs)
+            except SQLAlchemyError:
+                await session.rollback()
+        return wrapper
 
     def __register_event_handlers(self):
         for event, handler in self.event_bindings.items():

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, date
 from typing import Optional
 from random import uniform
 from typing import List
+from functools import wraps
 import time
 
 class Base(DeclarativeBase):
@@ -209,3 +210,15 @@ class Worker:
     async def start(self):
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+#Session wrapper
+def worker_session(func):
+    @wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        try:
+            async with self.session() as session:
+                async with session.begin():
+                    return await func(self, *args, session=session, **kwargs)
+        except SQLAlchemyError:
+            await session.rollback()
+    return wrapper

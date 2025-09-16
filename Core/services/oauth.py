@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date
 from .validators import ClientValidator
+from worker import worker_session
 from functools import wraps
 import jwt
 import uuid
@@ -38,18 +39,17 @@ class Authentication:
         self.oauth2 = oauth2
         self.router = APIRouter()
 
-    def __worker_session(self):
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                try:
-                    async with self.session() as session:
-                        async with session.begin():
-                            return await func(*args, session=session, **kwargs)
-                except SQLAlchemyError:
-                    await session.rollback()
-            return wrapper
-        return decorator
+        self.ignore = [
+            "router_tasks", 
+            "__emit_api_error",
+        ]
+
+        for attr_name in dir(self):
+            if attr_name in self.ignore:
+                continue
+            attr = getattr(self, attr_name)
+            if callable(attr):
+                setattr(self, attr_name, worker_session(attr))
 
     def __emit_api_error(index: str, target: str):
         return {
@@ -59,7 +59,6 @@ class Authentication:
         }
 
 
-    @__worker_session
     async def __signup(self, username: str, email: str, password: str, date_of_birth: date, session) -> dict:
         username_check_res = await session.execute(select(Client).where(Client.username == username))
         username_check = username_check_res.scalar_one_or_none()
@@ -109,7 +108,6 @@ class Authentication:
             "error": None,
         }
     
-    @__worker_session
     async def __login(self, email: str, password: str, session) -> dict:
         client_res = await session.execute(select(Client).where(Client.email == email))
         client = client_res.scalar_one_or_none()
@@ -145,7 +143,6 @@ class Authentication:
         else:
             return self.__emit_api_error("WRONG_CREDENTIALS", "client")
     
-    @__worker_session
     async def __refresh_session(self, request, session) -> dict:
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = valid.access_is_valid(request.access_token, session)
