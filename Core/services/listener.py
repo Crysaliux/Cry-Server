@@ -22,6 +22,7 @@ class Listener:
             self, 
             hasher, 
             session,  
+            ws,
             oauth2,
             storage_images_path: str, 
             storage_files_path: str, 
@@ -39,6 +40,7 @@ class Listener:
         self.access_key = access_key
         self.hasher = hasher
         self.session = session
+        self.ws = ws
         self.oauth2 = oauth2
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
@@ -80,21 +82,9 @@ class Listener:
         }
         self.__register_event_handlers()
 
-    @staticmethod
-    def __worker_session(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                async with self.session() as session:
-                    async with session.begin():
-                        return await func(*args, session=session, **kwargs)
-            except SQLAlchemyError:
-                await session.rollback()
-        return wrapper
-
     def __register_event_handlers(self):
         for event, handler in self.event_bindings.items():
-            self.gateway.on(event, handler)
+            self.gateway.on(event, self.ws(handler, self.session))
 
     async def __emit_error(self, sid, id: int, event: str, error: dict):
         await self.gateway.emit(event, {
@@ -104,7 +94,6 @@ class Listener:
         }, to=sid)
 
 #Listener module's main body
-    @__worker_session
     async def __on_connect(self, sid, eviron, auth, session):
         try: session_token = auth["session_token"]
         except KeyError:
@@ -122,7 +111,6 @@ class Listener:
         ...
 
     #ON_CREATE_...
-    @__worker_session
     async def __on_create_group(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -152,7 +140,6 @@ class Listener:
             "error": None,
         }, to=sid)
 
-    @__worker_session
     async def __on_create_space(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -201,7 +188,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "space_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
 
-    @__worker_session
     async def __on_create_room(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -250,7 +236,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "room_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
 
-    @__worker_session
     async def __on_send_message(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -314,7 +299,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "message_sent", {"index": "MISSING_PERMISSION", "target": "SEND_MESSAGES"})
     
-    @__worker_session
     async def __on_create_role(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -362,7 +346,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "role_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
-    @__worker_session
     async def __on_create_permissions_table(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -411,7 +394,6 @@ class Listener:
             await self.__emit_error(sid, id, "permissions_table_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     #ON_UPDATE_...
-    @__worker_session
     async def __on_update_client(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -477,7 +459,6 @@ class Listener:
         else:
             await self.__emit_error(sid, client.id, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
 
-    @__worker_session
     async def __on_update_group(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -528,7 +509,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "group_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_GROUP"})
     
-    @__worker_session
     async def __on_update_space(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -579,7 +559,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "space_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
-    @__worker_session
     async def __on_update_room(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -630,7 +609,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "room_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
-    @__worker_session
     async def __on_edit_message(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -695,7 +673,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "message_edited", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
 
-    @__worker_session
     async def __on_update_role(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -752,7 +729,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "role_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
-    @__worker_session
     async def __on_update_permissions_table(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -808,7 +784,6 @@ class Listener:
             await self.__emit_error(sid, id, "permissions_table_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
     
     #ON_DELETE
-    @__worker_session
     async def __on_delete_client(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -834,7 +809,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "client_deleted", {"index": "DELETION_FAILED", "target": "client"})
     
-    @__worker_session
     async def __on_delete_group(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -882,7 +856,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "group_deleted", {"index": "DELETION_REJECTED", "target": "group"})
 
-    @__worker_session
     async def __on_delete_space(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -933,7 +906,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "space_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
-    @__worker_session
     async def __on_delete_room(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -984,7 +956,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "room_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
-    @__worker_session
     async def __on_delete_message(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]
@@ -1044,7 +1015,6 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "message_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
     
-    @__worker_session
     async def __on_delete_role(self, sid, data, session):
         client_session = await self.gateway.get_session(sid)
         client, session_token = client_session["client"], client_session["session_token"]

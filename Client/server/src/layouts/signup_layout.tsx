@@ -122,7 +122,7 @@ const SignUpLayout: React.FC = () => {
                 username_field_ref.current.value,
                 email_field_ref.current.value,
                 password_field_ref.current.value,
-                bday_date.toISOString(),
+                bday_date.toISOString().split("T")[0],
             );
 
             if (status) navigate(context_data.client_path.current);

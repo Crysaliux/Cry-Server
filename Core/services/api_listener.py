@@ -5,7 +5,6 @@ from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToR
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
-from worker import worker_session
 from pydantic import BaseModel
 from typing import Union
 from ..components import *
@@ -31,28 +30,34 @@ class APIListener:
             self,
             oauth2,
             session,
+            ws,
             algorithm,
             perms,
             message_load_batch_size: int,
         ):
         self.oauth2 = oauth2
         self.session = session
+        self.ws = ws
         self.algorithm = algorithm
         self.perms = perms
         self.message_load_batch_size = message_load_batch_size
         self.router = APIRouter()
 
-        self.ignore = [
-            "router_tasks", 
-            "__emit_api_error",
-        ]
+        self.api_call_bindings = {
+            "fetch_groups": self.__fetch_groups,
+            "fetch_rooms": self.__fetch_rooms,
+            "fetch_group": self.__fetch_group,
+            "fetch_members": self.__fetch_members,
+            "fetch_roles": self.__fetch_roles,
+            "fetch_messages": self.__fetch_messages,
+            "fetch_permstable": self.__fetch_permstable,
+            "fetch_primary_room": self.__fetch_primary_room,
+        }
+        self.__register_api_call_handlers()
 
-        for attr_name in dir(self):
-            if attr_name in self.ignore:
-                continue
-            attr = getattr(self, attr_name)
-            if callable(attr):
-                setattr(self, attr_name, worker_session(attr))
+    def __register_api_call_handlers(self):
+        for api_call, handler in self.api_call_bindings.items():
+            setattr(self, f"__call_{api_call}", self.ws(handler, self.session))
 
     def __emit_api_error(index: str, target: str):
         return {
@@ -426,32 +431,32 @@ class APIListener:
     def router_tasks(self):
         @self.router.post("/fetch_groups")
         async def fetch_groups(request: Request, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_groups(session_token)
+            return await self.__call_fetch_groups(session_token)
 
         @self.router.post("/fetch_rooms")
         async def fetch_rooms(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_rooms(session_token, payload.group_id)
+            return await self.__call_fetch_rooms(session_token, payload.group_id)
 
         @self.router.post("/fetch_group")
         async def fetch_group(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_group(session_token, payload.group_id, payload.room_id)
+            return await self.__call_fetch_group(session_token, payload.group_id, payload.room_id)
 
         @self.router.post("/fetch_members")
         async def fetch_members(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_members(session_token, payload.group_id)
+            return await self.__call_fetch_members(session_token, payload.group_id)
 
         @self.router.post("/fetch_roles")
         async def fetch_roles(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_roles(session_token, payload.group_id)
+            return await self.__call_fetch_roles(session_token, payload.group_id)
 
         @self.router.post("/fetch_messages")
         async def fetch_messages(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_messages(session_token, payload.group_id, payload.room_id)
+            return await self.__call_fetch_messages(session_token, payload.group_id, payload.room_id)
         
         @self.router.post("/fetch_permstable")
         async def fetch_permstable(request: Request, payload: RoleRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_permstable(session_token, payload.group_id, payload.room_id, payload.role_id)
+            return await self.__call_fetch_permstable(session_token, payload.group_id, payload.room_id, payload.role_id)
         
         @self.router.post("/fetch_primary_room")
         async def fetch_primary_room(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__fetch_primary_room(session_token, payload.group_id)
+            return await self.__cal__fetch_primary_room(session_token, payload.group_id)

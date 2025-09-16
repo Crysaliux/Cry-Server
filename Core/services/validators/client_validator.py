@@ -12,7 +12,7 @@ class ClientValidator:
 
     async def access_is_valid(self, token: str, session):
         try:
-            payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
+            payload = jwt.decode(token, self.access_key, algorithm=self.algorithm)
             username, id, expires_at = payload["username"], payload["id"], payload["exp"]
             client_res = await session.execute(select(Client).options(
                 selectinload(Client.groups),
@@ -31,7 +31,7 @@ class ClientValidator:
     
     async def session_is_valid(self, token: str, session):
         try:
-            payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
+            payload = jwt.decode(token, self.access_key, algorithm=self.algorithm)
             id, expires_at = payload["id"], payload["exp"]
             client_res = await session.execute(select(Client).options(
                 selectinload(Client.groups),
@@ -47,7 +47,7 @@ class ClientValidator:
         
     async def running_session_is_valid(self, token: str):
         try:
-            payload = jwt.decode(token, self.access_key, algorithms=[self.algorithm])
+            payload = jwt.decode(token, self.access_key, algorithm=self.algorithm)
             _, expires_at = payload["id"], payload["exp"]
 
             return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc)

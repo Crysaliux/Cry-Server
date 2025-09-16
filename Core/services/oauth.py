@@ -5,9 +5,8 @@ from sqlalchemy import insert, select, update, delete
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from .validators import ClientValidator
-from worker import worker_session
 from functools import wraps
 import jwt
 import uuid
@@ -28,6 +27,7 @@ class Authentication:
             self, 
             hasher, 
             session, 
+            ws,
             algorithm,
             access_key, 
             oauth2, 
@@ -35,23 +35,16 @@ class Authentication:
         self.access_key = access_key
         self.hasher = hasher
         self.session = session
+        self.ws = ws
         self.algorithm = algorithm
         self.oauth2 = oauth2
         self.router = APIRouter()
 
-        self.ignore = [
-            "router_tasks", 
-            "__emit_api_error",
-        ]
+        self.__call_signup = self.ws(self.__signup, self.session)
+        self.__call_login = self.ws(self.__login, self.session)
+        self.__call_refresh_session = self.ws(self.__refresh_session, self.session)
 
-        for attr_name in dir(self):
-            if attr_name in self.ignore:
-                continue
-            attr = getattr(self, attr_name)
-            if callable(attr):
-                setattr(self, attr_name, worker_session(attr))
-
-    def __emit_api_error(index: str, target: str):
+    def __emit_api_error(self, index: str, target: str):
         return {
             "status": False, 
             "body": None, 
@@ -71,22 +64,22 @@ class Authentication:
         datedelta = date.today() - date.fromisoformat(date_of_birth)
         if divmod(datedelta.total_seconds(), 31536000)[0] < 13: self.__emit_api_error("UNDERAGE", "client")
 
-        access_expires_at = datetime.now(datetime.timezone.utc) + timedelta(days=7)
-        session_expires_at = datetime.now(datetime.timezone.utc) + timedelta(minutes=15)
+        access_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        session_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
 
-        client_id = uuid.uuid4()
+        client_id = str(uuid.uuid4())
         access_token = jwt.encode(
             {
                 "username": username, 
                 "id": client_id,
                 "exp": int(access_expires_at.timestamp())
-            }, self.access_key, algorithms=[self.algorithm])
+            }, self.access_key, algorithm=self.algorithm)
         
         session_token = jwt.encode(
             {
                 "id": client_id, 
                 "exp": int(session_expires_at.timestamp())
-            }, self.access_key, algorithms=[self.algorithm])
+            }, self.access_key, algorithm=self.algorithm)
         
         session.add(Client(
             username=username,
@@ -94,11 +87,10 @@ class Authentication:
             email=email,
             date_of_birth=date.fromisoformat(date_of_birth),
             token=access_token, 
-            token_expires_at=datetime.now(datetime.timezone.utc) + timedelta(days=7), 
+            token_expires_at=access_expires_at, 
             id=client_id))
         
         await session.commit()
-        print(access_token, session_token)
         return {
             "status": True, 
             "body": {
@@ -166,12 +158,12 @@ class Authentication:
     def router_tasks(self):
         @self.router.post("/signup")
         async def signup(request: Request, payload: NewValidationRequest):
-            return await self.__signup(payload.username, payload.email, payload.password, payload.date_of_birth)
+            return await self.__call_signup(payload.username, payload.email, payload.password, payload.date_of_birth)
 
         @self.router.post("/login")
         async def login(request: Request, payload: ExistingValidationRequest):
-            return await self.__login(payload.email, payload.password)
+            return await self.__call_login(payload.email, payload.password)
         
         @self.router.post("/refresh_session")
         async def validate_client_session(request: Request, access_token: str = Depends(self.oauth2)): #automatically fetches from header bearer
-            return await self.__refresh_session(access_token)
+            return await self.__call_refresh_session(access_token)

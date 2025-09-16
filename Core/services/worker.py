@@ -47,11 +47,16 @@ class Client(Base):
     token: Mapped[str]
     last_login: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
 
-    friends = relationship("Client", secondary=friend_relationship, back_populates="friends")
+    friends = relationship("Client", 
+        secondary=friend_relationship, 
+        primaryjoin=id==friend_relationship.c.client_id,
+        secondaryjoin=id==friend_relationship.c.friend_id,
+        backref="friended_by",
+    )
     groups = relationship("Group", secondary=client_group_relationship, back_populates="members")
-    roles = relationship("Role", secondary=client_group_relationship, back_populates="assignees")
+    roles = relationship("Role", secondary=client_role_relationship, back_populates="assignees")
     owned_groups: Mapped[List["Group"]] = relationship("Group", back_populates="owner", foreign_keys="Group.owner_id")
-    created_spaces: Mapped[List["Space"]] = relationship("Space", back_populates="creator", foreign_keys="Space.cretor_id")
+    created_spaces: Mapped[List["Space"]] = relationship("Space", back_populates="creator", foreign_keys="Space.creator_id")
     created_rooms: Mapped[List["Room"]] = relationship("Room", back_populates="creator", foreign_keys="Room.creator_id")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="author", foreign_keys="Message.author_id")
 
@@ -90,6 +95,7 @@ class Space(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
     id : Mapped[str] = mapped_column(String(36), primary_key=True)
     
+    group: Mapped["Group"] = relationship("Group", back_populates="spaces", foreign_keys=[group_id])
     creator: Mapped["Client"] = relationship("Client", back_populates="created_spaces", foreign_keys=[creator_id])
     rooms: Mapped[List["Room"]] = relationship("Room", back_populates="space", foreign_keys="Room.space_id")
 
@@ -141,7 +147,7 @@ class Role(Base):
 
     group: Mapped["Group"] = relationship("Group", back_populates="roles", foreign_keys=[group_id])
     role_to_room_perm_tables: Mapped[List["RoleToRoomPerms"]] = relationship("RoleToRoomPerms", back_populates="role", foreign_keys="RoleToRoomPerms.role_id", cascade="all, delete-orphan")
-    assignees = relationship("Client", secondary=client_group_relationship, back_populates="roles")
+    assignees = relationship("Client", secondary=client_role_relationship, back_populates="roles")
 
 class RoleToRoomPerms(Base):
     __tablename__ = "role_to_room_perms"
@@ -212,13 +218,14 @@ class Worker:
             await conn.run_sync(Base.metadata.create_all)
 
 #Session wrapper
-def worker_session(func):
+def worker_session(func, session):
     @wraps(func)
     async def wrapper(self, *args, **kwargs):
         try:
-            async with self.session() as session:
-                async with session.begin():
-                    return await func(self, *args, session=session, **kwargs)
-        except SQLAlchemyError:
-            await session.rollback()
+            async with session() as ss:
+                async with ss.begin():
+                    return await func(self, *args, session=ss, **kwargs)
+        except SQLAlchemyError as e:
+            await ss.rollback()
+            raise(e)
     return wrapper

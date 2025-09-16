@@ -94,6 +94,7 @@ class Core(FastAPI):
         self.listener = Listener(
             addr=(self.sv_host, self.sv_port),
             session=self.worker.session,
+            ws=worker_session,
             oauth2=self.oauth2,
             hasher=self.hasher, 
             algorithm=self.algorithm, 
@@ -112,6 +113,7 @@ class Core(FastAPI):
         #Initializing Oauth module
         self.oauth = Authentication(
             session=self.worker.session,
+            ws=worker_session,
             hasher=self.hasher, 
             algorithm=self.algorithm, 
             access_key=self.server_access_key,
@@ -122,6 +124,7 @@ class Core(FastAPI):
         #Initializing APIListener module
         self.api_listener = APIListener(
             session=self.worker.session,
+            ws=worker_session,
             oauth2=self.oauth2,
             algorithm=self.algorithm, 
             perms = self.perms,
