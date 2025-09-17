@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
 from ast import literal_eval
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from ..components import *
 from .validators import *
 from PIL import Image
@@ -15,6 +15,7 @@ from functools import wraps
 import aiofiles
 from socketio.async_server import AsyncServer
 import asyncio
+import jwt
 
 
 class Listener:
@@ -95,15 +96,22 @@ class Listener:
 
 #Listener module's main body
     async def __on_connect(self, sid, eviron, auth, session):
-        try: session_token = auth["session_token"]
+        try: access_token = auth["access_token"]
         except KeyError:
             return False
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = await valid.session_is_valid(session_token, session)
+        status, client = await valid.access_is_valid(access_token, session)
 
         if not status:
             return False
+        
+        session_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        session_token = jwt.encode(
+            {
+                "id": client.id, 
+                "exp": int(session_expires_at.timestamp())
+            }, self.access_key, algorithm=self.algorithm)
         
         await self.gateway.save_session(sid, {"client": client, "session_token": session_token})
 

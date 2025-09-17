@@ -20,9 +20,9 @@ interface CoreGlobalProperties {
     current_room: RefObject<Room | null>;
     session_token: string | null;
     setSessionToken: Dispatch<SetStateAction<string | null>>;
-    access_token: any;
-    setAccessToken: (name: "access_token", value: any, options?: any) => void;
-    removeAccessToken: (name: "access_token", options?: any) => void;
+    cookie: any;
+    setCookie: (name: "access_token", value: any, options?: any) => void;
+    removeCookie: (name: "access_token", options?: any) => void;
 }
 
 interface CoreProperties {
@@ -53,7 +53,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const current_room = useRef<Room | null>(null);
 
     const [session_token, setSessionToken] = useState<string | null>(null);
-    const [access_token, setAccessToken, removeAccessToken] = useCookies(["access_token"]);
+    const [cookie, setCookie, removeCookie] = useCookies(["access_token"]);
 
     return (
         <CoreGlobalContext.Provider value = {{
@@ -74,9 +74,9 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             current_room,
             session_token,
             setSessionToken,
-            access_token,
-            setAccessToken,
-            removeAccessToken,
+            cookie,
+            setCookie,
+            removeCookie,
         }}>
             { children } 
         </CoreGlobalContext.Provider>

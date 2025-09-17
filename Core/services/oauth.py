@@ -87,7 +87,6 @@ class Authentication:
             email=email,
             date_of_birth=date.fromisoformat(date_of_birth),
             token=access_token, 
-            token_expires_at=access_expires_at.timestamp(), #check
             id=client_id))
         
         await session.commit()

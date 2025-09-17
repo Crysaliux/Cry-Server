@@ -2,7 +2,7 @@ from sqlalchemy import ForeignKey, String, Boolean, DateTime, Date, Table, Colum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime, timedelta, date
+from datetime import datetime, timezone, date
 from typing import Optional
 from random import uniform
 from typing import List
@@ -41,11 +41,11 @@ class Client(Base):
     about_me: Mapped[str] = mapped_column(String(200), nullable=True)
     avatar_url: Mapped[str] = mapped_column(String(100), nullable=True)
     color_theme: Mapped[str] = mapped_column(String(10), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     id : Mapped[str] = mapped_column(String(36), primary_key=True)
 
     token: Mapped[str]
-    last_login: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    last_login: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     friends = relationship("Client", 
         secondary=friend_relationship, 
@@ -70,7 +70,7 @@ class Group(Base):
     about_group: Mapped[str] = mapped_column(String(300), nullable=True)
     icon_url: Mapped[str] = mapped_column(String(100), nullable=True)
     nsfw: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     id : Mapped[str] = mapped_column(String(36), primary_key=True)
 
     #settings
@@ -92,7 +92,7 @@ class Space(Base):
     creator_id: Mapped[str] = mapped_column(ForeignKey('client.id', ondelete="SET NULL"), nullable=True)
 
     name: Mapped[str] = mapped_column(String(20))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     id : Mapped[str] = mapped_column(String(36), primary_key=True)
     
     group: Mapped["Group"] = relationship("Group", back_populates="spaces", foreign_keys=[group_id])
@@ -109,7 +109,7 @@ class Room(Base):
     name: Mapped[str] = mapped_column(String(20))
     about_room: Mapped[str] = mapped_column(String(150), nullable=True)
     nsfw: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     
     group: Mapped["Group"] = relationship("Group", back_populates="rooms", foreign_keys=[group_id])
@@ -125,7 +125,7 @@ class Message(Base):
     room_id: Mapped[str] = mapped_column(ForeignKey('room.id'))
     author_id: Mapped[str] = mapped_column(ForeignKey('client.id', ondelete="SET NULL"), nullable=True)
 
-    sent_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     content: Mapped[str] = mapped_column(String(1200))
     edited: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -141,7 +141,7 @@ class Role(Base):
 
     name: Mapped[str] = mapped_column(String(20))
     color: Mapped[str] = mapped_column(String(7), default="#FFFFFF") #HEX only! heh.
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     global_permissions: Mapped[int] = mapped_column(default=0)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
 

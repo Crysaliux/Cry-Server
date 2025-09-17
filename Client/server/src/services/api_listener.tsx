@@ -114,7 +114,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Groups fetch failed, can't process server response: ${parsed_response.data}`);
@@ -153,7 +153,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current, group_id: group_id },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Rooms fetch failed, can't process server response: ${parsed_response.data}`);
@@ -192,7 +192,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current, group_id: group_id },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Members fetch failed, can't process server response: ${parsed_response.data}`);
@@ -231,7 +231,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current, group_id: group_id },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Roles fetch failed, can't process server response: ${parsed_response.data}`);
@@ -270,7 +270,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current, group_id: group_id, room_id: room_id, role_id: role_id },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Permissions table fetch failed, can't process server response: ${parsed_response.data}`);
@@ -308,7 +308,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current, group_id: group_id, room_id: room_id },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Messages fetch failed, can't process server response: ${parsed_response.data}`);
@@ -347,7 +347,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current, id: id, room_id: room_id },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Group fetch failed, can't process server response: ${parsed_response.data}`);
@@ -388,7 +388,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             headers: { session_token: SessionTokenReference.current, group_id: group_id },
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
             console.error(`Primary room id fetch failed, can't process server response: ${parsed_response.data}`);

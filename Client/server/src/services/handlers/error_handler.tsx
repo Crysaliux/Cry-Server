@@ -21,10 +21,10 @@ export const ErrorHandler = (index: string, target: string, navigate: NavigateFu
             //
             break;
         case "USERNAME_EXISTS":
-            //
+            console.warn("Username already exists");
             break;
         case "EMAIL_EXISTS":
-            //
+            console.warn("Email already exists");
             break;
         case "UPDATE_FAILED":
             switch (target) {

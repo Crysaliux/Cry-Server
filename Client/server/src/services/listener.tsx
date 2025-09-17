@@ -98,9 +98,18 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         throw new Error("Can't load CoreGlobalContext for listener");
     }
 
+    if (!context_data.cookie.access_token) {
+        return (
+            <>
+                { children }
+            </>
+        );
+    }
+    
+
     const gateway = io(context_data.core_server_host.current, {
         path: context_data.gateway_addr.current,
-        auth: {"session_token": `${context_data.session_token}`},
+        auth: {"access_token": `${context_data.cookie.access_token}`},
         reconnection: true,
         transports: ["websocket"],
         reconnectionAttempts: context_data.max_reconnection_attempts.current,
@@ -117,25 +126,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         gateway.on("reconnect", (number) => console.error(`Gateway reconnected after ${number} attempts`));
         gateway.on("reconnect_attempt", () => console.log("Attempting to reconnect to gateway..."));
         gateway.on("reconnect_failed", () => console.error("Reconnection to gateway failed, is the server dead?"));
-
-        //Access handlers
-        gateway.on("connection_refused", (data) => {
-            const response = AccessErrorSchema.safeParse(data);
-            
-            if (!response.success) {
-                console.warn(`Incoming request can't be processed: ${response.data}`); //why here only?
-                return;
-            }
-
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
-                } else {
-                    console.error("Can't display exact error, no index provided");
-                }
-                return;
-        });
 
         gateway.on("group_created", (data) => {
             const response = GatewayResponseSchema.safeParse(data);

@@ -25,8 +25,8 @@ const ResponseSchema = z.object({ //hbb - handled by backend
     body: z.union([
         Oauth2Schema,
         RefreshSchema,
-    ]),
-    error: z.union([ErrorSchema.nullable()]),
+    ]).nullable(),
+    error: ErrorSchema.nullable(),
 });
 
 interface AuthenticationProperties {
@@ -48,10 +48,6 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
-    const navigate = useNavigate();
-
-    if (!context_data.access_token) navigate(context_data.login_path.current);
-
     const Authrs: AxiosInstance = axios.create({
         baseURL: `${context_data.core_server_host.current}${context_data.api_oauth_addr.current}`,
         headers: {
@@ -59,11 +55,13 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         },
     });
 
+    const navigate = useNavigate();
+
 
     const refresh = async () => {
-        const response = await Authrs.post("/refresh_session", {access_token: `${context_data.access_token}`});
+        const response = await Authrs.post("/refresh_session", {access_token: `${context_data.cookie.access_token}`});
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
         
         if (!parsed_response.success) {
             console.error(`Refresh, can't process server response: ${parsed_response.data}`);
@@ -85,6 +83,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+            return false;
         }
         
         const actual = RefreshSchema.safeParse(parsed_response.data.body);
@@ -105,7 +104,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             email: email, password: password,
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
         
         if (!parsed_response.success) {
             console.error(`Login failed, can't process server response: ${parsed_response.data}`);
@@ -124,6 +123,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+            return false;
         }
         
         const actual = Oauth2Schema.safeParse(parsed_response.data.body);
@@ -135,7 +135,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
                 
         const login: z.infer<typeof Oauth2Schema> = actual.data;
 
-        context_data.setAccessToken("access_token", login.access_token, { path: "/" });
+        context_data.setCookie("access_token", login.access_token, { path: "/" });
         context_data.setSessionToken(login.session_token);
     };
 
@@ -144,10 +144,10 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             username: username, email: email, password: password, date_of_birth: date_of_birth,
         });
 
-        const parsed_response = ResponseSchema.safeParse(response);
+        const parsed_response = ResponseSchema.safeParse(response.data);
         
         if (!parsed_response.success) {
-            console.error(`Signup failed, can't process server response: ${parsed_response.data}`);
+            console.error(`Signup failed, can't process server response: ${response.data}`);
             return false;
         }
         
@@ -163,6 +163,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+            return false;
         }
         
         const actual = Oauth2Schema.safeParse(parsed_response.data.body);
@@ -174,7 +175,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
                 
         const signup: z.infer<typeof Oauth2Schema> = actual.data;
 
-        context_data.setAccessToken("access_token", signup.access_token, { path: "/" });
+        context_data.setCookie("access_token", signup.access_token, { path: "/" });
         context_data.setSessionToken(signup.session_token);
 
         return true;

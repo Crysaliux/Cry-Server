@@ -22,12 +22,12 @@ const GroupLayout: React.FC = () => {
         if (!api_hatch) {
             throw new Error("Can't load CoreGlobalContext for oauth");
     }
-    
+
     const navigate = useNavigate();
     const { group_id, room_id } = useParams();
 
     if (group_id) {
-
+        if (!context_data.cookie.access_token) navigate(context_data.login_path.current);
         if (!room_id) {
             const id = api_hatch.fetchPrimaryRoom(group_id);
             if (validate(id)) {
