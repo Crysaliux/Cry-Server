@@ -1,9 +1,11 @@
 from ..worker import Client, Group
+from typing import Any, Union
 
 class PermissionValidator:
-    def __init__(self, client: Client, group: Group):
+    def __init__(self, client: Client, group: Group, perms):
         self.client = client
         self.group = group
+        self.perms = perms
 
     def mask_global_permissions(self, names: list[str]) -> int:
         permissions = 0
@@ -26,7 +28,7 @@ class PermissionValidator:
                 res.append(name)
         return res
     
-    def unmask_room_permissions(self, mask: int) -> list[str]:
+    def unmask_room_permissions(self, mask: int) -> None:
         #Not implemented
         raise NotImplementedError
 

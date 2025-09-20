@@ -11,20 +11,14 @@ const ErrorSchema = z.object({
     target: z.string(),
 });
 
-const Oauth2Schema = z.object({
+const AccessSchema = z.object({
     access_token: z.string(),
-    session_token: z.string(),
-});
-
-const RefreshSchema = z.object({
-    session_token: z.string(),
 });
 
 const ResponseSchema = z.object({ //hbb - handled by backend
     status: z.boolean(),
     body: z.union([
-        Oauth2Schema,
-        RefreshSchema,
+        AccessSchema,
     ]).nullable(),
     error: ErrorSchema.nullable(),
 });
@@ -59,7 +53,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
 
 
     const refresh = async () => {
-        const response = await Authrs.post("/refresh_session", {access_token: `${context_data.cookie.access_token}`});
+        const response = await Authrs.post("/refresh_access");
 
         const parsed_response = ResponseSchema.safeParse(response.data);
         
@@ -86,7 +80,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             return false;
         }
         
-        const actual = RefreshSchema.safeParse(parsed_response.data.body);
+        const actual = AccessSchema.safeParse(parsed_response.data.body);
         
         if (!actual.success) {
             console.error(`Refresh failed, can't process server response: ${parsed_response.data.body}`);
@@ -94,9 +88,10 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             return;
         }
                 
-        const refresh: z.infer<typeof RefreshSchema> = actual.data;
+        const refresh: z.infer<typeof AccessSchema> = actual.data;
 
-        context_data.setSessionToken(refresh.session_token);
+        context_data.setAccessToken(refresh.access_token);
+        return true;
     };
 
     const login = async (email: string, password: string) => {
@@ -126,17 +121,17 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             return false;
         }
         
-        const actual = Oauth2Schema.safeParse(parsed_response.data.body);
+        const actual = AccessSchema.safeParse(parsed_response.data.body);
         
         if (!actual.success) {
             console.error(`Login failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
                 
-        const login: z.infer<typeof Oauth2Schema> = actual.data;
+        const login: z.infer<typeof AccessSchema> = actual.data;
 
-        context_data.setCookie("access_token", login.access_token, { path: "/" });
-        context_data.setSessionToken(login.session_token);
+        context_data.setAccessToken(login.access_token);
+        return true;
     };
 
     const signup = async (username: string, email: string, password: string, date_of_birth: string) => {
@@ -166,18 +161,16 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             return false;
         }
         
-        const actual = Oauth2Schema.safeParse(parsed_response.data.body);
+        const actual = AccessSchema.safeParse(parsed_response.data.body);
         
         if (!actual.success) {
             console.error(`Signup failed, can't process server response: ${parsed_response.data.body}`);
             return false;
         }
                 
-        const signup: z.infer<typeof Oauth2Schema> = actual.data;
+        const signup: z.infer<typeof AccessSchema> = actual.data;
 
-        context_data.setCookie("access_token", signup.access_token, { path: "/" });
-        context_data.setSessionToken(signup.session_token);
-
+        context_data.setAccessToken(signup.access_token);
         return true;
     };
 

@@ -7,6 +7,7 @@ from typing import Optional
 from random import uniform
 from typing import List
 from functools import wraps
+from typing import Any
 import time
 
 class Base(DeclarativeBase):
@@ -213,7 +214,7 @@ class Worker:
         self.engine = create_async_engine("sqlite+aiosqlite://", echo=False) #make True for precise logging
         self.session = sessionmaker(bind=self.engine, class_=AsyncSession, expire_on_commit=False)
 
-    async def start(self):
+    async def start(self) -> None:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 

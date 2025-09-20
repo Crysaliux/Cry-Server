@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type
-from typing import List, Union, Annotated, Literal
+from typing import TypeAlias, Literal
 from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete
@@ -18,6 +18,11 @@ import asyncio
 import jwt
 
 
+#Emission types
+EmitError: TypeAlias = None
+EmitCommon: TypeAlias = None
+
+
 class Listener:
     def __init__(
             self, 
@@ -31,7 +36,6 @@ class Listener:
             max_image_size: int, 
             max_file_size: dict, 
             client_server_origin: str, 
-            heartbeat_interval: int,
             algorithm, access_key, 
             addr: tuple, 
             gateway: AsyncServer,
@@ -49,7 +53,6 @@ class Listener:
         self.max_image_size = max_image_size
         self.max_file_size = max_file_size
         self.client_server_origin = client_server_origin
-        self.heartbeat_interval = heartbeat_interval
         self.algorithm = algorithm
         self.gateway = gateway
         self.perms = perms
@@ -83,11 +86,11 @@ class Listener:
         }
         self.__register_event_handlers()
 
-    def __register_event_handlers(self):
+    def __register_event_handlers(self) -> None:
         for event, handler in self.event_bindings.items():
             self.gateway.on(event, self.ws(handler, self.session))
 
-    async def __emit_error(self, sid, id: int, event: str, error: dict):
+    async def __emit_error(self, sid, id: int, event: str, error: dict) -> EmitError:
         await self.gateway.emit(event, {
             "status": False,
             "body": {"id": id},
@@ -95,40 +98,33 @@ class Listener:
         }, to=sid)
 
 #Listener module's main body
-    async def __on_connect(self, sid, eviron, auth, session):
+    async def __on_connect(self, sid, eviron, auth, session) -> Literal[False] | EmitCommon:
         try: access_token = auth["access_token"]
         except KeyError:
             return False
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = await valid.access_is_valid(access_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return False
         
-        session_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-        session_token = jwt.encode(
-            {
-                "id": client.id, 
-                "exp": int(session_expires_at.timestamp())
-            }, self.access_key, algorithm=self.algorithm)
-        
-        await self.gateway.save_session(sid, {"client": client, "session_token": session_token})
+        await self.gateway.save_session(sid, {"client": client, "access_token": access_token})
 
     async def __on_disconnect(self, sid):
         ...
 
-    #ON_CREATE_...
-    async def __on_create_group(self, sid, data, session):
+    #ON_CREATE...
+    async def __on_create_group(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "group_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "group_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -148,16 +144,16 @@ class Listener:
             "error": None,
         }, to=sid)
 
-    async def __on_create_space(self, sid, data, session):
+    async def __on_create_space(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "space_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -182,7 +178,7 @@ class Listener:
             await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_SPACES"]):
             session.add(Space(group_id=group_id, creator_id=client.id, name=name, id=id)) 
@@ -196,16 +192,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "space_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
 
-    async def __on_create_room(self, sid, data, session):
+    async def __on_create_room(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "room_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -230,7 +226,7 @@ class Listener:
             await self.__emit_error(sid, id, "room_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROOMS"]):
             session.add(Room(group_id=group_id, space_id=space_id, creator_id=client.id, name=name, about_room=about_room, id=id)) 
@@ -244,16 +240,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "room_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
 
-    async def __on_send_message(self, sid, data, session):
+    async def __on_send_message(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "message_sent", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -278,7 +274,7 @@ class Listener:
             await self.__emit_error(sid, id, "message_sent", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "SEND_MESSAGES"]) or \
         perm_valid.has_room_permissions_all(room_id, ["SEND_MESSAGES"]):
@@ -307,16 +303,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "message_sent", {"index": "MISSING_PERMISSION", "target": "SEND_MESSAGES"})
     
-    async def __on_create_role(self, sid, data, session):
+    async def __on_create_role(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "role_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -341,7 +337,7 @@ class Listener:
             await self.__emit_error(sid, id, "role_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             session.add(Role(group_id=group_id, name=name, id=id))
@@ -354,16 +350,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "role_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
-    async def __on_create_permissions_table(self, sid, data, session):
+    async def __on_create_permissions_table(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "permissions_table_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -388,7 +384,7 @@ class Listener:
             await self.__emit_error(sid, id, "permissions_table_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             session.add(RoleToRoomPerms(group_id=group_id, role_id=role_id, room_id=room_id, permissions=perm_valid.mask_room_permissions(permissions), id=id))
@@ -402,16 +398,16 @@ class Listener:
             await self.__emit_error(sid, id, "permissions_table_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     #ON_UPDATE_...
-    async def __on_update_client(self, sid, data, session):
+    async def __on_update_client(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -467,16 +463,16 @@ class Listener:
         else:
             await self.__emit_error(sid, client.id, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
 
-    async def __on_update_group(self, sid, data, session):
+    async def __on_update_group(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "group_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "group_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -501,7 +497,7 @@ class Listener:
             await self.__emit_error(sid, id, "group_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_GROUP"]):
             update_status_res = await session.execute(update(Group).where(Group.id == id).values(name=name, global_name=global_name, about_group=about_group, icon_url=icon_url, nsfw=nsfw, content_filter=content_filter, content_filter_level=content_filter_level).returning(Group.id))
@@ -517,16 +513,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "group_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_GROUP"})
     
-    async def __on_update_space(self, sid, data, session):
+    async def __on_update_space(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "space_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "space_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -551,7 +547,7 @@ class Listener:
             await self.__emit_error(sid, id, "space_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_SPACES"]):
             update_status_res = await session.execute(update(Space).where(Space.id == id).values(name=name).returning(Space.id))
@@ -567,16 +563,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "space_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
-    async def __on_update_room(self, sid, data, session):
+    async def __on_update_room(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "room_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "room_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -601,7 +597,7 @@ class Listener:
             await self.__emit_error(sid, id, "room_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROOMS"]):
             update_status_res = await session.execute(update(Room).where(Room.id == id).values(space_id=space_id, name=name, about_room=about_room, nsfw=nsfw).returning(Room.id))
@@ -617,16 +613,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "room_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
-    async def __on_edit_message(self, sid, data, session):
+    async def __on_edit_message(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "message_edited", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -660,7 +656,7 @@ class Listener:
             await self.__emit_error(sid, id, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_MESSAGES"]) or \
         perm_valid.has_room_permissions_all(room_id, ["MANAGE_MESSAGES"]) or \
@@ -681,16 +677,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "message_edited", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
 
-    async def __on_update_role(self, sid, data, session):
+    async def __on_update_role(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "role_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "role_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -715,7 +711,7 @@ class Listener:
             await self.__emit_error(sid, id, "role_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             update_status_res = await session.execute(
@@ -737,16 +733,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "role_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
-    async def __on_update_permissions_table(self, sid, data, session):
+    async def __on_update_permissions_table(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "permissions_table_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -771,7 +767,7 @@ class Listener:
             await self.__emit_error(sid, id, "permissions_table_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             update_status_res = await session.execute(
@@ -792,16 +788,16 @@ class Listener:
             await self.__emit_error(sid, id, "permissions_table_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
     
     #ON_DELETE
-    async def __on_delete_client(self, sid, data, session):
+    async def __on_delete_client(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "client_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "client_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
          
@@ -817,16 +813,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "client_deleted", {"index": "DELETION_FAILED", "target": "client"})
     
-    async def __on_delete_group(self, sid, data, session):
+    async def __on_delete_group(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "group_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -864,16 +860,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "group_deleted", {"index": "DELETION_REJECTED", "target": "group"})
 
-    async def __on_delete_space(self, sid, data, session):
+    async def __on_delete_space(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "space_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -898,7 +894,7 @@ class Listener:
             await self.__emit_error(sid, id, "space_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
 
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_SPACES"]):
             deletion_status_res = await session.execute(delete(Space).where(Space.id == id).returning(Space.id))
@@ -914,16 +910,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "space_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
-    async def __on_delete_room(self, sid, data, session):
+    async def __on_delete_room(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "room_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -948,7 +944,7 @@ class Listener:
             await self.__emit_error(sid, id, "room_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROOMS"]):
             deletion_status_res = await session.execute(delete(Room).where(Room.id == id).returning(Room.id))
@@ -964,16 +960,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "room_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
-    async def __on_delete_message(self, sid, data, session):
+    async def __on_delete_message(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "message_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -1005,7 +1001,7 @@ class Listener:
             await self.__emit_error(sid, id, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_MESSAGES"]) or \
         perm_valid.has_room_permissions_all(room_id, ["MANAGE_MESSAGES"]) or \
@@ -1023,16 +1019,16 @@ class Listener:
         else:
             await self.__emit_error(sid, id, "message_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
     
-    async def __on_delete_role(self, sid, data, session):
+    async def __on_delete_role(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
-        client, session_token = client_session["client"], client_session["session_token"]
+        client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
             await self.__emit_error(sid, client.id, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(session_token):
+        if not valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "role_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -1057,7 +1053,7 @@ class Listener:
             await self.__emit_error(sid, id, "role_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROLES"]):
             deletion_status_res = await session.execute(delete(Role).where(Role.id == id).returning(Role.id))

@@ -35,22 +35,22 @@ import re
 logging.basicConfig(level=logging.DEBUG)
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.json")) as conf:
-    CONFIG = json.load(conf)
+    CONFIG = {key: value for key, value in json.load(conf).items() if not key.startswith("_")}
+
 
 class Core(FastAPI):
-    def __init__(self, host: str, port: int):
+    def __init__(self):
         super().__init__()
-        self.sv_host = host
-        self.sv_port = port
-        self.heartbeat_interval = 10000 #milliseconds (10 seconds)
-        self.client_server_origin = "http://localhost:5173"
-        self.rm = AsyncRedisManager("redis://localhost:6379/0")
-        self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Images")
-        self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Storage/Files")
+        self.sv_host = CONFIG["SERVER_HOST"]
+        self.sv_port = CONFIG["SERVER_PORT"]
+        self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
+        self.rm = AsyncRedisManager(f"redis:{CONFIG['REDIS_SERVER_HOST']}:{CONFIG['REDIS_SERVER_PORT']}/0") 
+        self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
+        self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["FILE_STORAGE_PATH"])
         self.gateway = AsyncServer(
-            async_mode="asgi", 
+            async_mode=CONFIG["GATEWAY_ASYNC_MODE"], 
             client_manager=self.rm, 
-            logger=True, 
+            logger=CONFIG["GATEWAY_LOGGER"], 
             cors_allowed_origins=self.client_server_origin
         ) #Disable logger later
 
@@ -58,15 +58,15 @@ class Core(FastAPI):
         self.cecchm = CECCHManager(self.gateway)
         
         self.server_access_key = str(uuid.uuid4())
-        self.algorithm = "HS256" 
-        self.login_expiration = 24 #hours
+        self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
+        self.login_expiration = 24 #days
         self.hasher = PasswordHasher()
-        self.oauth2 = OAuth2PasswordBearer(tokenUrl="token")
+        self.oauth2 = OAuth2PasswordBearer(tokenUrl=CONFIG["BEARER_TOKEN_URL"])
         
-        self.message_load_batch_size = CONFIG["MESSAGE_LOAD_BATCH_SIZE"] #messages
-        self.max_message_length = CONFIG["MAX_MESSAGE_LENGTH"] #characters
-        self.max_image_size = CONFIG["MAX_IMAGE_SIZE"] #pixels
-        self.max_file_size = CONFIG["MAX_FILE_SIZE"] #megabytes
+        self.message_load_batch_size = CONFIG["MESSAGE_LOAD_BATCH_SIZE"]
+        self.max_message_length = CONFIG["MAX_MESSAGE_LENGTH"]
+        self.max_image_size = CONFIG["MAX_IMAGE_SIZE"]
+        self.max_file_size = CONFIG["MAX_FILE_SIZE"]
 
         class PERMISSIONS:
             class _global:
@@ -102,7 +102,6 @@ class Core(FastAPI):
             storage_files_path=self.storage_files_path, 
             max_image_size=self.max_image_size,
             max_file_size=self.max_file_size,
-            heartbeat_interval=self.heartbeat_interval,
             max_message_length=self.max_message_length,
             client_server_origin=self.client_server_origin,
             access_key=self.server_access_key,
@@ -128,12 +127,13 @@ class Core(FastAPI):
             oauth2=self.oauth2,
             algorithm=self.algorithm, 
             perms = self.perms,
+            access_key=self.server_access_key,
             message_load_batch_size = self.message_load_batch_size,
         )
         self.api_listener.router_tasks()
 
-        self.include_router(self.oauth.router, prefix="/oauth")
-        self.include_router(self.api_listener.router, prefix="/api")
+        self.include_router(self.oauth.router, prefix=CONFIG["OAUTH_PATH"])
+        self.include_router(self.api_listener.router, prefix=CONFIG["API_PATH"])
 
         self.main_routes = [
             {"path": "/", "func": self.__main, "method": ["GET"]},
@@ -142,11 +142,11 @@ class Core(FastAPI):
         for route in self.main_routes:
             self.add_api_route(route["path"], route["func"], methods=route["method"], response_class=HTMLResponse)
 
-        self.gt_app = ASGIApp(self.gateway, other_asgi_app=self, socketio_path="gateway")
+        self.gt_app = ASGIApp(self.gateway, other_asgi_app=self, socketio_path=CONFIG["GATEWAY_PATH"])
 
-        self.mount("/gateway", self.gt_app)
-        self.mount("/images", StaticFiles(directory=self.storage_images_path), name="images")
-        self.mount("/files", StaticFiles(directory=self.storage_files_path), name="files")
+        self.mount(CONFIG["GATEWAY_PATH"], self.gt_app)
+        self.mount(CONFIG["STATIC_IMAGE_PATH"], StaticFiles(directory=self.storage_images_path), name="images")
+        self.mount(CONFIG["STATIC_FILE_PATH"], StaticFiles(directory=self.storage_files_path), name="files")
 
     
     def start(self):
@@ -161,7 +161,7 @@ class Core(FastAPI):
     async def __gather_background(self):
         await asyncio.gather(self.__background_worker(), self.__background_ceecchm())
 
-
+    #Background services
     async def __background_worker(self):
         await self.worker.start()
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
+from fastapi import FastAPI, Request, Form, WebSocket, Header, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
@@ -6,10 +6,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
-from typing import Union
+from typing import Literal, TypeAlias
 from ..components import *
 from .validators import *
 from functools import wraps
+from logging import log
 import uuid
 
 class GroupRelated(BaseModel):
@@ -25,6 +26,11 @@ class RoleRelated(BaseModel):
     role_id: str
 
 
+#Emission types
+EmitError: TypeAlias = dict[str, Literal[False] | None | dict[str, str]]
+EmitCommon: TypeAlias = dict[str, bool | list[str, str | bool | int] | str | None]
+
+
 class APIListener:
     def __init__(
             self,
@@ -34,6 +40,7 @@ class APIListener:
             algorithm,
             perms,
             message_load_batch_size: int,
+            access_key,
         ):
         self.oauth2 = oauth2
         self.session = session
@@ -41,6 +48,7 @@ class APIListener:
         self.algorithm = algorithm
         self.perms = perms
         self.message_load_batch_size = message_load_batch_size
+        self.access_key = access_key
         self.router = APIRouter()
 
         self.api_call_bindings = {
@@ -55,11 +63,11 @@ class APIListener:
         }
         self.__register_api_call_handlers()
 
-    def __register_api_call_handlers(self):
+    def __register_api_call_handlers(self) -> None:
         for api_call, handler in self.api_call_bindings.items():
-            setattr(self, f"__call_{api_call}", self.ws(handler, self.session))
+            setattr(self, f"_call_{api_call}", self.ws(handler, self.session))
 
-    def __emit_api_error(index: str, target: str):
+    def __emit_api_error(self, index: str, target: str) -> EmitError:
         return {
             "status": False, 
             "body": None, 
@@ -67,9 +75,9 @@ class APIListener:
         }
     
 
-    async def __fetch_groups(self, session_token: str, session) -> dict:
+    async def __fetch_groups(self, access_token: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -100,9 +108,9 @@ class APIListener:
             "error": None,
         }
 
-    async def __fetch_rooms(self, session_token: str, group_id: str, session) -> dict:
+    async def __fetch_rooms(self, access_token: str, group_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -146,9 +154,9 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
-    async def __fetch_group(self, session_token: str, group_id: str, room_id: str, session) -> dict:
+    async def __fetch_group(self, access_token: str, group_id: str, room_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -234,9 +242,9 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
-    async def __fetch_members(self, session_token: str, group_id: str, session) -> dict:
+    async def __fetch_members(self, access_token: str, group_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, _ = valid.session_is_valid(session_token, session)
+        status, _ = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -261,9 +269,9 @@ class APIListener:
             "error": None,
         }
     
-    async def __fetch_roles(self, session_token: str, group_id: str, session) -> dict:
+    async def __fetch_roles(self, access_token: str, group_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -300,9 +308,9 @@ class APIListener:
         
         return await self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
 
-    async def __fetch_messages(self, session_token: str, group_id: str, room_id: str, session) -> dict:
+    async def __fetch_messages(self, access_token: str, group_id: str, room_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -347,9 +355,9 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
     
-    async def __fetch_permstable(self, session_token: str, group_id: str, room_id: str, role_id: str, session) -> dict:
+    async def __fetch_permstable(self, access_token: str, group_id: str, room_id: str, role_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -389,9 +397,9 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
     
-    async def __fetch_primary_room(self, session_token: str, group_id: str, session) -> dict:
+    async def __fetch_primary_room(self, access_token: str, group_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.session_is_valid(session_token, session)
+        status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
@@ -430,33 +438,33 @@ class APIListener:
 
     def router_tasks(self):
         @self.router.post("/fetch_groups")
-        async def fetch_groups(request: Request, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_groups(session_token)
+        async def fetch_groups(request: Request, access_token: str | None = Header(None)):
+            return await self._call_fetch_groups(access_token)
 
         @self.router.post("/fetch_rooms")
-        async def fetch_rooms(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_rooms(session_token, payload.group_id)
+        async def fetch_rooms(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+            return await self._call_fetch_rooms(access_token, payload.group_id)
 
         @self.router.post("/fetch_group")
-        async def fetch_group(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_group(session_token, payload.group_id, payload.room_id)
+        async def fetch_group(request: Request, payload: RoomRelated, access_token: str | None = Header(None)):
+            return await self._call_fetch_group(access_token, payload.group_id, payload.room_id)
 
         @self.router.post("/fetch_members")
-        async def fetch_members(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_members(session_token, payload.group_id)
+        async def fetch_members(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+            return await self._call_fetch_members(access_token, payload.group_id)
 
         @self.router.post("/fetch_roles")
-        async def fetch_roles(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_roles(session_token, payload.group_id)
+        async def fetch_roles(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+            return await self._call_fetch_roles(access_token, payload.group_id)
 
         @self.router.post("/fetch_messages")
-        async def fetch_messages(request: Request, payload: RoomRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_messages(session_token, payload.group_id, payload.room_id)
+        async def fetch_messages(request: Request, payload: RoomRelated, access_token: str | None = Header(None)):
+            return await self._call_fetch_messages(access_token, payload.group_id, payload.room_id)
         
         @self.router.post("/fetch_permstable")
-        async def fetch_permstable(request: Request, payload: RoleRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__call_fetch_permstable(session_token, payload.group_id, payload.room_id, payload.role_id)
+        async def fetch_permstable(request: Request, payload: RoleRelated, access_token: str | None = Header(None)):
+            return await self._call_fetch_permstable(access_token, payload.group_id, payload.room_id, payload.role_id)
         
         @self.router.post("/fetch_primary_room")
-        async def fetch_primary_room(request: Request, payload: GroupRelated, session_token: str = Depends(self.oauth2)):
-            return await self.__cal__fetch_primary_room(session_token, payload.group_id)
+        async def fetch_primary_room(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+            return await self._call_fetch_primary_room(access_token, payload.group_id)

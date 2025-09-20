@@ -1,4 +1,38 @@
-{
+{   
+    "SERVER_HOST": "localhost",
+    "SERVER_PORT": 8080,
+
+    "REDIS_SERVER_HOST": "localhost",
+    "REDIS_SERVER_PORT": 6379,
+
+    "CLIENT_SERVER_HOST": "localhost",
+    "CLIENT_SERVER_PORT": 5173,
+
+    "IMAGE_STORAGE_PATH": "../Storage/Images",
+    "FILE_STORAGE_PATH": "../Storage/Files",
+
+    "GATEWAY_ASYNC_MODE": "asgi",
+    "GATEWAY_LOGGER": true,
+    
+    "ENCRYPTION_ALGORITHM": "HS256",
+    "LOGIN_EXPIRATION": 7,
+    "BEARER_TOKEN_URL": "access_token",
+    
+    "MESSAGE_LOAD_BATCH_SIZE": 60,
+    "MAX_MESSAGE_LENGTH": 1024,
+
+    "_mis comm": "in pixels",
+    "MAX_IMAGE_SIZE": 500,
+
+    "_mfs comm": "in megabytes",
+    "MAX_FILE_SIZE": 10,
+
+    "OAUTH_PATH": "/oauth",
+    "API_PATH": "/api",
+    "GATEWAY_PATH": "/gateway",
+    "STATIC_IMAGE_PATH": "/images",
+    "STATIC_FILE_PATH": "/files",
+
     "PERMISSIONS": {
         "GLOBAL": {
             "VIEW_ROOMS": 0,
@@ -16,9 +50,5 @@
             "SEND_STICKERS": 10,
             "MANAGE_MESSAGES": 11
         }
-    },
-    "MESSAGE_LOAD_BATCH_SIZE": 30,
-    "MAX_MESSAGE_LENGTH": 1024,
-    "MAX_IMAGE_SIZE": 500,
-    "MAX_FILE_SIZE": 10
+    }
 }

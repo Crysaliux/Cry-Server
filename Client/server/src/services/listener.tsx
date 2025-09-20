@@ -60,10 +60,6 @@ export const ErrorSchema = z.object({
     target: z.string(),
 });
 
-const AccessErrorSchema = z.object({
-    error: ErrorSchema,
-})
-
 const GatewayResponseSchema = z.object({
     status: z.boolean(),
     body: z.union([
@@ -98,18 +94,17 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         throw new Error("Can't load CoreGlobalContext for listener");
     }
 
-    if (!context_data.cookie.access_token) {
+    if (!context_data.access_token) {
         return (
             <>
                 { children }
             </>
         );
     }
-    
 
     const gateway = io(context_data.core_server_host.current, {
         path: context_data.gateway_addr.current,
-        auth: {"access_token": `${context_data.cookie.access_token}`},
+        auth: {"access_token": `${context_data.access_token}`},
         reconnection: true,
         transports: ["websocket"],
         reconnectionAttempts: context_data.max_reconnection_attempts.current,
