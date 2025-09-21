@@ -1,4 +1,4 @@
-import { useContext, useRef, createContext, ReactNode } from "react";
+import { useContext, useRef, createContext, ReactNode, useCallback } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
@@ -94,14 +94,6 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
-    const APIrs: AxiosInstance = axios.create({
-        baseURL: `${context_data.core_server_host.current}${context_data.api_hatch_addr.current}`,
-        headers: {
-            "access_token": `${context_data.access_token}`,
-            "Content-Type": "application/json",
-        },
-    });
-
     const navigate = useNavigate();
     const set_objects = useObjects((state) => state.setObjects);
     const set_permstable = useObjects((state) => state.setPermissionsTable);
@@ -112,8 +104,16 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         return transobj
     };
 
+    const APIrs: AxiosInstance = axios.create({
+        baseURL: `${context_data.core_server_host.current}${context_data.api_hatch_addr.current}`,
+        headers: {
+            "access_token": `${context_data.access_token}`,
+            "Content-Type": "application/json",
+        },
+    });
 
-    const __fetch_groups = async () => {
+
+    const __fetch_groups = useCallback(async () => {
         const response = await APIrs.get("/fetch_groups");
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -135,6 +135,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = z.array(GroupSchema).safeParse(parsed_response.data.body);
@@ -148,9 +149,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const fetched_groups: z.infer<typeof gs_type> = actual.data;
 
         set_objects("groups", transform(fetched_groups));
-    };
+    }, []);
 
-    const __fetch_rooms = async (group_id: string) => {
+    const __fetch_rooms = useCallback(async (group_id: string) => {
         const response = await APIrs.post("/fetch_rooms", { group_id: group_id });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -172,6 +173,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = FetchedRoomsSchema.safeParse(parsed_response.data.body);
@@ -185,9 +187,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
 
         set_objects("spaces", transform(fetched_rooms.spaces));
         set_objects("rooms", transform(fetched_rooms.rooms));
-    };
+    }, []);
 
-    const __fetch_members = async (group_id: string) => {
+    const __fetch_members = useCallback(async (group_id: string) => {
         const response = await APIrs.post("/fetch_members", { group_id: group_id });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -209,6 +211,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = z.array(MemberSchema).safeParse(parsed_response.data.body);
@@ -222,9 +225,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const fetched_members: z.infer<typeof ms_type> = actual.data;
 
         set_objects("members", transform(fetched_members));
-    };
+    }, []);
 
-    const __fetch_roles = async (group_id: string) => {
+    const __fetch_roles = useCallback(async (group_id: string) => {
         const response = await APIrs.post("/fetch_roles", { group_id: group_id });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -246,6 +249,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = z.array(RoleSchema).safeParse(parsed_response.data.body);
@@ -259,9 +263,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const fetched_roles: z.infer<typeof rs_type> = actual.data;
 
         set_objects("roles", transform(fetched_roles));
-    };
+    }, []);
 
-    const __fetch_permstable = async (group_id: string, room_id: string, role_id: string) => {
+    const __fetch_permstable = useCallback(async (group_id: string, room_id: string, role_id: string) => {
         const response = await APIrs.post("/fetch_permstable", { group_id: group_id, room_id: room_id, role_id: role_id });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -283,6 +287,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = PermissionsTableSchema.safeParse(parsed_response.data.body);
@@ -295,9 +300,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const fetched_permstable: z.infer<typeof PermissionsTableSchema> = actual.data;
 
         set_permstable(fetched_permstable);
-    };
+    }, []);
 
-    const __fetch_messages = async (group_id: string, room_id: string) => {
+    const __fetch_messages = useCallback(async (group_id: string, room_id: string) => {
         const response = await APIrs.post("/fetch_messages", { group_id: group_id, room_id: room_id });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -319,6 +324,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = z.array(MessageSchema).safeParse(parsed_response.data.body);
@@ -332,9 +338,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const fetched_messages: z.infer<typeof ms_type> = actual.data;
 
         set_objects("messages", transform(fetched_messages));
-    };
+    }, []);
 
-    const __fetch_group = async (id: string, room_id: string) => {
+    const __fetch_group = useCallback(async (id: string, room_id: string) => {
         const response = await APIrs.post("/fetch_group", { id: id, room_id: room_id });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -356,6 +362,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = FetchedGroupSchema.safeParse(parsed_response.data.body);
@@ -371,9 +378,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         set_objects("rooms", transform(fetched_group.rooms));
         set_objects("members", transform(fetched_group.members));
         set_objects("messages", transform(fetched_group.primary_room_messages));
-    };
+    }, []);
 
-    const __fetch_primary_room = async (group_id: string) => {
+    const __fetch_primary_room = useCallback(async (group_id: string) => {
         const response = await APIrs.post("/fetch_primary_room", { group_id: group_id });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -395,6 +402,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             }
 
             ErrorHandler(error.data.index, error.data.target, navigate);
+            return;
         }
 
         const actual = FetchedRoomIdSchema.safeParse(parsed_response.data.body);
@@ -407,7 +415,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const room_id: z.infer<typeof FetchedRoomIdSchema> = actual.data;
 
         return room_id;
-    };
+    }, []);
 
     const fetchGroups = async () => {
         await __fetch_groups();

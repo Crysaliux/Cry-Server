@@ -1,5 +1,6 @@
 import { Group, Message, PermissionsTable, Role, Room, Space, Member } from "components/index"
 import { create } from "zustand";
+import { useShallow } from 'zustand/react/shallow'
 
 export interface Identifiable {
   id: string;
@@ -51,10 +52,10 @@ export const useObjects = create<ObjectsActionState>((set) => ({
         })),
 }));
 
-export const useGroups = () => useObjects((state) => Object.values(state.groups));
-export const useMessages = () => useObjects((state) => Object.values(state.messages));
-export const usePermissionsTable = () => useObjects((state) => state.permissions_table);
-export const useRoles = () => useObjects((state) => Object.values(state.roles));
-export const useRooms = () => useObjects((state) => Object.values(state.rooms));
-export const useSpaces = () => useObjects((state) => Object.values(state.spaces));
-export const useMembers = () => useObjects((state) => Object.values(state.members));
+export const useGroups = () => useObjects(useShallow((state) => Object.values(state.groups)));
+export const useMessages = () => useObjects(useShallow((state) => Object.values(state.messages)));
+export const usePermissionsTable = () => useObjects(useShallow((state) => state.permissions_table));
+export const useRoles = () => useObjects(useShallow((state) => Object.values(state.roles)));
+export const useRooms = () => useObjects(useShallow((state) => Object.values(state.rooms)));
+export const useSpaces = () => useObjects(useShallow((state) => Object.values(state.spaces)));
+export const useMembers = () => useObjects(useShallow((state) => Object.values(state.members)));

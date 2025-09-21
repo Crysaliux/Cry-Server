@@ -9,9 +9,9 @@ import "static/signup.css";
 import "static/main_page.css";
 import "react-day-picker/style.css";
 
-
+//<StrictMode>
 createRoot(document.getElementById('root')!).render(
-    <StrictMode>
+
         <App />
-    </StrictMode>
+    
 );

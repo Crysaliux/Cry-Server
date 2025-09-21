@@ -1,4 +1,4 @@
-import React, { ReactNode, createContext, useContext } from "react";
+import React, { ReactNode, createContext, useContext, useCallback } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +30,7 @@ interface AuthenticationProperties {
 interface AuthProperties {
     refresh: () => void;
     login: (email: string, password: string) => void;
-    signup: (username: string, email: string, password: string, date_of_birth: string) => Promise<boolean>;
+    signup: (username: string, email: string, password: string, date_of_birth: string) => Promise<{"status": boolean, "access_token": string}>;
 }
 
 export const AuthHatch = createContext<AuthProperties | undefined>(undefined);
@@ -42,6 +42,8 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
+    const navigate = useNavigate();
+
     const Authrs: AxiosInstance = axios.create({
         baseURL: `${context_data.core_server_host.current}${context_data.api_oauth_addr.current}`,
         headers: {
@@ -49,10 +51,8 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         },
     });
 
-    const navigate = useNavigate();
 
-
-    const refresh = async () => {
+    const refresh = useCallback(async () => {
         const response = await Authrs.post("/refresh_access");
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -92,9 +92,9 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
 
         context_data.setAccessToken(refresh.access_token);
         return true;
-    };
+    }, []);
 
-    const login = async (email: string, password: string) => {
+    const login = useCallback(async (email: string, password: string) => {
         const response = await Authrs.post("/login", {
             email: email, password: password,
         });
@@ -132,9 +132,9 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
 
         context_data.setAccessToken(login.access_token);
         return true;
-    };
+    }, []);
 
-    const signup = async (username: string, email: string, password: string, date_of_birth: string) => {
+    const signup = useCallback(async (username: string, email: string, password: string, date_of_birth: string) => {
         const response = await Authrs.post("/signup", {
             username: username, email: email, password: password, date_of_birth: date_of_birth,
         });
@@ -143,36 +143,36 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         
         if (!parsed_response.success) {
             console.error(`Signup failed, can't process server response: ${response.data}`);
-            return false;
+            return {"status": false, "access_token": ""};
         }
         
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, signup failed: ${error.error.issues}`);
-                return false;
+                return {"status": false, "access_token": ""};
             }
             if (!error.data.index) {
                 console.error("Can't display exact error, no index provided");
-                return false;
+                return {"status": false, "access_token": ""};
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
-            return false;
+            return {"status": false, "access_token": ""};
         }
         
         const actual = AccessSchema.safeParse(parsed_response.data.body);
         
         if (!actual.success) {
             console.error(`Signup failed, can't process server response: ${parsed_response.data.body}`);
-            return false;
+            return {"status": false, "access_token": ""};
         }
                 
         const signup: z.infer<typeof AccessSchema> = actual.data;
 
         context_data.setAccessToken(signup.access_token);
-        return true;
-    };
+        return {"status": true, "access_token": signup.access_token};
+    }, []);
 
 
     return (

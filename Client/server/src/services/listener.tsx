@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
+import { DefaultEventsMap } from "@socket.io/component-emitter";
 import { z, ZodRawShape, ZodObject } from "zod";
 import { 
     Client,
@@ -94,27 +95,29 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         throw new Error("Can't load CoreGlobalContext for listener");
     }
 
-    if (!context_data.access_token) {
-        return (
-            <>
-                { children }
-            </>
-        );
-    }
-
-    const gateway = io(context_data.core_server_host.current, {
-        path: context_data.gateway_addr.current,
-        auth: {"access_token": `${context_data.access_token}`},
-        reconnection: true,
-        transports: ["websocket"],
-        reconnectionAttempts: context_data.max_reconnection_attempts.current,
-        reconnectionDelay: context_data.reconnection_delay.current,
-        reconnectionDelayMax: context_data.max_reconnection_delay.current,
-    });
-
     const navigate = useNavigate();
+    const gateway_ref = useRef<Socket<DefaultEventsMap, DefaultEventsMap>>(null);
+
 
     useEffect(() => {
+        if (!context_data.access_token) {
+            console.log("No access token present");
+            return;
+        }
+
+        const gateway = io(context_data.core_server_host.current, {
+            path: context_data.gateway_addr.current,
+            auth: {"access_token": `${context_data.access_token}`},
+            reconnection: true,
+            transports: ["websocket"],
+            reconnectionAttempts: context_data.max_reconnection_attempts.current,
+            reconnectionDelay: context_data.reconnection_delay.current,
+            reconnectionDelayMax: context_data.max_reconnection_delay.current,
+            secure: false, //dev only!
+        });
+
+        gateway_ref.current = gateway;
+
         gateway.on("connect", () => console.log("Successfully connected to gateway"));
         gateway.on("connect_error", (error) => console.log(`Gateway connection error has occured: ${error}`));
         gateway.on("disconnect", (reason) => console.error(`Gateway disconnected: ${reason}`));
@@ -693,14 +696,18 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("role_deleted");
         };
 
-    }, []);
+    }, [context_data.access_token]);
 
     
     const sendEvent = (data: object) => {
-        try {
-            gateway.emit("event", data);
-        } catch (error) {
-            console.error("Unable to send event data, gateway connection error");
+        if (gateway_ref.current) {
+            try {
+                gateway_ref.current.emit("event", data); //"event" stands for what?
+            } catch (error) {
+                console.error("Unable to send event data, gateway connection error");
+            }
+        } else {
+            console.error("Gateway seems disconnected, unable to send data");
         }
     };
 

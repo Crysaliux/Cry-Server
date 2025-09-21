@@ -438,33 +438,33 @@ class APIListener:
 
     def router_tasks(self):
         @self.router.post("/fetch_groups")
-        async def fetch_groups(request: Request, access_token: str | None = Header(None)):
+        async def fetch_groups(request: Request, access_token: str = Header(...)):
             return await self._call_fetch_groups(access_token)
 
         @self.router.post("/fetch_rooms")
-        async def fetch_rooms(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+        async def fetch_rooms(request: Request, payload: GroupRelated, access_token: str = Header(...)):
             return await self._call_fetch_rooms(access_token, payload.group_id)
 
         @self.router.post("/fetch_group")
-        async def fetch_group(request: Request, payload: RoomRelated, access_token: str | None = Header(None)):
+        async def fetch_group(request: Request, payload: RoomRelated, access_token: str = Header(...)):
             return await self._call_fetch_group(access_token, payload.group_id, payload.room_id)
 
         @self.router.post("/fetch_members")
-        async def fetch_members(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+        async def fetch_members(request: Request, payload: GroupRelated, access_token: str = Header(...)):
             return await self._call_fetch_members(access_token, payload.group_id)
 
         @self.router.post("/fetch_roles")
-        async def fetch_roles(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+        async def fetch_roles(request: Request, payload: GroupRelated, access_token: str = Header(...)):
             return await self._call_fetch_roles(access_token, payload.group_id)
 
         @self.router.post("/fetch_messages")
-        async def fetch_messages(request: Request, payload: RoomRelated, access_token: str | None = Header(None)):
+        async def fetch_messages(request: Request, payload: RoomRelated, access_token: str = Header(...)):
             return await self._call_fetch_messages(access_token, payload.group_id, payload.room_id)
         
         @self.router.post("/fetch_permstable")
-        async def fetch_permstable(request: Request, payload: RoleRelated, access_token: str | None = Header(None)):
+        async def fetch_permstable(request: Request, payload: RoleRelated, access_token: str = Header(...)):
             return await self._call_fetch_permstable(access_token, payload.group_id, payload.room_id, payload.role_id)
         
         @self.router.post("/fetch_primary_room")
-        async def fetch_primary_room(request: Request, payload: GroupRelated, access_token: str | None = Header(None)):
+        async def fetch_primary_room(request: Request, payload: GroupRelated, access_token: str = Header(...)):
             return await self._call_fetch_primary_room(access_token, payload.group_id)
