@@ -118,15 +118,14 @@ const SignUpLayout: React.FC = () => {
             }
 
             const bday_date = new Date(Number(year), fetchMonth(month), Number(day));
-            const res = await auth_hatch.signup(
+            const status = await auth_hatch.signup(
                 username_field_ref.current.value,
                 email_field_ref.current.value,
                 password_field_ref.current.value,
                 bday_date.toISOString().split("T")[0],
             );
             
-            if (res.status) {
-                console.log(res.access_token); //dev only!
+            if (status) {
                 navigate(context_data.client_path.current)
             };
         }

@@ -12,9 +12,10 @@ ReType: TypeAlias = tuple[Literal[False], None] | tuple[bool, Client]
 
 
 class ClientValidator:
-    def __init__(self, access_key, algorithm):
+    def __init__(self, access_key, algorithm, logger = None):
         self.access_key = access_key
         self.algorithm = algorithm
+        self.logger = logger #debug
 
     async def refresh_token_is_valid(self, refresh_token: str, session) -> ReType:
         try:
@@ -43,6 +44,8 @@ class ClientValidator:
                 selectinload(Client.groups),
             ).where(Client.id == id))
             client = client_res.scalar_one_or_none()
+
+            self.logger.info("Hello!")
 
             if not client:
                 return False, None

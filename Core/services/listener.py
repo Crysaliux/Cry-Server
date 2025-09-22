@@ -29,6 +29,7 @@ class Listener:
             hasher, 
             session,  
             ws,
+            logger,
             oauth2,
             storage_images_path: str, 
             storage_files_path: str, 
@@ -46,6 +47,7 @@ class Listener:
         self.hasher = hasher
         self.session = session
         self.ws = ws
+        self.logger = logger
         self.oauth2 = oauth2
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path

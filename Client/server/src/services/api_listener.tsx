@@ -107,14 +107,17 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     const APIrs: AxiosInstance = axios.create({
         baseURL: `${context_data.core_server_host.current}${context_data.api_hatch_addr.current}`,
         headers: {
-            "access_token": `${context_data.access_token}`,
             "Content-Type": "application/json",
         },
     });
 
 
     const __fetch_groups = useCallback(async () => {
-        const response = await APIrs.get("/fetch_groups");
+        const response = await APIrs.post("/fetch_groups", {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 
@@ -152,7 +155,11 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     }, []);
 
     const __fetch_rooms = useCallback(async (group_id: string) => {
-        const response = await APIrs.post("/fetch_rooms", { group_id: group_id });
+        const response = await APIrs.post("/fetch_rooms", { group_id: group_id }, {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 
@@ -190,7 +197,11 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     }, []);
 
     const __fetch_members = useCallback(async (group_id: string) => {
-        const response = await APIrs.post("/fetch_members", { group_id: group_id });
+        const response = await APIrs.post("/fetch_members", { group_id: group_id }, {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 
@@ -228,7 +239,11 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     }, []);
 
     const __fetch_roles = useCallback(async (group_id: string) => {
-        const response = await APIrs.post("/fetch_roles", { group_id: group_id });
+        const response = await APIrs.post("/fetch_roles", { group_id: group_id }, {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 
@@ -266,7 +281,11 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     }, []);
 
     const __fetch_permstable = useCallback(async (group_id: string, room_id: string, role_id: string) => {
-        const response = await APIrs.post("/fetch_permstable", { group_id: group_id, room_id: room_id, role_id: role_id });
+        const response = await APIrs.post("/fetch_permstable", { group_id: group_id, room_id: room_id, role_id: role_id }, {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 
@@ -303,7 +322,11 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     }, []);
 
     const __fetch_messages = useCallback(async (group_id: string, room_id: string) => {
-        const response = await APIrs.post("/fetch_messages", { group_id: group_id, room_id: room_id });
+        const response = await APIrs.post("/fetch_messages", { group_id: group_id, room_id: room_id }, {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 
@@ -341,7 +364,11 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     }, []);
 
     const __fetch_group = useCallback(async (id: string, room_id: string) => {
-        const response = await APIrs.post("/fetch_group", { id: id, room_id: room_id });
+        const response = await APIrs.post("/fetch_group", { id: id, room_id: room_id }, {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 
@@ -381,7 +408,11 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     }, []);
 
     const __fetch_primary_room = useCallback(async (group_id: string) => {
-        const response = await APIrs.post("/fetch_primary_room", { group_id: group_id });
+        const response = await APIrs.post("/fetch_primary_room", { group_id: group_id }, {
+            headers: {
+                "access-token": `${context_data.static_access_token.current}`,
+            }
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
 

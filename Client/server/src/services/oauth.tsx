@@ -30,7 +30,7 @@ interface AuthenticationProperties {
 interface AuthProperties {
     refresh: () => void;
     login: (email: string, password: string) => void;
-    signup: (username: string, email: string, password: string, date_of_birth: string) => Promise<{"status": boolean, "access_token": string}>;
+    signup: (username: string, email: string, password: string, date_of_birth: string) => Promise<boolean>;
 }
 
 export const AuthHatch = createContext<AuthProperties | undefined>(undefined);
@@ -143,35 +143,36 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         
         if (!parsed_response.success) {
             console.error(`Signup failed, can't process server response: ${response.data}`);
-            return {"status": false, "access_token": ""};
+            return false;
         }
         
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, signup failed: ${error.error.issues}`);
-                return {"status": false, "access_token": ""};
+                return false;
             }
             if (!error.data.index) {
                 console.error("Can't display exact error, no index provided");
-                return {"status": false, "access_token": ""};
+                return false;
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
-            return {"status": false, "access_token": ""};
+            return false;
         }
         
         const actual = AccessSchema.safeParse(parsed_response.data.body);
         
         if (!actual.success) {
             console.error(`Signup failed, can't process server response: ${parsed_response.data.body}`);
-            return {"status": false, "access_token": ""};
+            return false;
         }
                 
         const signup: z.infer<typeof AccessSchema> = actual.data;
 
+        context_data.static_access_token.current = signup.access_token;
         context_data.setAccessToken(signup.access_token);
-        return {"status": true, "access_token": signup.access_token};
+        return true;
     }, []);
 
 

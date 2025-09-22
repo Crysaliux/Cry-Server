@@ -32,7 +32,8 @@ import uuid
 import re
 
 #logging
-logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger("uvicorn.error")
+LOGGER.setLevel(logging.DEBUG)
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.json")) as conf:
     CONFIG = {key: value for key, value in json.load(conf).items() if not key.startswith("_")}
@@ -95,6 +96,7 @@ class Core(FastAPI):
             addr=(self.sv_host, self.sv_port),
             session=self.worker.session,
             ws=worker_session,
+            logger=LOGGER,
             oauth2=self.oauth2,
             hasher=self.hasher, 
             algorithm=self.algorithm, 
@@ -113,6 +115,7 @@ class Core(FastAPI):
         self.oauth = Authentication(
             session=self.worker.session,
             ws=worker_session,
+            logger=LOGGER,
             hasher=self.hasher, 
             algorithm=self.algorithm, 
             access_key=self.server_access_key,
@@ -124,6 +127,7 @@ class Core(FastAPI):
         self.api_listener = APIListener(
             session=self.worker.session,
             ws=worker_session,
+            logger=LOGGER,
             oauth2=self.oauth2,
             algorithm=self.algorithm, 
             perms = self.perms,

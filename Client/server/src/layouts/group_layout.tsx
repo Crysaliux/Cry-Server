@@ -27,7 +27,7 @@ const GroupLayout: React.FC = () => {
     const { group_id, room_id } = useParams();
 
     if (group_id) {
-        if (!context_data.access_token) navigate(context_data.login_path.current);
+        if (!context_data.static_access_token.current) navigate(context_data.login_path.current);
         if (!room_id) {
             const id = api_hatch.fetchPrimaryRoom(group_id);
             if (validate(id)) {

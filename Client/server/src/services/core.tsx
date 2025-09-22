@@ -19,6 +19,7 @@ interface CoreGlobalProperties {
     current_room: RefObject<Room | null>;
     access_token: string | null;
     setAccessToken: Dispatch<SetStateAction<string | null>>;
+    static_access_token: RefObject<string | null>;
 }
 
 interface CoreProperties {
@@ -48,6 +49,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const current_room = useRef<Room | null>(null);
 
     const [access_token, setAccessToken] = useState<string | null>(null);
+    const static_access_token = useRef<string | null>(null);
 
     return (
         <CoreGlobalContext.Provider value = {{
@@ -67,6 +69,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             current_room,
             access_token,
             setAccessToken,
+            static_access_token,
         }}>
             { children } 
         </CoreGlobalContext.Provider>

@@ -37,6 +37,7 @@ class APIListener:
             oauth2,
             session,
             ws,
+            logger,
             algorithm,
             perms,
             message_load_batch_size: int,
@@ -45,6 +46,7 @@ class APIListener:
         self.oauth2 = oauth2
         self.session = session
         self.ws = ws
+        self.logger = logger
         self.algorithm = algorithm
         self.perms = perms
         self.message_load_batch_size = message_load_batch_size
@@ -398,7 +400,7 @@ class APIListener:
         return self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
     
     async def __fetch_primary_room(self, access_token: str, group_id: str, session) -> EmitError | EmitCommon:
-        valid = ClientValidator(self.access_key, self.algorithm)
+        valid = ClientValidator(self.access_key, self.algorithm, self.logger)
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter
+from fastapi import FastAPI, Cookie, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from ..services.worker import Client, Group, Space, Room, Message, Role
 from sqlalchemy import insert, select, update, delete
@@ -35,6 +35,7 @@ class Authentication:
             hasher, 
             session, 
             ws,
+            logger,
             algorithm,
             access_key,
             oauth2, 
@@ -43,6 +44,7 @@ class Authentication:
         self.hasher = hasher
         self.session = session
         self.ws = ws
+        self.logger = logger
         self.algorithm = algorithm
         self.oauth2 = oauth2
         self.router = APIRouter()
@@ -59,7 +61,7 @@ class Authentication:
         }
 
 
-    async def __signup(self, username: str, email: str, password: str, date_of_birth: date, session) -> EmitError | EmitCommon:
+    async def __signup(self, response: Response, username: str, email: str, password: str, date_of_birth: date, session) -> EmitError | EmitCommon:
         username_check_res = await session.execute(select(Client).where(Client.username == username))
         username_check = username_check_res.scalar_one_or_none()
 
@@ -71,21 +73,23 @@ class Authentication:
         datedelta = date.today() - date.fromisoformat(date_of_birth)
         if divmod(datedelta.total_seconds(), 31536000)[0] < 13: self.__emit_api_error("UNDERAGE", "client")
 
-        access_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        session_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        refresh_expires_at = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
+        refresh_expires_in = int(timedelta(days=7).total_seconds())
+
+        access_expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=15)).timestamp())
 
         client_id = str(uuid.uuid4())
-        access_token = jwt.encode(
+        refresh_token = jwt.encode(
             {
                 "username": username, 
                 "id": client_id,
-                "exp": int(access_expires_at.timestamp())
+                "exp": refresh_expires_at
             }, self.access_key, algorithm=self.algorithm)
         
-        session_token = jwt.encode(
+        access_token = jwt.encode(
             {
                 "id": client_id, 
-                "exp": int(session_expires_at.timestamp())
+                "exp": access_expires_at
             }, self.access_key, algorithm=self.algorithm)
         
         session.add(Client(
@@ -93,20 +97,28 @@ class Authentication:
             password_hashed=self.hasher.hash(password),
             email=email,
             date_of_birth=date.fromisoformat(date_of_birth),
-            token=access_token, 
+            token=refresh_token, 
             id=client_id))
-        
         await session.commit()
+
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite=None,
+            max_age=refresh_expires_in,
+        )
+
         return {
             "status": True, 
             "body": {
                 "access_token": access_token,
-                "session_token": session_token,
             }, 
             "error": None,
         }
     
-    async def __login(self, email: str, password: str, session) -> EmitError | EmitCommon:
+    async def __login(self, response: Response, email: str, password: str, session) -> EmitError | EmitCommon:
         client_res = await session.execute(select(Client).where(Client.email == email))
         client = client_res.scalar_one_or_none()
 
@@ -114,45 +126,56 @@ class Authentication:
             return self.__emit_api_error("WRONG_CREDENTIALS", "client")
         
         if self.hasher.verify(client.hashed_password, password):
-            access_expires_at = datetime.now(datetime.timezone.utc) + timedelta(days=7)
-            session_expires_at = datetime.now(datetime.timezone.utc) + timedelta(minutes=15)
+            refresh_expires_at = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
+            refresh_expires_in = int(timedelta(days=7).total_seconds())
 
-            access_token = jwt.encode(
+            access_expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=15)).timestamp())
+
+            refresh_token = jwt.encode(
             {
                 "username": client.username, 
                 "id": client.id, 
-                "exp": int(access_expires_at.timestamp())
+                "exp": refresh_expires_at
             }, self.access_key, algorithms=[self.algorithm])
 
-            session_token = jwt.encode(
+            access_token = jwt.encode(
             {
                 "id": client.id, 
-                "exp": int(session_expires_at.timestamp())
+                "exp": access_expires_at
             }, self.access_key, algorithms=[self.algorithm])
+
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                httponly=True,
+                secure=True,
+                samesite=None,
+                max_age=refresh_expires_in,
+            )
 
             return {
                 "status": True, 
                 "body": {
                     "access_token": access_token,
-                    "session_token": session_token
                 }, 
                 "error": None,
             }
         else:
             return self.__emit_api_error("WRONG_CREDENTIALS", "client")
     
-    async def __refresh_session(self, request, session) -> EmitError | EmitCommon:
+    async def __refresh_session(self, refresh_token, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.refresh_token_is_valid(request.cookies.get("refresh_token"), session)
+        status, client = valid.refresh_token_is_valid(refresh_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_REFRESH_TOKEN", "client")
         
-        access_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        access_expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=15)).timestamp())
+
         access_token = jwt.encode(
         {
             "id": client.id, 
-            "exp": int(access_expires_at.timestamp())
+            "exp": access_expires_at
         }, self.access_key, algorithms=[self.algorithm])
 
         return {
@@ -163,13 +186,13 @@ class Authentication:
 
     def router_tasks(self):
         @self.router.post("/signup")
-        async def signup(request: Request, payload: NewValidationRequest):
-            return await self._call_signup(payload.username, payload.email, payload.password, payload.date_of_birth)
+        async def signup(response: Response, payload: NewValidationRequest):
+            return await self._call_signup(response, payload.username, payload.email, payload.password, payload.date_of_birth)
 
         @self.router.post("/login")
-        async def login(request: Request, payload: ExistingValidationRequest):
-            return await self._call_login(payload.email, payload.password)
+        async def login(response: Response, payload: ExistingValidationRequest):
+            return await self._call_login(response, payload.email, payload.password)
         
         @self.router.post("/refresh_session")
-        async def validate_client_session(request: Request):
-            return await self._call_refresh_session(request)
+        async def validate_client_session(refresh_token: str = Cookie(...)):
+            return await self._call_refresh_session(refresh_token)
