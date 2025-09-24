@@ -30,9 +30,17 @@ import ast
 import os
 import uuid
 import re
+import sys
+
 
 #logging
-LOGGER = logging.getLogger("uvicorn.error")
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+
+LOGGER = logging.getLogger("system_logger")
 LOGGER.setLevel(logging.DEBUG)
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.json")) as conf:

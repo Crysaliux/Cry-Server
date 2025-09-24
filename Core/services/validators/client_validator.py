@@ -19,7 +19,7 @@ class ClientValidator:
 
     async def refresh_token_is_valid(self, refresh_token: str, session) -> ReType:
         try:
-            payload = jwt.decode(refresh_token, self.access_key, algorithm=self.algorithm)
+            payload = jwt.decode(refresh_token, self.access_key, algorithms=[self.algorithm])
             username, id, expires_at = payload["username"], payload["id"], payload["exp"]
             client_res = await session.execute(select(Client).options(
                 selectinload(Client.groups),
@@ -38,14 +38,12 @@ class ClientValidator:
     
     async def access_token_is_valid(self, access_token: str, session) -> ReType:
         try:
-            payload = jwt.decode(access_token, self.access_key, algorithm=self.algorithm)
+            payload = jwt.decode(access_token, self.access_key, algorithms=[self.algorithm])
             id, expires_at = payload["id"], payload["exp"]
             client_res = await session.execute(select(Client).options(
                 selectinload(Client.groups),
             ).where(Client.id == id))
             client = client_res.scalar_one_or_none()
-
-            self.logger.info("Hello!")
 
             if not client:
                 return False, None
@@ -56,7 +54,7 @@ class ClientValidator:
         
     async def running_session_is_valid(self, access_token: str) -> bool:
         try:
-            payload = jwt.decode(access_token, self.access_key, algorithm=self.algorithm)
+            payload = jwt.decode(access_token, self.access_key, algorithms=[self.algorithm])
             _, expires_at = payload["id"], payload["exp"]
 
             return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc)

@@ -228,5 +228,5 @@ def worker_session(func, session):
                     return await func(self, *args, session=ss, **kwargs)
         except SQLAlchemyError as e:
             await ss.rollback()
-            raise(e)
+            raise(e) #debug
     return wrapper

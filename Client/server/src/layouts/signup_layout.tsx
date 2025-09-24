@@ -126,7 +126,7 @@ const SignUpLayout: React.FC = () => {
             );
             
             if (status) {
-                navigate(context_data.client_path.current)
+                navigate(context_data.client_path.current);
             };
         }
     };
