@@ -25,9 +25,9 @@ const SignUpLayout: React.FC = () => {
     }
 
     const auth_hatch = useContext(AuthHatch);
-        if (!auth_hatch) {
-            throw new Error("Can't load AuthHatch for oauth");
-        }
+    if (!auth_hatch) {
+        throw new Error("Can't load AuthHatch for oauth");
+    }
 
     const navigate = useNavigate();
 

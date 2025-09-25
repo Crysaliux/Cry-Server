@@ -29,7 +29,7 @@ interface AuthenticationProperties {
 
 interface AuthProperties {
     refresh: () => void;
-    login: (email: string, password: string) => void;
+    login: (email: string, password: string) => Promise<boolean>;
     signup: (username: string, email: string, password: string, date_of_birth: string) => Promise<boolean>;
 }
 
@@ -103,18 +103,18 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         
         if (!parsed_response.success) {
             console.error(`Login failed, can't process server response: ${parsed_response.data}`);
-            return;
+            return false;
         }
         
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 console.error(`Can't display exact error, login failed: ${error.error.issues}`);
-                return;
+                return false;
             }
             if (!error.data.index) {
                 console.error("Can't display exact error, no index provided");
-                return;
+                return false;
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
@@ -125,7 +125,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         
         if (!actual.success) {
             console.error(`Login failed, can't process server response: ${parsed_response.data.body}`);
-            return;
+            return false;
         }
                 
         const login: z.infer<typeof AccessSchema> = actual.data;
