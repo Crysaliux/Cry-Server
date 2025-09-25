@@ -12,6 +12,7 @@ interface CoreGlobalProperties {
     signup_path: RefObject<string>;
     client_path: RefObject<string>;
     max_reconnection_attempts: RefObject<number>;
+    max_refresh_attempts: RefObject<number>;
     reconnection_delay: RefObject<number>;
     max_reconnection_delay: RefObject<number>;
     client:RefObject<Client | null>;
@@ -41,6 +42,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const client_path = useRef<string>("/dms");
 
     const max_reconnection_attempts = useRef<number>(5);
+    const max_refresh_attempts = useRef<number>(5);
     const reconnection_delay = useRef<number>(1000);
     const max_reconnection_delay = useRef<number>(5000);
 
@@ -62,6 +64,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             signup_path,
             client_path,
             max_reconnection_attempts,
+            max_refresh_attempts,
             reconnection_delay,
             max_reconnection_delay,
             client,

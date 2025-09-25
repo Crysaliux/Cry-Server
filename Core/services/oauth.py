@@ -125,7 +125,7 @@ class Authentication:
         if not client:
             return self.__emit_api_error("WRONG_CREDENTIALS", "client")
         
-        if self.hasher.verify(client.hashed_password, password):
+        if self.hasher.verify(client.password_hashed, password):
             refresh_expires_at = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
             refresh_expires_in = int(timedelta(days=7).total_seconds())
 
@@ -136,13 +136,13 @@ class Authentication:
                 "username": client.username, 
                 "id": client.id, 
                 "exp": refresh_expires_at
-            }, self.access_key, algorithms=[self.algorithm])
+            }, self.access_key, algorithm=self.algorithm)
 
             access_token = jwt.encode(
             {
                 "id": client.id, 
                 "exp": access_expires_at
-            }, self.access_key, algorithms=[self.algorithm])
+            }, self.access_key, algorithm=self.algorithm)
 
             response.set_cookie(
                 key="refresh_token",
@@ -165,7 +165,7 @@ class Authentication:
     
     async def __refresh_session(self, refresh_token, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
-        status, client = valid.refresh_token_is_valid(refresh_token, session)
+        status, client = await valid.refresh_token_is_valid(refresh_token, session)
 
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_REFRESH_TOKEN", "client")
@@ -176,7 +176,7 @@ class Authentication:
         {
             "id": client.id, 
             "exp": access_expires_at
-        }, self.access_key, algorithms=[self.algorithm])
+        }, self.access_key, algorithm=self.algorithm)
 
         return {
             "status": True, 
@@ -194,5 +194,5 @@ class Authentication:
             return await self._call_login(response, payload.email, payload.password)
         
         @self.router.post("/refresh_session")
-        async def validate_client_session(refresh_token: str = Cookie(...)):
+        async def validate_client_session(refresh_token: str = Cookie(None)):
             return await self._call_refresh_session(refresh_token)

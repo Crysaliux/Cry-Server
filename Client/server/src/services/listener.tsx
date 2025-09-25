@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, Dispatch, SetStateAction, use, ReactNode, useContext, createContext, RefObject } from "react";
 import { io, Socket } from "socket.io-client";
 import { DefaultEventsMap } from "@socket.io/component-emitter";
+import { useLocation } from "react-router-dom";
 import { z, ZodRawShape, ZodObject } from "zod";
 import { 
     Client,
@@ -24,6 +25,7 @@ import {
 import axios, { AxiosInstance } from "axios";
 import { CoreGlobalContext } from "./core";
 import { useObjects } from "./worker";
+import { AuthHatch } from "./oauth";
 import { ErrorHandler } from "./handlers/error_handler";
 import { useNavigate } from "react-router-dom";
 
@@ -95,14 +97,30 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         throw new Error("Can't load CoreGlobalContext for listener");
     }
 
+    const auth_hatch = useContext(AuthHatch);
+    if (!auth_hatch) {
+        throw new Error("Can't load AuthHatch for oauth");
+    }
+
     const navigate = useNavigate();
+    const location = useLocation();
     const gateway_ref = useRef<Socket<DefaultEventsMap, DefaultEventsMap>>(null);
 
 
     useEffect(() => {
+        if (location.pathname[0] != "/dms") return; //Something like /client/... would work better.
+        //PONDER!!!
+
         if (!context_data.access_token) {
-            console.log("No access token present");
-            return;
+            console.log("No access token present, proceeding to refresh session");
+            const status = auth_hatch.refresh();
+            if (!status) {
+                console.log("Session refresh failed, redirecting...");
+                navigate(context_data.login_path.current);
+                return;
+            }
+
+            console.log("Refresh successful");
         }
 
         const gateway = io(context_data.core_server_host.current, {
@@ -696,7 +714,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("role_deleted");
         };
 
-    }, [context_data.access_token]);
+    }, [context_data.access_token, location]);
 
     
     const sendEvent = (data: object) => {

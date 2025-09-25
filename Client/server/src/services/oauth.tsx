@@ -28,7 +28,7 @@ interface AuthenticationProperties {
 }
 
 interface AuthProperties {
-    refresh: () => void;
+    refresh: () => Promise<boolean>;
     login: (email: string, password: string) => Promise<boolean>;
     signup: (username: string, email: string, password: string, date_of_birth: string) => Promise<boolean>;
 }
@@ -52,15 +52,15 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
     });
 
 
-    const refresh = useCallback(async () => {
-        const response = await Authrs.post("/refresh_access");
+    const __refresh = useCallback(async () => {
+        const response = await Authrs.post("/refresh_session");
 
         const parsed_response = ResponseSchema.safeParse(response.data);
         
         if (!parsed_response.success) {
             console.error(`Refresh, can't process server response: ${parsed_response.data}`);
             navigate(context_data.login_path.current);
-            return;
+            return false;
         }
         
         if (!parsed_response.data.status) {
@@ -68,12 +68,12 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
             if (!error.success) {
                 console.error(`Can't display exact error, refresh failed: ${error.error.issues}`);
                 navigate(context_data.login_path.current);
-                return;
+                return false;
             }
             if (!error.data.index) {
                 console.error("Can't display exact error, no index provided");
                 navigate(context_data.login_path.current);
-                return;
+                return false;
             }
         
             ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
@@ -85,7 +85,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         if (!actual.success) {
             console.error(`Refresh failed, can't process server response: ${parsed_response.data.body}`);
             navigate(context_data.login_path.current);
-            return;
+            return false;
         }
                 
         const refresh: z.infer<typeof AccessSchema> = actual.data;
@@ -174,6 +174,11 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         context_data.setAccessToken(signup.access_token);
         return true;
     }, []);
+
+
+    const refresh = async () => {
+        return await __refresh();
+    };
 
 
     return (
