@@ -15,7 +15,10 @@ interface CoreGlobalProperties {
     max_refresh_attempts: RefObject<number>;
     reconnection_delay: RefObject<number>;
     max_reconnection_delay: RefObject<number>;
+    listener_ignore: RefObject<string[]>;
     client:RefObject<Client | null>;
+    refresh_status: boolean;
+    setRefreshStatus: Dispatch<SetStateAction<boolean>>;
     current_group: RefObject<Group | null>;
     current_room: RefObject<Room | null>;
     access_token: string | null;
@@ -45,8 +48,10 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const max_refresh_attempts = useRef<number>(5);
     const reconnection_delay = useRef<number>(1000);
     const max_reconnection_delay = useRef<number>(5000);
+    const listener_ignore = useRef<string[]>(["/", login_path.current, signup_path.current]);
 
     const client = useRef<Client | null>(null);
+    const [refresh_status, setRefreshStatus] = useState<boolean>(false);
     const current_group = useRef<Group | null>(null);
     const current_room = useRef<Room | null>(null);
 
@@ -67,7 +72,10 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             max_refresh_attempts,
             reconnection_delay,
             max_reconnection_delay,
+            listener_ignore,
             client,
+            refresh_status,
+            setRefreshStatus,
             current_group,
             current_room,
             access_token,

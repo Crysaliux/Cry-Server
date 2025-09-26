@@ -26,6 +26,11 @@ const GroupLayout: React.FC = () => {
     const navigate = useNavigate();
     const { group_id, room_id } = useParams();
 
+    if (!context_data.refresh_status) {
+        return;
+        //404 not found page!
+    }
+
     if (group_id) {
         if (!context_data.static_access_token.current) navigate(context_data.login_path.current);
         if (!room_id) {
@@ -49,6 +54,7 @@ const GroupLayout: React.FC = () => {
         }
 
     } else {
+        return;
         //404 not found page!
     }
     
