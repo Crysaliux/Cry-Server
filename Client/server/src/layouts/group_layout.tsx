@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useContext } from "react";
 import { CoreGlobalContext } from "services/core";
 import { APIHatch } from "services/api_listener";
@@ -23,21 +23,26 @@ const GroupLayout: React.FC = () => {
             throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
+    const groups = useGroups();
+    const rooms = useRooms();
+    const spaces = useSpaces();
+
     const navigate = useNavigate();
     const { group_id, room_id } = useParams();
 
-    if (!context_data.refresh_status) {
-        return;
-        //404 not found page!
-    }
+    useEffect(() => {
+        if (!context_data.access_token) navigate(context_data.login_path.current);
+    }, [navigate, context_data.access_token]);
+
+    if (!context_data.access_token) return null;
 
     if (group_id) {
-        if (!context_data.static_access_token.current) navigate(context_data.login_path.current);
         if (!room_id) {
             const id = api_hatch.fetchPrimaryRoom(group_id);
             if (validate(id)) {
                 navigate(`/${group_id}/${room_id}`);
             } else {
+                return null;
                 //404 not found, this group might not have any open rooms!
             }
         } else {
@@ -54,14 +59,9 @@ const GroupLayout: React.FC = () => {
         }
 
     } else {
-        return;
+        return null;
         //404 not found page!
     }
-    
-
-    const groups = useGroups();
-    const rooms = useRooms();
-    const spaces = useSpaces();
 
     const groups_array = Object.values(groups);
     const rooms_array = Object.values(rooms);

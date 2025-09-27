@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { CoreGlobalContext } from "services/core";
 import { useNavigate } from "react-router-dom";
 import { AuthHatch } from "services/oauth";
@@ -62,6 +62,10 @@ const SignUpLayout: React.FC = () => {
         {"name": "November", "index": 11},
         {"name": "December", "index": 12},
     ];
+
+    useEffect(() => {
+        if (context_data.access_token) navigate(context_data.client_path.current);
+    }, [navigate, context_data.access_token]);
 
     const fetchMonth = (month_name: string) => {
         const num_mn = months.find(mn => mn.name === month)?.index;
@@ -130,6 +134,8 @@ const SignUpLayout: React.FC = () => {
             };
         }
     };
+
+    if (context_data.access_token) return null;
 
     return (
         <div id="signup-container">

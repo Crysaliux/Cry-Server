@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useRef, useState, useEffect } from "react";
 import { CoreGlobalContext } from "services/core";
 import { useNavigate } from "react-router-dom";
 import { AuthHatch } from "services/oauth";
@@ -27,6 +27,10 @@ const LoginLayout: React.FC = () => {
 
     const [input_config, setInputConfig] = useState<InputConfig>({"type": "password", 
             "background_svg": "../public/oauth/eye_closed.svg"});
+
+    useEffect(() => {
+        if (context_data.access_token) navigate(context_data.client_path.current);
+    }, [navigate, context_data.access_token]);
     
     const showPassword = () => {
         if (password_field_ref.current) {
@@ -64,6 +68,8 @@ const LoginLayout: React.FC = () => {
             };
         }
     };
+
+    if (context_data.access_token) return null;
 
     return (
         <div id="login-container">

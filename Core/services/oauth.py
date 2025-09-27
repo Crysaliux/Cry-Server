@@ -106,7 +106,7 @@ class Authentication:
             value=refresh_token,
             httponly=True,
             secure=True,
-            samesite=None,
+            samesite="none",
             max_age=refresh_expires_in,
         )
 
@@ -149,7 +149,7 @@ class Authentication:
                 value=refresh_token,
                 httponly=True,
                 secure=True,
-                samesite=None,
+                samesite="none",
                 max_age=refresh_expires_in,
             )
 
@@ -194,5 +194,5 @@ class Authentication:
             return await self._call_login(response, payload.email, payload.password)
         
         @self.router.post("/refresh_session")
-        async def validate_client_session(refresh_token: str = Cookie(None)):
+        async def refresh_session(refresh_token: str | None = Cookie(None)):
             return await self._call_refresh_session(refresh_token)

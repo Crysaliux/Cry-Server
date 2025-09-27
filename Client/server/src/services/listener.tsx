@@ -108,18 +108,15 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
 
     useEffect(() => {
-        if (context_data.listener_ignore.current.includes(location.pathname)) return;
-
         if (!context_data.access_token) {
             console.log("No access token present, proceeding to refresh session");
-            const status = auth_hatch.refresh();
-            if (!status) {
-                console.log("Session refresh failed, redirecting...");
-                navigate(context_data.login_path.current);
-                return;
-            }
-
-            console.log("Refresh successful");
+            auth_hatch.refresh().then(status => {
+                if (!status) {
+                    console.log("Session refresh failed");
+                }
+                console.log("Session refresh successful");
+            })
+            return;
         }
 
         const gateway = io(context_data.core_server_host.current, {
@@ -135,15 +132,9 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
         gateway_ref.current = gateway;
 
-        gateway.on("connect", () => {
-            context_data.setRefreshStatus(true);
-            console.log("Successfully connected to gateway");
-        });
+        gateway.on("connect", () => console.log("Successfully connected to gateway"));
         gateway.on("connect_error", (error) => console.log(`Gateway connection error has occured: ${error}`));
-        gateway.on("disconnect", (reason) => {
-            context_data.setRefreshStatus(false);
-            console.error(`Gateway disconnected: ${reason}`);
-        });
+        gateway.on("disconnect", (reason) => console.error(`Gateway disconnected: ${reason}`));
         gateway.on("reconnect", (number) => console.error(`Gateway reconnected after ${number} attempts`));
         gateway.on("reconnect_attempt", () => console.log("Attempting to reconnect to gateway..."));
         gateway.on("reconnect_failed", () => console.error("Reconnection to gateway failed, is the server dead?"));

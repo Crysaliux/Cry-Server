@@ -4,6 +4,7 @@ import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
 import { ErrorHandler } from "./handlers/error_handler";
 import { z } from "zod";
+import { withCookies } from "react-cookie";
 
 
 const ErrorSchema = z.object({
@@ -53,7 +54,9 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
 
 
     const __refresh = useCallback(async () => {
-        const response = await Authrs.post("/refresh_session");
+        const response = await Authrs.post("/refresh_session", {}, {
+            withCredentials: true,
+        });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
         
@@ -90,6 +93,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
                 
         const refresh: z.infer<typeof AccessSchema> = actual.data;
 
+        context_data.static_access_token.current = refresh.access_token;
         context_data.setAccessToken(refresh.access_token);
         return true;
     }, []);
@@ -97,6 +101,8 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
     const login = useCallback(async (email: string, password: string) => {
         const response = await Authrs.post("/login", {
             email: email, password: password,
+        }, {
+            withCredentials: true,
         });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
@@ -130,6 +136,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
                 
         const login: z.infer<typeof AccessSchema> = actual.data;
 
+        context_data.static_access_token.current = login.access_token;
         context_data.setAccessToken(login.access_token);
         return true;
     }, []);
@@ -137,6 +144,8 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
     const signup = useCallback(async (username: string, email: string, password: string, date_of_birth: string) => {
         const response = await Authrs.post("/signup", {
             username: username, email: email, password: password, date_of_birth: date_of_birth,
+        }, {
+            withCredentials: true,
         });
 
         const parsed_response = ResponseSchema.safeParse(response.data);
