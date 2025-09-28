@@ -18,6 +18,8 @@ interface CoreGlobalProperties {
     client:RefObject<Client | null>;
     current_group: RefObject<Group | null>;
     current_room: RefObject<Room | null>;
+    loading: boolean;
+    setLoading: Dispatch<SetStateAction<boolean>>;
     access_token: string | null;
     static_access_token: RefObject<string | null>;
     setAccessToken: Dispatch<SetStateAction<string | null>>;
@@ -49,6 +51,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const client = useRef<Client | null>(null);
     const current_group = useRef<Group | null>(null);
     const current_room = useRef<Room | null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
 
     const [access_token, setAccessToken] = useState<string | null>(null);
     const static_access_token = useRef<string | null>(null);
@@ -70,6 +73,8 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             client,
             current_group,
             current_room,
+            loading,
+            setLoading,
             access_token,
             static_access_token,
             setAccessToken,

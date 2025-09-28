@@ -7,6 +7,7 @@ import "static/group.css";
 import "static/login.css";
 import "static/signup.css";
 import "static/main_page.css";
+import "static/loading.css";
 import "react-day-picker/style.css";
 
 //<StrictMode>
