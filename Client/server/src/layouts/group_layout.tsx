@@ -5,6 +5,7 @@ import { APIHatch } from "services/api_listener";
 import { useNavigate, useParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { validate, version } from 'uuid';
+import LoadingLayout from "layouts/loading_layout";
 import { 
     useGroups,  
     useRooms, 
@@ -31,37 +32,33 @@ const GroupLayout: React.FC = () => {
     const { group_id, room_id } = useParams();
 
     useEffect(() => {
-        if (!context_data.access_token) navigate(context_data.login_path.current);
-    }, [navigate, context_data.access_token]);
-
-    if (!context_data.access_token) return null;
-
-    if (group_id) {
-        if (!room_id) {
-            const id = api_hatch.fetchPrimaryRoom(group_id);
-            if (validate(id)) {
-                navigate(`/${group_id}/${room_id}`);
-            } else {
-                return null;
-                //404 not found, this group might not have any open rooms!
-            }
-        } else {
-            if (context_data.current_group.current) {
-                if (context_data.current_group.current.id !== group_id) {
-                    api_hatch.fetchGroup(group_id, room_id);
-                    //setting current group, preferrably in fetchGroup()
+        if (group_id) {
+            if (!room_id) {
+                const id = api_hatch.fetchPrimaryRoom(group_id);
+                if (validate(id)) {
+                    navigate(`/${group_id}/${room_id}`);
                 } else {
-                    api_hatch.fetchMessages(group_id, room_id);
-                    //setting current room, preferrably in fetchMessages()
+                    return;
+                    //404 not found, this group might not have any open rooms!
                 }
-            } else api_hatch.fetchGroup(group_id, room_id);
-            //setting current group, preferrably in fetchGroup()
-        }
+            } else {
+                if (context_data.current_group.current) {
+                    if (context_data.current_group.current.id !== group_id) {
+                        api_hatch.fetchGroup(group_id, room_id);
+                        //setting current group, preferrably in fetchGroup()
+                    } else {
+                        api_hatch.fetchMessages(group_id, room_id);
+                        //setting current room, preferrably in fetchMessages()
+                    }
+                } else api_hatch.fetchGroup(group_id, room_id);
+                //setting current group, preferrably in fetchGroup()
+            }
 
-    } else {
-        return null;
-        //404 not found page!
-    }
+        } else {
+            return;
+            //404 not found page!
+        }
+    }, []);
 
     const groups_array = Object.values(groups);
     const rooms_array = Object.values(rooms);
@@ -71,6 +68,10 @@ const GroupLayout: React.FC = () => {
     const FetchChildRooms = (space_id: string) => {
         return rooms_array.filter((room) => room.space_id === space_id);
     };
+
+    if (!context_data.gateway_ready) return (
+        <LoadingLayout />
+    );
 
     return (
         <div id="group-container">

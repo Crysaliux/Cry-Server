@@ -103,7 +103,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     }
 
     const navigate = useNavigate();
-    const location = useLocation();
     const gateway_ref = useRef<Socket<DefaultEventsMap, DefaultEventsMap>>(null);
 
 
@@ -113,7 +112,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             auth_hatch.refresh().then(status => {
                 if (!status) {
                     console.log("Session refresh failed");
-                }
+                } else 
                 console.log("Session refresh successful");
             })
             return;
@@ -132,9 +131,15 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
         gateway_ref.current = gateway;
 
-        gateway.on("connect", () => console.log("Successfully connected to gateway"));
+        gateway.on("connect", () => {
+            context_data.setGatewayStatus(true);
+            console.log("Successfully connected to gateway");
+        });
         gateway.on("connect_error", (error) => console.log(`Gateway connection error has occured: ${error}`));
-        gateway.on("disconnect", (reason) => console.error(`Gateway disconnected: ${reason}`));
+        gateway.on("disconnect", (reason) => {
+            context_data.setGatewayStatus(false);
+            console.error(`Gateway disconnected: ${reason}`);
+        });
         gateway.on("reconnect", (number) => console.error(`Gateway reconnected after ${number} attempts`));
         gateway.on("reconnect_attempt", () => console.log("Attempting to reconnect to gateway..."));
         gateway.on("reconnect_failed", () => console.error("Reconnection to gateway failed, is the server dead?"));
@@ -710,7 +715,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("role_deleted");
         };
 
-    }, [context_data.access_token, location]);
+    }, [context_data.access_token]);
 
     
     const sendEvent = (data: object) => {

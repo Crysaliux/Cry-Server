@@ -9,8 +9,6 @@ const LoadingLayout: React.FC = () => {
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
-    if (!context_data.loading) return null;
-
     return (
         <div id="loading-container">
             <div id="loading-logo">

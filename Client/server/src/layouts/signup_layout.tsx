@@ -68,7 +68,7 @@ const SignUpLayout: React.FC = () => {
     }, [navigate, context_data.access_token]);
 
     const fetchMonth = (month_name: string) => {
-        const num_mn = months.find(mn => mn.name === month)?.index;
+        const num_mn = months.find(mn => mn.name === month_name)?.index;
         if (num_mn) return num_mn;
         return 1;
     };

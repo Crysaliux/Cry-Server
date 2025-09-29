@@ -61,21 +61,21 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         const parsed_response = ResponseSchema.safeParse(response.data);
         
         if (!parsed_response.success) {
-            console.error(`Refresh, can't process server response: ${parsed_response.data}`);
             navigate(context_data.login_path.current);
+            console.error(`Refresh, can't process server response: ${parsed_response.data}`);
             return false;
         }
         
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, refresh failed: ${error.error.issues}`);
                 navigate(context_data.login_path.current);
+                console.error(`Can't display exact error, refresh failed: ${error.error.issues}`);
                 return false;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
                 navigate(context_data.login_path.current);
+                console.error("Can't display exact error, no index provided");
                 return false;
             }
         
@@ -86,8 +86,8 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         const actual = AccessSchema.safeParse(parsed_response.data.body);
         
         if (!actual.success) {
-            console.error(`Refresh failed, can't process server response: ${parsed_response.data.body}`);
             navigate(context_data.login_path.current);
+            console.error(`Refresh failed, can't process server response: ${parsed_response.data.body}`);
             return false;
         }
                 

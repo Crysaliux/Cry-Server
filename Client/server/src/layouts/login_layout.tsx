@@ -2,6 +2,7 @@ import React, { useContext, useRef, useState, useEffect } from "react";
 import { CoreGlobalContext } from "services/core";
 import { useNavigate } from "react-router-dom";
 import { AuthHatch } from "services/oauth";
+import LoadingLayout from "layouts/loading_layout";
 
 
 interface InputConfig {
@@ -29,8 +30,8 @@ const LoginLayout: React.FC = () => {
             "background_svg": "../public/oauth/eye_closed.svg"});
 
     useEffect(() => {
-        if (context_data.access_token) navigate(context_data.client_path.current);
-    }, [navigate, context_data.access_token]);
+        if (context_data.gateway_ready) navigate(context_data.client_path.current);
+    }, [navigate, context_data.gateway_ready]);
     
     const showPassword = () => {
         if (password_field_ref.current) {
@@ -69,7 +70,11 @@ const LoginLayout: React.FC = () => {
         }
     };
 
-    if (context_data.access_token) return null;
+    if (context_data.gateway_ready) {
+        return (
+            <LoadingLayout />
+        )
+    }
 
     return (
         <div id="login-container">

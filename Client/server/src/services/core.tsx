@@ -15,11 +15,14 @@ interface CoreGlobalProperties {
     max_refresh_attempts: RefObject<number>;
     reconnection_delay: RefObject<number>;
     max_reconnection_delay: RefObject<number>;
+    check_for_connection_in: RefObject<number>;
     client:RefObject<Client | null>;
     current_group: RefObject<Group | null>;
     current_room: RefObject<Room | null>;
     loading: boolean;
     setLoading: Dispatch<SetStateAction<boolean>>;
+    gateway_ready: boolean;
+    setGatewayStatus: Dispatch<SetStateAction<boolean>>;
     access_token: string | null;
     static_access_token: RefObject<string | null>;
     setAccessToken: Dispatch<SetStateAction<string | null>>;
@@ -45,15 +48,17 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
 
     const max_reconnection_attempts = useRef<number>(5);
     const max_refresh_attempts = useRef<number>(5);
-    const reconnection_delay = useRef<number>(1000);
+    const reconnection_delay = useRef<number>(500);
     const max_reconnection_delay = useRef<number>(5000);
+    const check_for_connection_in = useRef<number>(2000);
 
     const client = useRef<Client | null>(null);
     const current_group = useRef<Group | null>(null);
     const current_room = useRef<Room | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(false); //Remove if useless!
 
     const [access_token, setAccessToken] = useState<string | null>(null);
+    const [gateway_ready, setGatewayStatus] = useState<boolean>(false);
     const static_access_token = useRef<string | null>(null);
 
     return (
@@ -70,11 +75,14 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             max_refresh_attempts,
             reconnection_delay,
             max_reconnection_delay,
+            check_for_connection_in,
             client,
             current_group,
             current_room,
             loading,
             setLoading,
+            gateway_ready,
+            setGatewayStatus,
             access_token,
             static_access_token,
             setAccessToken,
