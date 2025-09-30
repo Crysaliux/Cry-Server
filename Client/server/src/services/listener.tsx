@@ -26,7 +26,7 @@ import axios, { AxiosInstance } from "axios";
 import { CoreGlobalContext } from "./core";
 import { useObjects } from "./worker";
 import { AuthHatch } from "./oauth";
-import { ErrorHandler } from "./handlers/error_handler";
+import { ErrorHandler } from "./error_assessor";
 import { useNavigate } from "react-router-dom";
 
 
@@ -94,12 +94,17 @@ export const GatewayHatch = createContext<GatewayProperties | undefined>(undefin
 export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     const context_data = useContext(CoreGlobalContext);
     if (!context_data) {
-        throw new Error("Can't load CoreGlobalContext for listener");
+        throw new Error("[Listener] Can't load CoreGlobalContext for listener");
     }
 
     const auth_hatch = useContext(AuthHatch);
     if (!auth_hatch) {
-        throw new Error("Can't load AuthHatch for oauth");
+        throw new Error("[Listener] Can't load AuthHatch for oauth");
+    }
+
+    const error_handler = useContext(ErrorHandler);
+    if (!error_handler) {
+        throw new Error("[Listener] Can't load CoreGlobalContext for oauth");
     }
 
     const navigate = useNavigate();
@@ -108,14 +113,28 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
     useEffect(() => {
         if (!context_data.access_token) {
-            console.log("No access token present, proceeding to refresh session");
+            console.log("[Listener] No access token present, proceeding to refresh session");
             auth_hatch.refresh().then(status => {
                 if (!status) {
-                    console.log("Session refresh failed");
+                    console.log("[Listener] Session refresh failed");
                 } else 
-                console.log("Session refresh successful");
+                console.log("[Listener] Session refresh successful");
             })
             return;
+        }
+
+        const emit_to_console = (type: string, data: string) => {
+            switch (type) {
+                case "error":
+                    console.error(`[Listener] ${data}`);
+                    break;
+                case "warn":
+                    console.warn(`[Listener] ${data}`);
+                    break;
+                case "log":
+                    console.log(`[Listener] ${data}`);
+                    break;
+            }
         }
 
         const gateway = io(context_data.core_server_host.current, {
@@ -133,29 +152,29 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
         gateway.on("connect", () => {
             context_data.setGatewayStatus(true);
-            console.log("Successfully connected to gateway");
+            emit_to_console("log", "Successfully connected to gateway");
         });
-        gateway.on("connect_error", (error) => console.log(`Gateway connection error has occured: ${error}`));
+        gateway.on("connect_error", (error) => emit_to_console("error", `Gateway connection error has occured: ${error}`));
         gateway.on("disconnect", (reason) => {
             context_data.setGatewayStatus(false);
-            console.error(`Gateway disconnected: ${reason}`);
+            emit_to_console("error", `Gateway disconnected: ${reason}`);
         });
-        gateway.on("reconnect", (number) => console.error(`Gateway reconnected after ${number} attempts`));
-        gateway.on("reconnect_attempt", () => console.log("Attempting to reconnect to gateway..."));
-        gateway.on("reconnect_failed", () => console.error("Reconnection to gateway failed, is the server dead?"));
+        gateway.on("reconnect", (number) => emit_to_console("error", `Gateway reconnected after ${number} attempts`));
+        gateway.on("reconnect_attempt", () => emit_to_console("error", "Attempting to reconnect to gateway..."));
+        gateway.on("reconnect_failed", () => emit_to_console("error", "Reconnection to gateway failed, is the server dead?"));
 
         gateway.on("group_created", (data) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
-                console.warn(`Incoming request can't be processed: ${response.data}`); //why here only?
+                emit_to_console("warn", `Incoming request can't be processed: ${response.data}`);
                 return;
             }
 
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
-                console.warn(`Incoming request can't be processed: ${response.data.body}`);
+                emit_to_console("warn", `Incoming request can't be processed: ${response.data.body}`);
                 return;
             }
 
@@ -164,9 +183,9 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
                 }
                 return;
             }
@@ -192,7 +211,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -220,7 +239,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -248,7 +267,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -276,7 +295,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -304,7 +323,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -333,7 +352,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -361,7 +380,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -389,7 +408,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -417,7 +436,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -445,7 +464,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -473,7 +492,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -501,7 +520,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -530,7 +549,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -558,7 +577,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -586,7 +605,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -614,7 +633,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -642,7 +661,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }
@@ -670,7 +689,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             if (!response.data.status) {
                 if (error.index) {
-                    ErrorHandler(error.index, error.target, navigate);
+                    error_handler.handle(error.index, error.target, "Listener");
                 } else {
                     console.error("Can't display exact error, no index provided");
                 }

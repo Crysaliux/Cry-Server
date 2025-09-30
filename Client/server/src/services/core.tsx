@@ -11,6 +11,7 @@ interface CoreGlobalProperties {
     login_path: RefObject<string>;
     signup_path: RefObject<string>;
     client_path: RefObject<string>;
+    oauth_ignore: RefObject<string[]>;
     max_reconnection_attempts: RefObject<number>;
     max_refresh_attempts: RefObject<number>;
     reconnection_delay: RefObject<number>;
@@ -45,6 +46,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const login_path = useRef<string>("/oauth2/login");
     const signup_path = useRef<string>("/oauth2/signup");
     const client_path = useRef<string>("/dms");
+    const oauth_ignore = useRef<string[]>([main_path.current, login_path.current, signup_path.current]);
 
     const max_reconnection_attempts = useRef<number>(5);
     const max_refresh_attempts = useRef<number>(5);
@@ -71,6 +73,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             login_path,
             signup_path,
             client_path,
+            oauth_ignore,
             max_reconnection_attempts,
             max_refresh_attempts,
             reconnection_delay,

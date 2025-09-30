@@ -11,14 +11,15 @@ import { Listener } from "services/listener";
 import { APIListener } from "services/api_listener";
 import { Authentication } from "services/oauth";
 import { Core } from "services/core";
+import { ErrorAssessor } from "services/error_assessor";
 
 //:group_id can represent group's global_name as well
 
 const App: React.FC = () => {
     return (
-        <BrowserRouter>
-            <CookiesProvider>
+        <BrowserRouter> 
                 <Core>
+                    <ErrorAssessor>
                     <APIListener>
                     <Authentication>
                     <Listener>
@@ -36,8 +37,8 @@ const App: React.FC = () => {
                     </Listener>
                     </Authentication>
                     </APIListener>
+                    </ErrorAssessor>
                 </Core>
-            </CookiesProvider>
         </BrowserRouter>
     );
 

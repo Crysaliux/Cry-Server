@@ -2,7 +2,7 @@ import React, { ReactNode, createContext, useContext, useCallback } from "react"
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
-import { ErrorHandler } from "./handlers/error_handler";
+import { ErrorHandler } from "./error_assessor";
 import { z } from "zod";
 import { withCookies } from "react-cookie";
 
@@ -43,6 +43,11 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
+    const error_handler = useContext(ErrorHandler);
+    if (!error_handler) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
     const navigate = useNavigate();
 
     const Authrs: AxiosInstance = axios.create({
@@ -79,7 +84,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
                 return false;
             }
         
-            ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+            error_handler.handle(error.data.index, error.data.target, "Authentication");
             return false;
         }
         
@@ -123,7 +128,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
                 return false;
             }
         
-            ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+            error_handler.handle(error.data.index, error.data.target, "Authentication");
             return false;
         }
         
@@ -166,7 +171,7 @@ export const Authentication: React.FC<AuthenticationProperties> = ({ children })
                 return false;
             }
         
-            ErrorHandler(error.data.index, error.data.target, navigate); //fix it. Display only.
+            error_handler.handle(error.data.index, error.data.target, "Authentication");
             return false;
         }
         

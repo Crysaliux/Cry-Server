@@ -1,10 +1,10 @@
-import { useContext, useRef, createContext, ReactNode, useCallback } from "react";
+import React, { useContext, useRef, createContext, ReactNode, useCallback } from "react";
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
 import { nullable, z } from "zod";
 import { useObjects } from "./worker";
-import { ErrorHandler } from "./handlers/error_handler";
+import { ErrorHandler } from "./error_assessor";
 import { 
     Group, 
     Message, 
@@ -94,10 +94,13 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
-    const navigate = useNavigate();
+    const error_handler = useContext(ErrorHandler);
+    if (!error_handler) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
     const set_objects = useObjects((state) => state.setObjects);
     const set_permstable = useObjects((state) => state.setPermissionsTable);
-    const SessionTokenReference = useRef<string | null>(null);
 
     const transform = (object_array: Group[] | Space[] | Room[] | Member[] | Message[] | Role[]) => {
         const transobj = Object.fromEntries(object_array.map(item => [item.id, item]));
@@ -137,7 +140,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
@@ -179,7 +182,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
@@ -221,7 +224,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
@@ -263,7 +266,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
@@ -305,7 +308,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
@@ -346,7 +349,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
@@ -388,7 +391,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
@@ -432,7 +435,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 return;
             }
 
-            ErrorHandler(error.data.index, error.data.target, navigate);
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
             return;
         }
 
