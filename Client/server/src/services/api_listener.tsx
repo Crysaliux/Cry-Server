@@ -107,6 +107,20 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         return transobj
     };
 
+    const emit_to_console = (type: string, data: string) => {
+        switch (type) {
+            case "error":
+                console.error(`[APIListener] ${data}`);
+                break;
+            case "warn":
+                console.warn(`[APIListener] ${data}`);
+                break;
+            case "log":
+                console.log(`[APIListener] ${data}`);
+                break;
+        }
+    }
+
     const APIrs: AxiosInstance = axios.create({
         baseURL: `${context_data.core_server_host.current}${context_data.api_hatch_addr.current}`,
         headers: {
@@ -125,18 +139,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Groups fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Groups fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch groups: ${error.error.issues}`);
                 return;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch groups");
                 return;
             }
 
@@ -147,7 +161,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = z.array(GroupSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Groups fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Groups fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -167,18 +181,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Rooms fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Rooms fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch rooms: ${error.error.issues}`);
                 return;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch rooms");
                 return;
             }
 
@@ -189,7 +203,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = FetchedRoomsSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Rooms fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Rooms fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 
@@ -209,18 +223,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Members fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Members fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch members: ${error.error.issues}`);
                 return;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch members");
                 return;
             }
 
@@ -231,7 +245,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = z.array(MemberSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Members fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Members fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -251,18 +265,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Roles fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Roles fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch roles: ${error.error.issues}`);
                 return;
             }
             if (!error.data) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch roles");
                 return;
             }
 
@@ -273,7 +287,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = z.array(RoleSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Roles fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Roles fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -293,18 +307,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Permissions table fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Permissions table fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch permstable: ${error.error.issues}`);
                 return;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch permstable");
                 return;
             }
 
@@ -315,7 +329,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = PermissionsTableSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Permissions table fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Permissions table fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
         
@@ -334,18 +348,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Messages fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Messages fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch messages: ${error.error.issues}`);
                 return;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch messages");
                 return;
             }
 
@@ -356,7 +370,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = z.array(MessageSchema).safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Messages fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Messages fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 
@@ -376,18 +390,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Group fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Group fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch group: ${error.error.issues}`);
                 return;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch group");
                 return;
             }
 
@@ -398,7 +412,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = FetchedGroupSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Group fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Group fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 
@@ -420,18 +434,18 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            console.error(`Primary room id fetch failed, can't process server response: ${parsed_response.data}`);
+            emit_to_console("error", `Primary room fetch failed, can't process server response: ${parsed_response.data}`);
             return;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                console.error(`Can't display exact error, parsing failed: ${error.error.issues}`);
+                emit_to_console("error", `Can't display exact error, parsing failed on fetch primary room: ${error.error.issues}`);
                 return;
             }
             if (!error.data.index) {
-                console.error("Can't display exact error, no index provided");
+                emit_to_console("error", "Can't display exact error, no index provided on fetch primary room");
                 return;
             }
 
@@ -442,7 +456,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const actual = FetchedRoomIdSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            console.error(`Primary room id fetch failed, can't process server response: ${parsed_response.data.body}`);
+            emit_to_console("error", `Primary room fetch failed, can't process server response: ${parsed_response.data.body}`);
             return;
         }
 

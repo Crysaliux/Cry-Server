@@ -213,7 +213,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -241,7 +241,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -269,7 +269,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -297,7 +297,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -325,7 +325,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -354,7 +354,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -382,7 +382,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -410,7 +410,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -438,7 +438,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -466,7 +466,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -494,7 +494,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -522,7 +522,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -551,7 +551,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -579,7 +579,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -607,7 +607,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -635,7 +635,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -663,7 +663,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
@@ -691,7 +691,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 if (error.index) {
                     error_handler.handle(error.index, error.target, "Listener");
                 } else {
-                    console.error("Can't display exact error, no index provided");
+                    emit_to_console("error", "Can't display exact error, no index provided");
                 }
                 return;
             }
