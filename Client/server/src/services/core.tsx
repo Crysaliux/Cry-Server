@@ -16,7 +16,6 @@ interface CoreGlobalProperties {
     max_refresh_attempts: RefObject<number>;
     reconnection_delay: RefObject<number>;
     max_reconnection_delay: RefObject<number>;
-    check_for_connection_in: RefObject<number>;
     client:RefObject<Client | null>;
     current_group: RefObject<Group | null>;
     current_room: RefObject<Room | null>;
@@ -52,7 +51,6 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const max_refresh_attempts = useRef<number>(5);
     const reconnection_delay = useRef<number>(500);
     const max_reconnection_delay = useRef<number>(5000);
-    const check_for_connection_in = useRef<number>(2000);
 
     const client = useRef<Client | null>(null);
     const current_group = useRef<Group | null>(null);
@@ -60,10 +58,10 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const [loading, setLoading] = useState<boolean>(false); //Remove if useless!
 
     const [access_token, setAccessToken] = useState<string | null>(null);
-    const [gateway_ready, setGatewayStatus] = useState<boolean>(false);
+    const [gateway_ready, setGatewayStatus] = useState<boolean>(false); //maybe gateway only? {"status": boolean, "tried": boolean}
     const static_access_token = useRef<string | null>(null);
 
-    return (
+    return ( //APPLY LOGIN CONF TO SIGN UP!!!
         <CoreGlobalContext.Provider value = {{
             core_server_host,
             api_oauth_addr,
@@ -78,7 +76,6 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             max_refresh_attempts,
             reconnection_delay,
             max_reconnection_delay,
-            check_for_connection_in,
             client,
             current_group,
             current_room,
