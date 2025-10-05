@@ -10,6 +10,31 @@ interface InputConfig {
     background_svg: string;
 }
 
+
+const LoginLayoutLoader: React.FC = () => {
+    const context_data = useContext(CoreGlobalContext);
+    if (!context_data) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (context_data.gateway_ready.status) navigate(context_data.client_path.current);
+    }, [navigate, context_data.gateway_ready.status]);
+
+    if (context_data.gateway_ready.tried && !context_data.gateway_ready.status) {
+        return (
+            <LoginLayout />
+        );
+    } else {
+        return (
+            <LoadingLayout />
+        );
+    }
+};
+
+
 const LoginLayout: React.FC = () => {
     const context_data = useContext(CoreGlobalContext);
     if (!context_data) {
@@ -28,10 +53,6 @@ const LoginLayout: React.FC = () => {
 
     const [input_config, setInputConfig] = useState<InputConfig>({"type": "password", 
             "background_svg": "../public/oauth/eye_closed.svg"});
-
-    useEffect(() => {
-        if (context_data.gateway_ready) navigate(context_data.client_path.current);
-    }, [navigate, context_data.gateway_ready]);
     
     const showPassword = () => {
         if (password_field_ref.current) {
@@ -70,12 +91,6 @@ const LoginLayout: React.FC = () => {
         }
     };
 
-    if (context_data.gateway_ready) {
-        return (
-            <LoadingLayout />
-        )
-    }
-
     return (
         <div id="login-container">
             <div id="login-form">
@@ -93,4 +108,4 @@ const LoginLayout: React.FC = () => {
     );
 };
 
-export default LoginLayout;
+export default LoginLayoutLoader;

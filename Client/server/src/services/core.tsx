@@ -21,8 +21,8 @@ interface CoreGlobalProperties {
     current_room: RefObject<Room | null>;
     loading: boolean;
     setLoading: Dispatch<SetStateAction<boolean>>;
-    gateway_ready: boolean;
-    setGatewayStatus: Dispatch<SetStateAction<boolean>>;
+    gateway_ready: GatewayReady;
+    setGatewayStatus: Dispatch<SetStateAction<GatewayReady>>;
     access_token: string | null;
     static_access_token: RefObject<string | null>;
     setAccessToken: Dispatch<SetStateAction<string | null>>;
@@ -30,6 +30,11 @@ interface CoreGlobalProperties {
 
 interface CoreProperties {
     children: ReactNode;
+}
+
+interface GatewayReady {
+    status: boolean;
+    tried: boolean;
 }
 
 export const CoreGlobalContext = createContext<CoreGlobalProperties | undefined>(undefined);
@@ -58,7 +63,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const [loading, setLoading] = useState<boolean>(false); //Remove if useless!
 
     const [access_token, setAccessToken] = useState<string | null>(null);
-    const [gateway_ready, setGatewayStatus] = useState<boolean>(false); //maybe gateway only? {"status": boolean, "tried": boolean}
+    const [gateway_ready, setGatewayStatus] = useState<GatewayReady>({"status": false, "tried": false});
     const static_access_token = useRef<string | null>(null);
 
     return ( //APPLY LOGIN CONF TO SIGN UP!!!

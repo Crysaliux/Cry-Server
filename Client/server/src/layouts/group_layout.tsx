@@ -69,7 +69,7 @@ const GroupLayout: React.FC = () => {
         return rooms_array.filter((room) => room.space_id === space_id);
     };
 
-    if (!context_data.gateway_ready) return (
+    if (!context_data.gateway_ready.status) return (
         <LoadingLayout />
     );
 

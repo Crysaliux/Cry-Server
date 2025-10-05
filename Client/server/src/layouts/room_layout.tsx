@@ -32,8 +32,8 @@ const RoomLayout: React.FC = () => {
     }
 
     const messages = useMessages();
-    const messages_array = Object.values(messages);
-    const grouped_messages = useMessagesHandler(messages_array, context_data.message_sent_delta.current);
+    const messages_array = Object.values(messages); //context_data.message_sent_delta.current
+    const grouped_messages = useMessagesHandler(messages_array, 20);
 
     return (
         <div id="chat">

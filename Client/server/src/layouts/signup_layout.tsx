@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { CoreGlobalContext } from "services/core";
 import { useNavigate } from "react-router-dom";
 import { AuthHatch } from "services/oauth";
+import LoadingLayout from "layouts/loading_layout";
 import { 
     Select, 
     MenuItem, 
@@ -17,6 +18,31 @@ interface InputConfig {
     type: string;
     background_svg: string;
 }
+
+
+const SignUpLayoutLoader: React.FC = () => {
+    const context_data = useContext(CoreGlobalContext);
+    if (!context_data) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (context_data.gateway_ready.status) navigate(context_data.client_path.current);
+    }, [navigate, context_data.gateway_ready]);
+
+    if (context_data.gateway_ready.tried && !context_data.gateway_ready.status) {
+        return (
+            <SignUpLayout />
+        );
+    } else {
+        return (
+            <LoadingLayout />
+        );
+    }
+};
+
 
 const SignUpLayout: React.FC = () => {
     const context_data = useContext(CoreGlobalContext);
@@ -62,10 +88,6 @@ const SignUpLayout: React.FC = () => {
         {"name": "November", "index": 11},
         {"name": "December", "index": 12},
     ];
-
-    useEffect(() => {
-        if (context_data.access_token) navigate(context_data.client_path.current);
-    }, [navigate, context_data.access_token]);
 
     const fetchMonth = (month_name: string) => {
         const num_mn = months.find(mn => mn.name === month_name)?.index;
@@ -134,8 +156,6 @@ const SignUpLayout: React.FC = () => {
             };
         }
     };
-
-    if (context_data.access_token) return null;
 
     return (
         <div id="signup-container">
@@ -288,4 +308,4 @@ const SignUpLayout: React.FC = () => {
     );
 };
 
-export default SignUpLayout;
+export default SignUpLayoutLoader;

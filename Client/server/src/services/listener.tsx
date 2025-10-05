@@ -107,34 +107,35 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         throw new Error("[Listener] Can't load CoreGlobalContext for oauth");
     }
 
-    const navigate = useNavigate();
     const gateway_ref = useRef<Socket<DefaultEventsMap, DefaultEventsMap>>(null);
 
+    const emit_to_console = (type: string, data: string) => {
+        switch (type) {
+            case "error":
+                console.error(`[Listener] ${data}`);
+                break;
+            case "warn":
+                console.warn(`[Listener] ${data}`);
+                break;
+            case "log":
+                console.log(`[Listener] ${data}`);
+                break;
+        }
+    }
 
     useEffect(() => {
         if (!context_data.access_token) {
-            console.log("[Listener] No access token present, proceeding to refresh session");
+            emit_to_console("log", "No access token present, proceeding to refresh session");
             auth_hatch.refresh().then(status => {
                 if (!status) {
-                    console.log("[Listener] Session refresh failed");
-                } else 
-                console.log("[Listener] Session refresh successful");
+                    context_data.setGatewayStatus(prev => ({
+                        ...prev, tried: true
+                    }));
+                    emit_to_console("log", "Session refresh failed");
+                }
+                else emit_to_console("log", "Session refresh successful");
             })
             return;
-        }
-
-        const emit_to_console = (type: string, data: string) => {
-            switch (type) {
-                case "error":
-                    console.error(`[Listener] ${data}`);
-                    break;
-                case "warn":
-                    console.warn(`[Listener] ${data}`);
-                    break;
-                case "log":
-                    console.log(`[Listener] ${data}`);
-                    break;
-            }
         }
 
         const gateway = io(context_data.core_server_host.current, {
@@ -151,15 +152,23 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
         gateway_ref.current = gateway;
 
         gateway.on("connect", () => {
-            context_data.setGatewayStatus(true);
+            context_data.setGatewayStatus({"status": true, "tried": true});
             emit_to_console("log", "Successfully connected to gateway");
         });
-        gateway.on("connect_error", (error) => emit_to_console("error", `Gateway connection error has occured: ${error}`));
+        gateway.on("connect_error", (error) => {
+            context_data.setGatewayStatus({"status": false, "tried": true});
+            emit_to_console("error", `Gateway connection error has occured: ${error}`);
+        });
         gateway.on("disconnect", (reason) => {
-            context_data.setGatewayStatus(false);
+            context_data.setGatewayStatus({"status": false, "tried": false});
             emit_to_console("error", `Gateway disconnected: ${reason}`);
         });
-        gateway.on("reconnect", (number) => emit_to_console("error", `Gateway reconnected after ${number} attempts`));
+        gateway.on("reconnect", (number) => {
+            context_data.setGatewayStatus(prev => ({
+                ...prev, status: true
+            }));
+            emit_to_console("error", `Gateway reconnected after ${number} attempts`);
+        });
         gateway.on("reconnect_attempt", () => emit_to_console("error", "Attempting to reconnect to gateway..."));
         gateway.on("reconnect_failed", () => emit_to_console("error", "Reconnection to gateway failed, is the server dead?"));
 

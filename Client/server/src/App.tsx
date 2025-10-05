@@ -2,9 +2,9 @@ import React, { useState, createContext, Dispatch, SetStateAction, useMemo } fro
 import { Routes, Route, BrowserRouter, useNavigate, Outlet } from "react-router-dom";
 import { CookiesProvider } from "react-cookie";
 import GroupLayout from "layouts/group_layout";
-import LoginLayout from "layouts/login_layout";
+import LoginLayoutLoader from "layouts/login_layout";
 import MainPageLayout from "layouts/main_page_layout";
-import SignUpLayout from "layouts/signup_layout";
+import SignUpLayoutLoader from "layouts/signup_layout";
 import RoomLayout from "layouts/room_layout";
 import LoadingLayout from "layouts/loading_layout";
 import { Listener } from "services/listener";
@@ -26,8 +26,8 @@ const App: React.FC = () => {
                         <Routes>
                             <Route path="/" element={<Outlet />}>
                                 <Route index element={<MainPageLayout />} />
-                                <Route path="oauth2/signup" element={<SignUpLayout />} />
-                                <Route path="oauth2/login" element={<LoginLayout />} />
+                                <Route path="oauth2/signup" element={<SignUpLayoutLoader />} />
+                                <Route path="oauth2/login" element={<LoginLayoutLoader />} />
 
                                 <Route path=":group_id" element={<GroupLayout />}>
                                     <Route path=":room_id" element={<RoomLayout />} />
