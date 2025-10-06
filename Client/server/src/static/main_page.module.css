@@ -1,6 +1,6 @@
 /*MAIN PAGE*/
 
-#main-page-container {
+#mainPageContainer {
     height: 100%;
     width: 100%;
     display: flex;
@@ -34,7 +34,7 @@
     margin-bottom: 10px; 
 }
 
-.header_option {
+.headerOption {
     font-size: 120%;
     font-weight: 500;
     user-select: none;
@@ -47,7 +47,7 @@
     animation: elementFadeIn 0.5s forwards;
 }
 
-#action-panel {
+#actionPanel {
     height: 100%;
     margin-left: auto;
     margin-right: 1%;
@@ -58,7 +58,7 @@
     user-select: none;
 }
 
-#download-app, #open-in-browser {
+#downloadApp, #openInBrowser {
     height: 40px;
     font-size: 110%;
     font-weight: 500;
@@ -71,25 +71,25 @@
     background-color: var(--active_elements);
 }
 
-#download-app:hover, #open-in-browser:hover {
+#downloadApp:hover, #openInBrowser:hover {
     opacity: 0.8;
     cursor: pointer;
 }
 
-.header_option:hover {
+.headerOption:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, 0.8);
 }
 
-#about-us-option {
+#aboutUsOption {
     animation-delay: 0.2s;
 }
 
-#tos-option {
+#tosOption {
     animation-delay: 0.5s;
 }
 
-#privacy-policy-option {
+#privacyPolicyOption {
     animation-delay: 0.8s;
 }
 
@@ -107,7 +107,7 @@
     flex: 0 0 auto;
 }
 
-#main-label {
+#mainLabel {
     height: 150px;
     width: auto;
     font-size: 700%;
@@ -119,42 +119,42 @@
     opacity: 0;
 }
 
-.main_label_letter{
+.mainLabelLetter{
     transition: all 0.3s ease;
     user-select: none;
 }
 
-.main_label_letter:hover {
+.mainLabelLetter:hover {
     transition: all 0.3s ease;
     margin-top: 10px;
 }
 
-#to-about-us {
+#toAboutUs {
     all: unset;
 }
 
-#about-us {
+#aboutUs {
     margin-top: 500px;
     padding: 20px;
 }
 
-#about-us-header {
+#aboutUsHeader {
     font-size: 250%;
     font-weight: 600;
     user-select: none;
 }
 
-#about-us-content {
+#aboutUsContent {
     width: 80%;
     font-size: 120%;
     font-weight: 400;
 }
 
-#about-us-content::selection {
+#aboutUsContent::selection {
     background: var(--highlight);
 }
 
-#about-us-content::-moz-selection {
+#aboutUsContent::-moz-selection {
     background: var(--highlight);
 }
 

@@ -1,4 +1,4 @@
-/*SIGN UP*/
+/*LOGIN*/
 
 input:-webkit-autofill {
     box-shadow: 0 0 0px 1000px var(--elements) inset !important;
@@ -8,22 +8,10 @@ input:-webkit-autofill {
 /*Firefox*/
 input:-moz-autofill {
     background-color: transparent !important;
-    color: rgb(255, 255, 255)
+    color: white
 }
 
-.hide_scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.hide_scrollbar {
-  scrollbar-width: none;
-}
-
-.hide_scrollbar {
-  -ms-overflow-style: none;
-}
-
-#signup-container {
+#loginContainer {
     height: 100%;
     width: 100%;
     display: flex;
@@ -32,8 +20,7 @@ input:-moz-autofill {
     justify-content: center;
 }
 
-#sign-up-form {
-    height: 490px;
+#loginForm {
     width: 350px;
     border-radius: 10px;
     display: flex;
@@ -42,7 +29,7 @@ input:-moz-autofill {
     background-color: var(--widgets);
 }
 
-.section_header {
+.sectionHeader {
     margin-top: 15px;
     font-size: 110%;
     font-weight: 500;
@@ -73,7 +60,7 @@ input:-moz-autofill {
     user-select: none;
 }
 
-#password-section {
+#passwordSection {
     width: 90%;
     display: flex;
     flex-direction: row;
@@ -101,9 +88,10 @@ input:-moz-autofill {
     background-color: var(--elements);
 }
 
-#signup-show-password {
+#loginShowPassword {
     height: 35px;
     width: 35px;
+    background-image: url('../assets/oauth/eye_closed.svg');
     border-radius: 5px;
     transition: all 0.3s ease;
     background-position: center;
@@ -111,7 +99,7 @@ input:-moz-autofill {
     background-size: 80% 80%;
 }
 
-#signup-show-password:hover {
+#loginShowPassword:hover {
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.1);
 }
@@ -124,22 +112,38 @@ input:-moz-autofill {
     color: var(--highlight)
 }
 
-#create-account {
+#login {
+    width: 130px;
     padding: 10px;
+    margin-top: 20px;
     border-radius: 10px;
-    margin-top: auto;
     font-size: 110%;
     user-select: none;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background-color: var(--active_elements);
 }
 
-#create-account:hover {
+#login:hover {
     opacity: 0.8;
     cursor: pointer;
 }
 
-#login-instead {
+#signupInstead {
+    margin-top: 15px;
+    user-select: none;
+    text-decoration: underline;
+    color: var(--highlight);
+}
+
+#signupInstead:hover {
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+#forgotPassword {
     margin-top: 15px;
     margin-bottom: 20px;
     user-select: none;
@@ -147,7 +151,7 @@ input:-moz-autofill {
     color: var(--highlight);
 }
 
-#login-instead:hover {
+#forgotPassword:hover {
     cursor: pointer;
     opacity: 0.8;
 }

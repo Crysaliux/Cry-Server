@@ -36,7 +36,7 @@ body {
     display: grid;
     grid-template-columns: repeat(40, 1fr);
     grid-template-rows: repeat(20, 1fr);
-    gap: 0.1vh;
+    gap: 0.107vh;
 }
 
 #header {

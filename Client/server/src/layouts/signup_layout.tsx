@@ -3,6 +3,7 @@ import { CoreGlobalContext } from "services/core";
 import { useNavigate } from "react-router-dom";
 import { AuthHatch } from "services/oauth";
 import LoadingLayout from "layouts/loading_layout";
+import styles from "../static/signup.module.css";
 import { 
     Select, 
     MenuItem, 
@@ -158,24 +159,24 @@ const SignUpLayout: React.FC = () => {
     };
 
     return (
-        <div id="signup-container">
-            <div id="sign-up-form">
-                <div className="section_header">general</div>
-                <input type="text" placeholder="Your username" className="field" maxLength={35} id="username" ref={username_field_ref}></input>
-                <div className="help">
+        <div id={styles.signupContainer}>
+            <div id={styles.signupForm}>
+                <div className={styles.sectionHeader}>general</div>
+                <input type="text" placeholder="Your username" className={styles.field} maxLength={35} id={styles.username} ref={username_field_ref}></input>
+                <div className={styles.help}>
                     - lowercase characters only!
                 </div>
-                <div className="section_header">safety</div>
-                <input type="email" placeholder="Your email" className="field" maxLength={35} id="email" ref={email_field_ref}></input>
-                <div id="password-section">
-                    <input type={input_config.type} placeholder="Your password" maxLength={35} id="password" ref={password_field_ref}></input>
-                    <div id="signup-show-password" onClick={() => showPassword()} style={{backgroundImage: `url(${input_config.background_svg})`}}></div>
+                <div className={styles.sectionHeader}>safety</div>
+                <input type="email" placeholder="Your email" className={styles.field} maxLength={35} id={styles.email} ref={email_field_ref}></input>
+                <div id={styles.passwordSection}>
+                    <input type={input_config.type} placeholder="Your password" maxLength={35} id={styles.password} ref={password_field_ref}></input>
+                    <div id={styles.signupShowPassword} onClick={() => showPassword()} style={{backgroundImage: `url(${input_config.background_svg})`}}></div>
                 </div>
-                <div className="help">
+                <div className={styles.help}>
                     - make sure it's a strong one <br></br>
                     - don't share it with anyone, even us!
                 </div>
-                <div className="section_header">
+                <div className={styles.sectionHeader}>
                     now state your birthday date!
                 </div>
 
@@ -301,8 +302,8 @@ const SignUpLayout: React.FC = () => {
                     </FormControl>
                 </Box>
 
-                <div id="create-account" onClick={() => submitData()}>Create account!</div>
-                <div id="login-instead" onClick={() => navigate(context_data.login_path.current)}>I already have an account!</div>
+                <div id={styles.createAccount} onClick={() => submitData()}>Create account!</div>
+                <div id={styles.loginInstead} onClick={() => navigate(context_data.login_path.current)}>I already have an account!</div>
             </div>
         </div>
     );

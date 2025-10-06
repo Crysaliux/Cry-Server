@@ -1,6 +1,7 @@
 import React, { ReactHTMLElement, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { CoreGlobalContext } from "services/core";
+import styles from "../static/main_page.module.css";
 
 
 const MainPageLayout: React.FC = () => {
@@ -12,39 +13,39 @@ const MainPageLayout: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <div id="main-page-container">
-            <div id="header">
-                <div id="label">
+        <div id={styles.mainPageContainer}>
+            <div id={styles.header}>
+                <div id={styles.label}>
                     Name
                 </div>
-                <div className="header_option" id="about-us-option">
+                <div className={styles.headerOption} id={styles.aboutUsOption}>
                     About Us
                 </div>
-                <div className="header_option" id="tos-option">
+                <div className={styles.headerOption} id={styles.tosOption}>
                     Our Terms of Service
                 </div>
-                <div className="header_option" id="privacy-policy-option">
+                <div className={styles.headerOption} id={styles.privacyPolicyOption}>
                     Our Privacy Policy
                 </div>
-                <div id="action-panel">
-                    <div id="open-in-browser" onClick={() => navigate(context_data.login_path.current)}>
+                <div id={styles.actionPanel}>
+                    <div id={styles.openInBrowser} onClick={() => navigate(context_data.login_path.current)}>
                         Open in browser
                     </div>
-                    <div id="download-app" onClick={() => navigate("/unknown")}>
+                    <div id={styles.downloadApp} onClick={() => navigate("/unknown")}>
                         Download our app
                     </div>
                 </div>
             </div>
-            <div id="main">
-                <div id="main-label">
-                    <div className="main_label_letter">N</div>
-                    <div className="main_label_letter">A</div>
-                    <div className="main_label_letter">M</div>
-                    <div className="main_label_letter">E</div>
+            <div id={styles.main}>
+                <div id={styles.mainLabel}>
+                    <div className={styles.mainLabelLetter}>N</div>
+                    <div className={styles.mainLabelLetter}>A</div>
+                    <div className={styles.mainLabelLetter}>M</div>
+                    <div className={styles.mainLabelLetter}>E</div>
                 </div>
-                <div id="about-us">
-                    <div id="about-us-header">About Us</div>
-                    <div id="about-us-content">
+                <div id={styles.aboutUs}>
+                    <div id={styles.aboutUsHeader}>About Us</div>
+                    <div id={styles.aboutUsContent}>
                         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed volutpat dolor augue, cursus egestas urna feugiat at. 
                         Phasellus gravida, ligula eget feugiat gravida, lectus elit lobortis dui, gravida consectetur risus ligula nec s
                         apien. Proin ac vestibulum felis. Nullam dolor massa, fringilla eu condimentum vestibulum, fermentum id quam. Nullam

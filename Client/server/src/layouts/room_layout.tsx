@@ -5,6 +5,9 @@ import {
 import { CoreGlobalContext } from "services/core";
 import { useMessagesHandler } from "services/handlers/messages_handler";
 import { Message } from "components";
+import styles from "../static/group.module.css";
+import TextareaAutosize from "react-textarea-autosize";
+import MembersLayout from "layouts/members_layout";
 
 
 function useAdditionalMessages(adms: Message[]) {
@@ -12,10 +15,10 @@ function useAdditionalMessages(adms: Message[]) {
     return (
         <>
             {adms.map(adm => (
-                <div className="additional_message" key={adm.id}>
-                    <div className="buffer"></div>
-                    <div className="body">
-                        <div className="content">
+                <div className={styles.additionalMessage} key={adm.id}>
+                    <div className={styles.buffer}></div>
+                    <div className={styles.body}>
+                        <div className={styles.content}>
                             {adm.content}
                         </div>
                     </div>
@@ -36,31 +39,34 @@ const RoomLayout: React.FC = () => {
     const grouped_messages = useMessagesHandler(messages_array, 20);
 
     return (
-        <div id="chat">
-            <div id="messages">
-                {grouped_messages.map(grouped_message => (
-                    <>
-                        <div className="message" key={grouped_message.messages[0].id}>
-                            <div className="avatar"></div>
-                            <div className="body">
-                                <div className="nickname">{grouped_message.messages[0].nickname}</div>
-                                <div className="content">
-                                    {grouped_message.messages[0].content}
+        <>
+            <div id={styles.chat}>
+                <div id={styles.messages}>
+                    {grouped_messages.map(grouped_message => (
+                        <>
+                            <div className={styles.message} key={grouped_message.messages[0].id}>
+                                <div className={styles.avatar}></div>
+                                <div className={styles.body}>
+                                    <div className={styles.nickname}>{grouped_message.messages[0].nickname}</div>
+                                    <div className={styles.content}>
+                                        {grouped_message.messages[0].content}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {useAdditionalMessages(grouped_message.messages)};
-                    </>
-                ))}
+                            {useAdditionalMessages(grouped_message.messages)};
+                        </>
+                    ))}
+                </div>
+
+                <div id={styles.chatArea}>
+                    <div id={styles.attachement}></div>
+                    <TextareaAutosize autoFocus id={styles.chatBar}></TextareaAutosize>
+                </div>
+
             </div>
-
-            <div id="chatarea">
-                <div id="attachement"></div>
-                <textarea autoFocus id="chatbar"></textarea>
-            </div>
-
-        </div>
+            <MembersLayout />
+        </>
     );
 };
 

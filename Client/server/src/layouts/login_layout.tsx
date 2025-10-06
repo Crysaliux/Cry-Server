@@ -3,6 +3,7 @@ import { CoreGlobalContext } from "services/core";
 import { useNavigate } from "react-router-dom";
 import { AuthHatch } from "services/oauth";
 import LoadingLayout from "layouts/loading_layout";
+import styles from "../static/login.module.css";
 
 
 interface InputConfig {
@@ -92,17 +93,17 @@ const LoginLayout: React.FC = () => {
     };
 
     return (
-        <div id="login-container">
-            <div id="login-form">
-                <div className="section_header">Welcome back!</div>
-                <input type="email" placeholder="Your email" className="field" maxLength={35} id="email" ref={email_field_ref}></input>
-                <div id="password-section">
-                    <input type={input_config.type} placeholder="Your password" maxLength={35} id="password" ref={password_field_ref}></input>
-                    <div id="login-show-password" onClick={() => showPassword()} style={{backgroundImage: `url(${input_config.background_svg})`}}></div>
+        <div id={styles.loginContainer}>
+            <div id={styles.loginForm}>
+                <div className={styles.sectionHeader}>Welcome back!</div>
+                <input type="email" placeholder="Your email" className={styles.field} maxLength={35} id={styles.email} ref={email_field_ref}></input>
+                <div id={styles.passwordSection}>
+                    <input type={input_config.type} placeholder="Your password" maxLength={35} id={styles.password} ref={password_field_ref}></input>
+                    <div id={styles.loginShowPassword} onClick={() => showPassword()} style={{backgroundImage: `url(${input_config.background_svg})`}}></div>
                 </div>
-                <div id="login" onClick={() => submitData()}>Log in</div>
-                <div id="signup-instead" onClick={() => navigate(context_data.signup_path.current)}>Signup instead</div>
-                <div id="forgot-password">Forgot your password?</div>
+                <div id={styles.login} onClick={() => submitData()}>Log in</div>
+                <div id={styles.signupInstead} onClick={() => navigate(context_data.signup_path.current)}>Signup instead</div>
+                <div id={styles.forgotPassword}>Forgot your password?</div>
             </div>
         </div>
     );

@@ -1,6 +1,7 @@
 import React from "react";
 import { useContext } from "react";
 import { CoreGlobalContext } from "services/core";
+import styles from "../static/loading.module.css";
 
 
 const LoadingLayout: React.FC = () => {
@@ -10,7 +11,7 @@ const LoadingLayout: React.FC = () => {
     }
 
     return (
-        <div id="loading-container">
+        <div id={styles.loadingContainer}>
             <div id="loading-logo">
                 
             </div>

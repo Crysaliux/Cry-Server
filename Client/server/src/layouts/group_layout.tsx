@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { validate, version } from 'uuid';
 import LoadingLayout from "layouts/loading_layout";
+import styles from "../static/group.module.css";
 import { 
     useGroups,  
     useRooms, 
@@ -74,65 +75,65 @@ const GroupLayout: React.FC = () => {
     );
 
     return (
-        <div id="group-container">
-            <div id="header">
-                <div id="header-buffer"></div>
-                <div id="channel-name">
+        <div id={styles.groupContainer}>
+            <div id={styles.header}>
+                <div id={styles.headerBuffer}></div>
+                <div id={styles.channelName}>
                     Channel name
                 </div>
-                <div id="manage-members">
-                    <div id="invite">
+                <div id={styles.manageMembers}>
+                    <div id={styles.invite}>
 
                     </div>
-                    <div id="sort-by">
-                        <div id="sort-by-arrow"></div>
+                    <div id={styles.sortBy}>
+                        <div id={styles.sortByArrow}></div>
                         Roles
                     </div>
-                    <div id="hide-members">
+                    <div id={styles.hideMembers}>
 
                     </div>
                 </div>
             </div>
                     
-            <div id="groups">
-                <div id="to-contacts">
-                    <div id="to-contacts-shrunk"></div>
+            <div id={styles.groups}>
+                <div id={styles.toContacts}>
+                    <div id={styles.toContactsShrunk}></div>
                 </div>
-                <hr className="division_line"></hr>
+                <hr className={styles.divisionLine}></hr>
                         
                 {groups_array.map(group => (
-                    <div className="group" key={group.id}>
-                        <div className="group_shrunk"></div>
+                    <div className={styles.group} key={group.id}>
+                        <div className={styles.groupShrunk}></div>
                     </div>
                 ))}
 
-                <hr className="division_line"></hr>
-                <div id="create-group">
-                    <div id="create-group-shrunk"></div>
+                <hr className={styles.divisionLine}></hr>
+                <div id={styles.createGroup}>
+                    <div id={styles.createGroupShrunk}></div>
                 </div>
             </div>
 
-            <div id="rooms">
-                <div id="actions">
-                    <div id="group-header">
+            <div id={styles.rooms}>
+                <div id={styles.actions}>
+                    <div id={styles.groupHeader}>
                         Group name
-                        <div id="settings"></div>
+                        <div id={styles.settings}></div>
                     </div>
-                    <div className="action">Add room</div>
-                    <div className="action">Add space</div>
+                    <div className={styles.action}>Add room</div>
+                    <div className={styles.action}>Add space</div>
                 </div>
-                <hr className="division_line"></hr>
+                <hr className={styles.divisionLine}></hr>
                 {orphan_rooms.map(room => (
-                    <div className="room" key={room.id}>
-                        <div className="hashtag">#</div>{ room.name }
+                    <div className={styles.room} key={room.id}>
+                        <div className={styles.hashtag}>#</div>{ room.name }
                     </div>
                 ))}
                 {spaces_array.map(space => (
-                    <div className="space" key={space.id}>
-                        <div className="space_name">{ space.name }</div>
+                    <div className={styles.space} key={space.id}>
+                        <div className={styles.spaceName}>{ space.name }</div>
                         {FetchChildRooms(space.id).map(room => (
-                            <div className="room" key={room.id}>
-                                <div className="hashtag">#</div>{ room.name }
+                            <div className={styles.room} key={room.id}>
+                                <div className={styles.hashtag}>#</div>{ room.name }
                             </div>
                         ))}
                     </div>
