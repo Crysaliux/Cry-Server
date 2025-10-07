@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useContext } from "react";
 import { CoreGlobalContext } from "services/core";
 import { APIHatch } from "services/api_listener";
@@ -14,15 +15,30 @@ import {
 } from "services/worker";
 
 
+const CreateGroupModal: React.FC = () => {
+    const modal_root = document.getElementById("modal-root");
+
+    if (!modal_root) {
+        throw new Error("Can't fetch modal-root for CreateGroupModal");
+    }
+
+    return createPortal(
+        <>
+        </>,
+        modal_root
+    );
+};
+
+
 const GroupLayout: React.FC = () => {
     const context_data = useContext(CoreGlobalContext);
-        if (!context_data) {
-            throw new Error("Can't load CoreGlobalContext for oauth");
+    if (!context_data) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
     const api_hatch = useContext(APIHatch);
-        if (!api_hatch) {
-            throw new Error("Can't load CoreGlobalContext for oauth");
+    if (!api_hatch) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
     const groups = useGroups();
