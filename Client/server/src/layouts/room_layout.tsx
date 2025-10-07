@@ -8,6 +8,7 @@ import { Message } from "components";
 import styles from "../static/group.module.css";
 import TextareaAutosize from "react-textarea-autosize";
 import MembersLayout from "layouts/members_layout";
+import { Outlet } from "react-router-dom";
 
 
 function useAdditionalMessages(adms: Message[]) {
@@ -66,6 +67,7 @@ const RoomLayout: React.FC = () => {
 
             </div>
             <MembersLayout />
+            <Outlet />
         </>
     );
 };

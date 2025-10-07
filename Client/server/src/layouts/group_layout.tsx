@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useContext } from "react";
 import { CoreGlobalContext } from "services/core";
 import { APIHatch } from "services/api_listener";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { validate, version } from 'uuid';
 import LoadingLayout from "layouts/loading_layout";
@@ -15,18 +15,13 @@ import {
 } from "services/worker";
 
 
-const CreateGroupModal: React.FC = () => {
-    const modal_root = document.getElementById("modal-root");
+export const CreateGroupModal: React.FC = () => {
 
-    if (!modal_root) {
-        throw new Error("Can't fetch modal-root for CreateGroupModal");
-    }
-
-    return createPortal(
-        <>
-        </>,
-        modal_root
-    );
+    return (
+        <div>
+            
+        </div>
+    )
 };
 
 
@@ -55,6 +50,7 @@ const GroupLayout: React.FC = () => {
                 if (validate(id)) {
                     navigate(`/${group_id}/${room_id}`);
                 } else {
+                    console.log("404 not found, this group might not have any open rooms!");
                     return;
                     //404 not found, this group might not have any open rooms!
                 }
