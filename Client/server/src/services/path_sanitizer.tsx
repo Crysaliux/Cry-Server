@@ -20,4 +20,4 @@ export const PathSanitizer = () => {
     }, [location]);
 
     return null;
-};
+}; //fix this boy!
