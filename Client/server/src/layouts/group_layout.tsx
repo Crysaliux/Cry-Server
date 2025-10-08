@@ -7,22 +7,13 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { validate, version } from 'uuid';
 import LoadingLayout from "layouts/loading_layout";
+import TextareaAutosize from "react-textarea-autosize";
 import styles from "../static/group.module.css";
 import { 
     useGroups,  
     useRooms, 
     useSpaces,
 } from "services/worker";
-
-
-export const CreateGroupModal: React.FC = () => {
-
-    return (
-        <div>
-            
-        </div>
-    )
-};
 
 
 const GroupLayout: React.FC = () => {
@@ -41,6 +32,7 @@ const GroupLayout: React.FC = () => {
     const spaces = useSpaces();
 
     const navigate = useNavigate();
+    const location = useLocation();
     const { group_id, room_id } = useParams();
 
     useEffect(() => {
@@ -120,7 +112,7 @@ const GroupLayout: React.FC = () => {
                 ))}
 
                 <hr className={styles.divisionLine}></hr>
-                <div id={styles.createGroup}>
+                <div id={styles.createGroup} onClick={() => navigate(location.pathname + context_data.group_creation_modal_path.current)}>
                     <div id={styles.createGroupShrunk}></div>
                 </div>
             </div>

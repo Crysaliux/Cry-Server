@@ -596,3 +596,12 @@ body {
 .member_avatar:hover {
     cursor: pointer;
 }
+
+
+
+#modal-container  {
+    height: 200px;
+    width: 200px;
+    position: absolute;
+    background-color: red;;
+}

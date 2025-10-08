@@ -472,13 +472,14 @@
 }
 
 #chatBar {
+    font-family: "Inter", sans-serif;
     max-height: 400px;
     height: 40px;
     width: 80%;
     border: none;
     outline: none;
     color: white;
-    font-size: 120%;
+    font-size: 100%;
     margin-left: 10px;
     box-sizing: border-box;
     padding: 10px;
@@ -573,12 +574,4 @@
 
 .memberAvatar:hover {
     cursor: pointer;
-}
-
-/*GROUP MODAL*/
-
-#modalContainer {
-    height: 100%;
-    width: 100%;
-    background: transparent;
 }

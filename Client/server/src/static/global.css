@@ -14,11 +14,19 @@
     --status_online: #3ece78;
 }
 
+#root, #modal-root {
+    font-family: "Segoe UI", sans-serif; /*The main UI style. Yet some elements use "Inter" */
+}
+
 #root {
-    font-family: 'Segoe UI', sans-serif;
     background: var(--background);
     color: #ffffff;
     height: 100vh;
+    overflow: hidden;
+}
+
+#modal-root {
+    color: #ffffff;
     overflow: hidden;
 }
 

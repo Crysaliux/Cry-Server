@@ -96,7 +96,7 @@ const LoginLayout: React.FC = () => {
         <div id={styles.loginContainer}>
             <div id={styles.loginForm}>
                 <div className={styles.sectionHeader}>Welcome back!</div>
-                <input type="email" placeholder="Your email" className={styles.field} maxLength={35} id={styles.email} ref={email_field_ref}></input>
+                <input type="email" placeholder="Your email" className={styles.field} maxLength={35} id="email" ref={email_field_ref}></input>
                 <div id={styles.passwordSection}>
                     <input type={input_config.type} placeholder="Your password" maxLength={35} id={styles.password} ref={password_field_ref}></input>
                     <div id={styles.loginShowPassword} onClick={() => showPassword()} style={{backgroundImage: `url(${input_config.background_svg})`}}></div>

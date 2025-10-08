@@ -1,0 +1,160 @@
+/*MODALS*/
+
+#modalContainer {
+    position: fixed;
+    z-index: 2147483647;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+#cancel {
+    height: 25px;
+    width: 100%;
+}
+
+#cancelCross {
+    height: 30px;
+    width: 30px;
+    margin-top: 5px;
+    margin-right: 5px;
+    display: flex;
+    flex-direction: row;
+    border-radius: 10px;
+    margin-left: auto;
+    transition: all 0.3s ease;
+    background-image: url('../assets/group/cross.svg');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 80% 80%;
+}
+
+#cancelCross:hover {
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sectionHeader {
+    margin-top: 15px;
+    font-size: 110%;
+    font-weight: 500;
+    user-select: none;
+}
+
+.field {
+    height: 40px;
+    width: 90%;
+    font-size: 100%;
+    margin-top: 10px;
+    stroke: none;
+    outline: none;
+    border-radius: 5px;
+    padding: 5px;
+    text-align: center;
+    border: none;
+    color: white;
+    background-color: var(--elements);
+}
+
+.field::placeholder {
+    color: var(--highlight)
+}
+
+/*group modal*/
+
+#groupModalForm {
+    width: 350px;
+    height: 455px;
+    border: 1px solid var(--highlight);
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 10px;
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    background-color: var(--widgets);
+}
+
+#modalGroupImg {
+    height: 90px;
+    width: 90px;
+    margin-top: 15px;
+    border-radius: 50%;
+    background-color: var(--elements);
+    background-image: url('../assets/group/contacts.svg');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 80% 80%;
+}
+
+#modalGroupImg:hover {
+    cursor: pointer;
+}
+
+#aboutGroupArea {
+    height: 100px;
+    min-height: fit-content;
+    width: 90%;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: row;
+    border-radius: 10px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    background-color: var(--elements);
+}
+
+#aboutGroupField {
+    font-family: "Inter", sans-serif;
+    max-height: 100px;
+    height: 40px;
+    width: 100%;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    resize: none;
+    background: none;
+}
+
+#aboutGroupField::placeholder {
+    color: var(--highlight);
+}
+
+#aboutGroupField::-webkit-scrollbar {
+    width: 0;
+}
+
+#aboutGroupField {
+    scrollbar-width: none;
+}
+
+.aboutGroupField::selection {
+    background: var(--highlight);
+}
+
+#modalCreateGroup {
+    width: 130px;
+    padding: 10px;
+    margin-top: 20px;
+    border-radius: 10px;
+    font-size: 110%;
+    user-select: none;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--active_elements);
+}
+
+#modalCreateGroup:hover {
+    opacity: 0.8;
+    cursor: pointer;
+}

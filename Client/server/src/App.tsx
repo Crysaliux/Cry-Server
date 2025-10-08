@@ -1,15 +1,17 @@
 import React, { useState, createContext, Dispatch, SetStateAction, useMemo } from "react";
 import { Routes, Route, BrowserRouter, useNavigate, Outlet } from "react-router-dom";
-import GroupLayout, { CreateGroupModal } from "layouts/group_layout";
+import GroupLayout from "layouts/group_layout";
 import LoginLayoutLoader from "layouts/login_layout";
 import MainPageLayout from "layouts/main_page_layout";
 import SignUpLayoutLoader from "layouts/signup_layout";
 import RoomLayout from "layouts/room_layout";
+import { CreateGroupModal } from "layouts/modal_layouts";
 import { Listener } from "services/listener";
 import { APIListener } from "services/api_listener";
 import { Authentication } from "services/oauth";
 import { Core } from "services/core";
 import { ErrorAssessor } from "services/error_assessor";
+import { PathSanitizer } from "services/path_sanitizer";
 
 //:group_id can represent group's global_name as well
 
@@ -17,6 +19,7 @@ const App: React.FC = () => {
     return (
         <BrowserRouter> 
                 <Core>
+                    <PathSanitizer />
                     <ErrorAssessor>
                     <APIListener>
                     <Authentication>
@@ -31,6 +34,10 @@ const App: React.FC = () => {
                                     <Route path=":room_id" element={<RoomLayout />}>
                                         <Route path="create_group" element={<CreateGroupModal/>} />
                                     </Route>
+                                </Route>
+
+                                <Route path="dms" element={<GroupLayout />}>
+                                    <Route path="create_group" element={<CreateGroupModal/>} />
                                 </Route>
                             </Route>
                         </Routes>
