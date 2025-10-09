@@ -14,10 +14,10 @@ export const PathSanitizer = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const sanitized = location.pathname.replace("/(\d+)|(\/\/+)/g", "/");
-        console.log(sanitized);
-        if (sanitized !== location.pathname) navigate(context_data.main_path + sanitized);
+        let sanitized = location.pathname.replace(/\/+/g, "/");
+        if (sanitized.slice(-1) == "/") sanitized = sanitized.slice(0, -1);
+        if (sanitized !== location.pathname) navigate(sanitized);
     }, [location]);
 
     return null;
-}; //fix this boy!
+};

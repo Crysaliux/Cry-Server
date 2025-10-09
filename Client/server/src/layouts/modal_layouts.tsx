@@ -32,7 +32,7 @@ export const CreateGroupModal: React.FC = () => {
     const onImageSelected = (event: ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
 
-        }
+        } //fix it all + fonts!!!
     };
 
     return createPortal(
@@ -45,7 +45,7 @@ export const CreateGroupModal: React.FC = () => {
                     <input  type="file" accept="image/*" id={styles.modalGroupImgInput} onChange={onImageSelected}></input>
                 </div>
                 <div className={styles.sectionHeader}>Creating new group</div>
-                <input type="text" placeholder="Group name" className={styles.field} maxLength={35}></input>
+                <input type="text" placeholder="Group name" className={styles.field} maxLength={25}></input>
                 <div className={styles.sectionHeader}>Anything fun?</div>
                 <div id={styles.aboutGroupArea}>
                     <TextareaAutosize id={styles.aboutGroupField} maxLength={250} placeholder="About group..."></TextareaAutosize>

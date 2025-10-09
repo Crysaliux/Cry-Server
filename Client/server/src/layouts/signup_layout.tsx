@@ -169,7 +169,7 @@ const SignUpLayout: React.FC = () => {
                 <div className={styles.sectionHeader}>safety</div>
                 <input type="email" placeholder="Your email" className={styles.field} maxLength={35} id="email" ref={email_field_ref}></input>
                 <div id={styles.passwordSection}>
-                    <input type={input_config.type} placeholder="Your password" maxLength={35} id={styles.password} ref={password_field_ref}></input>
+                    <input type={input_config.type} placeholder="Your password" maxLength={25} id={styles.password} ref={password_field_ref}></input>
                     <div id={styles.signupShowPassword} onClick={() => showPassword()} style={{backgroundImage: `url(${input_config.background_svg})`}}></div>
                 </div>
                 <div className={styles.help}>
