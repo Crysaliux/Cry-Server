@@ -14,7 +14,7 @@ export const PathSanitizer = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const sanitized = location.pathname.replace("/\/\/+/g", "/");
+        const sanitized = location.pathname.replace("/(\d+)|(\/\/+)/g", "/");
         console.log(sanitized);
         if (sanitized !== location.pathname) navigate(context_data.main_path + sanitized);
     }, [location]);
