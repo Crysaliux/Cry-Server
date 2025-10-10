@@ -169,3 +169,20 @@
     opacity: 0.8;
     cursor: pointer;
 }
+
+#cropContainer {
+    width: 500px;
+    height: 500px;
+    border: 1px solid var(--highlight);
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 10px;
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    background-color: var(--widgets);
+}
