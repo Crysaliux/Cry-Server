@@ -1,9 +1,10 @@
-import React, { ChangeEvent, useEffect, useState } from "react";
+import React, { ChangeEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useContext } from "react";
 import { CoreGlobalContext } from "services/core";
 import { useLocation, useNavigate } from "react-router-dom";
 import TextareaAutosize from "react-textarea-autosize";
+import { useCompress } from "services/handlers/image_handlers";
 import Cropper from 'react-easy-crop'
 import styles from "../static/modals.module.css";
 
@@ -27,7 +28,9 @@ export const CreateGroupModal: React.FC = () => {
 
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+    const [cropped_area_pixels, setCroppedAreaPixels] = useState<any>(null);
+    
+    const canvas_ref = useRef<HTMLCanvasElement>(null);
 
     const cancelCreation = () => {
         navigate(location.pathname.replace(context_data.group_creation_modal_path.current, ""));
@@ -40,8 +43,74 @@ export const CreateGroupModal: React.FC = () => {
                 setImageData(reader.result);
                 setImageSelected(true);
             };
-            reader.readAsDataURL(event.target.files[0]);
+
+            const compressed = await useCompress(event.target.files[0]);
+            reader.readAsDataURL(compressed);
         }
+    };
+
+    const handleCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    };
+
+    const useCrop = async (shape: string = "default") => { //Make it a handler!
+        const canvas = canvas_ref.current;
+        if (!canvas) {
+            return; //maybe return an error?
+        }
+
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+            return; //maybe return an error?
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImageData(reader.result);
+            setImageSelected(false);
+        };
+
+        canvas.width = cropped_area_pixels.width;
+        canvas.height = cropped_area_pixels.height;
+
+        const img = new Image();
+        img.src = String(image_data);
+        img.onload = () => {
+
+            if (shape === "circle") {
+                ctx.beginPath();
+                ctx.arc(
+                    cropped_area_pixels.width / 2,
+                    cropped_area_pixels.height / 2,
+                    cropped_area_pixels.width / 2,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.closePath();
+                ctx.clip();
+            }
+
+            ctx.drawImage(
+                img,
+                cropped_area_pixels.x,
+                cropped_area_pixels.y,
+                cropped_area_pixels.width,
+                cropped_area_pixels.height,
+                0,
+                0,
+                cropped_area_pixels.width,
+                cropped_area_pixels.height
+            );
+
+            canvas.toBlob(
+                (blob) => {
+                    if (blob) reader.readAsDataURL(blob);
+                },
+                "image/jpeg",
+                0.9
+            );
+        };
     };
     
     if (!image_selected) {
@@ -68,19 +137,27 @@ export const CreateGroupModal: React.FC = () => {
     }
 
     return createPortal(
-        <div className={styles.cropContainer}>
-            <Cropper
-                image={String(image_data)}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={(crop) => setCrop(crop)}
-                onCropComplete={() => setImageSelected(false)}
-                onZoomChange={(zoom) => setZoom(zoom)}
-            />
+        <div id={styles.modalContainer}>
+            <div id={styles.cropContainer}>
+                <div id={styles.cropImgContainer}>
+                    <Cropper
+                        cropSize={{ width: 500, height: 500 }}
+                        image={String(image_data)}
+                        crop={crop}
+                        zoom={zoom}
+                        aspect={1}
+                        cropShape="rect"
+                        showGrid={false}
+                        objectFit="contain"
+                        onCropComplete={handleCropComplete}
+                        onCropChange={(crop) => setCrop(crop)}
+                        onZoomChange={(zoom) => setZoom(zoom)}
+                    />
+                    <canvas style={{ display: "none" }} ref={canvas_ref}></canvas>
+                </div>
+                <div id={styles.cropperCropAndSave} onClick={() => useCrop()}>Crop and save</div>
+            </div>
         </div>,
-        modal_root //finish this and move on!
+        modal_root
     );
 };

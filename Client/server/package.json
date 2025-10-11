@@ -19,6 +19,7 @@
     "@types/axios": "^0.14.4",
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.10.0",
+    "browser-image-compression": "^2.0.2",
     "date-fns": "^4.1.0",
     "irc-framework": "^4.14.0",
     "lexical": "^0.32.1",
