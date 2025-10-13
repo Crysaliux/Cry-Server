@@ -31,7 +31,7 @@ import { useNavigate } from "react-router-dom";
 
 
 interface GatewayProperties {
-    sendEvent: (data: object) => void;
+    sendEvent: (event: string, data: object) => void;
 }
 
 interface ListenerProperties {
@@ -138,18 +138,20 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             return;
         }
 
-        const gateway = io(context_data.core_server_host.current, {
-            path: context_data.gateway_addr.current,
-            auth: {"access_token": `${context_data.access_token}`},
-            reconnection: true,
-            transports: ["websocket"],
-            reconnectionAttempts: context_data.max_reconnection_attempts.current,
-            reconnectionDelay: context_data.reconnection_delay.current,
-            reconnectionDelayMax: context_data.max_reconnection_delay.current,
-            secure: false, //dev only!
-        });
+        if (!gateway_ref.current) {
+            gateway_ref.current = io(context_data.core_server_host.current, {
+                path: context_data.gateway_addr.current,
+                auth: {"access_token": `${context_data.access_token}`},
+                reconnection: true,
+                transports: ["websocket"],
+                reconnectionAttempts: context_data.max_reconnection_attempts.current,
+                reconnectionDelay: context_data.reconnection_delay.current,
+                reconnectionDelayMax: context_data.max_reconnection_delay.current,
+                secure: false, //dev only!
+            });
+        }
 
-        gateway_ref.current = gateway;
+        const gateway = gateway_ref.current;
 
         gateway.on("connect", () => {
             context_data.setGatewayStatus({"status": true, "tried": true});
@@ -746,15 +748,15 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     }, [context_data.access_token]);
 
     
-    const sendEvent = (data: object) => {
+    const sendEvent = (event: string, data: object) => {
         if (gateway_ref.current) {
             try {
-                gateway_ref.current.emit("event", data); //"event" stands for what?
+                gateway_ref.current.emit(event, data); //"event" stands for what?
             } catch (error) {
-                console.error("Unable to send event data, gateway connection error");
+                emit_to_console("error", `Unable to send event data, gateway connection error: ${error}`);
             }
         } else {
-            console.error("Gateway seems disconnected, unable to send data");
+            emit_to_console("error", "Gateway seems disconnected, unable to send data");
         }
     };
 

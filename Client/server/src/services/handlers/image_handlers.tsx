@@ -1,5 +1,6 @@
 import React from "react";
 import imageCompression from "browser-image-compression";
+import { ErrorHandler } from "services/error_assessor";
 
 
 export async function useCompress(file: File, max_width_or_height: number = 1000, initial_quality: number = 0.9) {

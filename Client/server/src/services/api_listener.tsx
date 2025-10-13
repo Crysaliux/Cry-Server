@@ -119,7 +119,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
                 console.log(`[APIListener] ${data}`);
                 break;
         }
-    }
+    };
 
     const APIrs: AxiosInstance = axios.create({
         baseURL: `${context_data.core_server_host.current}${context_data.api_hatch_addr.current}`,

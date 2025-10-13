@@ -23,7 +23,7 @@ EmitError: TypeAlias = None
 EmitCommon: TypeAlias = None
 
 
-class Listener:
+class Listener: #Add objectifiers!
     def __init__(
             self, 
             hasher, 
@@ -126,7 +126,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "group_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -155,7 +155,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "space_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -203,7 +203,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "room_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -251,7 +251,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "message_sent", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -314,7 +314,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "role_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -361,7 +361,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "permissions_table_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -409,7 +409,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -474,7 +474,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "group_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -574,7 +574,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "room_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -624,7 +624,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "message_edited", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -688,7 +688,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "role_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -744,7 +744,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "permissions_table_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -799,7 +799,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "client_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
          
@@ -871,7 +871,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "space_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -921,7 +921,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "room_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -971,7 +971,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "message_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
@@ -1030,7 +1030,7 @@ class Listener:
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
-        if not valid.running_session_is_valid(access_token):
+        if not await valid.running_session_is_valid(access_token):
             await self.__emit_error(sid, client.id, "role_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 

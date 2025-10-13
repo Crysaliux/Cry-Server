@@ -24,12 +24,15 @@ export const ErrorAssessor: React.FC<ErrorAssessorProperties> = ({ children }) =
 
     const handle = (index: string, target: string, called_by: string) => {
         switch (index) {
+
+            //Server side only!
+
             case "OBJECT_NON_EXISTANT":
                 if (target === "client") {
                     navigate(context_data.login_path.current);
-                    console.error("Critical object not found! => client");
+                    console.error(`Called by: [${called_by}] <-> Critical object not found! => client`);
                 } else {
-                    console.log(`Object not found! => ${target}`);
+                    console.log(`Called by: [${called_by}] <-> Object not found! => ${target}`);
                 }
                 break;
 
@@ -104,6 +107,7 @@ export const ErrorAssessor: React.FC<ErrorAssessorProperties> = ({ children }) =
             case "WRONG_REQUEST":
                 //
                 break;
+
 
             default:
                 console.warn(`Called by: [${called_by}] <-> Error index can't be processed: ${index}`);
