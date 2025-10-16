@@ -71,8 +71,8 @@ const GatewayResponseSchema = z.object({
         EssentialMessageSchema,
         EssentialClientSchema,
         NotificationSchema,
-    ]),
-    error: ErrorSchema,
+    ]).nullable(),
+    error: ErrorSchema.nullable(), //Error can be null!
 });
 
 

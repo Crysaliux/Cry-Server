@@ -57,7 +57,7 @@ const ResponseSchema = z.object({ //hbb - handled by backend
         z.array(MessageSchema), //messages (up too 100 at once!) are being fetched here
         z.array(MemberSchema), //[hbb] group members (up too 50 at once!) are being fetched here
     ]).nullable(),
-    error: z.union([ErrorSchema.nullable()]),
+    error: ErrorSchema.nullable(),
 });
 
 /*

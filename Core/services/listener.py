@@ -23,6 +23,19 @@ EmitError: TypeAlias = None
 EmitCommon: TypeAlias = None
 
 
+#Objectifier
+class Objectify(dict):
+    def __getattribute__(self, name):
+        try: return self[name]
+        except KeyError: raise AttributeError(name)
+    
+    def __setattr__(self, name, value):
+        self[name] = value
+
+    def __delattr__(self, name):
+        del self[name]
+
+
 class Listener: #Add objectifiers!
     def __init__(
             self, 
@@ -92,10 +105,10 @@ class Listener: #Add objectifiers!
         for event, handler in self.event_bindings.items():
             self.gateway.on(event, self.ws(handler, self.session))
 
-    async def __emit_error(self, sid, id: int, event: str, error: dict) -> EmitError:
+    async def __emit_error(self, sid, event: str, error: dict) -> EmitError:
         await self.gateway.emit(event, {
             "status": False,
-            "body": {"id": id},
+            "body": None,
             "error": error,
         }, to=sid)
 
@@ -122,17 +135,18 @@ class Listener: #Add objectifiers!
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "group_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "group_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "group_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "group_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, CreateGroup):
-            await self.__emit_error(sid, id, "group_created", {"index": "WRONG_REQUEST", "target": "group"})
+            await self.__emit_error(sid, "group_created", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
         name, global_name, about_group, icon_url, id = body.name, body.global_name, body.about_group, body.icon_url, body.id
@@ -151,17 +165,18 @@ class Listener: #Add objectifiers!
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "space_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "space_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, CreateSpace):
-            await self.__emit_error(sid, id, "space_created", {"index": "WRONG_REQUEST", "target": "space"})
+            await self.__emit_error(sid, "space_created", {"index": "WRONG_REQUEST", "target": "space"})
             return
 
         group_id, name, id = body.group_id, body.name, body.id
@@ -173,11 +188,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_created", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -192,24 +207,25 @@ class Listener: #Add objectifiers!
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "space_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
+            await self.__emit_error(sid, "space_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
 
     async def __on_create_room(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "room_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "room_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, CreateRoom):
-            await self.__emit_error(sid, id, "room_created", {"index": "WRONG_REQUEST", "target": "room"})
+            await self.__emit_error(sid, "room_created", {"index": "WRONG_REQUEST", "target": "room"})
             return
 
         group_id, space_id, name, about_room, id = body.group_id, body.space_id, body.name, body.about_room, body.id
@@ -221,11 +237,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "room_created", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "room_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -240,24 +256,25 @@ class Listener: #Add objectifiers!
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "room_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
+            await self.__emit_error(sid, "room_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
 
     async def __on_send_message(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "message_sent", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "message_sent", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, SendMessage):
-            await self.__emit_error(sid, id, "message_sent", {"index": "WRONG_REQUEST", "target": "message"})
+            await self.__emit_error(sid, "message_sent", {"index": "WRONG_REQUEST", "target": "message"})
             return
 
         group_id, room_id, content, id = body.group_id, body.room_id, body.content, body.id
@@ -269,11 +286,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "message_sent", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "message_sent", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -303,24 +320,25 @@ class Listener: #Add objectifiers!
                 }, room=f"${group_id}"),
             )
         else:
-            await self.__emit_error(sid, id, "message_sent", {"index": "MISSING_PERMISSION", "target": "SEND_MESSAGES"})
+            await self.__emit_error(sid, "message_sent", {"index": "MISSING_PERMISSION", "target": "SEND_MESSAGES"})
     
     async def __on_create_role(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "role_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "role_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, CreateRole):
-            await self.__emit_error(sid, id, "role_created", {"index": "WRONG_REQUEST", "target": "role"})
+            await self.__emit_error(sid, "role_created", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
         group_id, name, id = body.group_id, body.name, body.id
@@ -332,11 +350,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "role_created", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "role_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -350,24 +368,25 @@ class Listener: #Add objectifiers!
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "role_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+            await self.__emit_error(sid, "role_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     async def __on_create_permissions_table(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "permissions_table_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "permissions_table_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, CreatePermissionsTable):
-            await self.__emit_error(sid, id, "permissions_table_created", {"index": "WRONG_REQUEST", "target": "permissions_table"})
+            await self.__emit_error(sid, "permissions_table_created", {"index": "WRONG_REQUEST", "target": "permissions_table"})
             return
 
         group_id, role_id, room_id, permissions, id = body.group_id, body.role_id, body.room_id, body.permissions, body.id
@@ -379,11 +398,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "permissions_table_created", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "permissions_table_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -397,7 +416,7 @@ class Listener: #Add objectifiers!
                 "error": None
             }, room=f"${group_id}")
         else:
-            await self.__emit_error(sid, id, "permissions_table_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+            await self.__emit_error(sid, "permissions_table_created", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     #ON_UPDATE_...
     async def __on_update_client(self, sid, data, session) -> EmitCommon:
@@ -405,17 +424,18 @@ class Listener: #Add objectifiers!
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "client_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, UpdateClient):
-            await self.__emit_error(sid, id, "client_updated", {"index": "WRONG_REQUEST", "target": "client"})
+            await self.__emit_error(sid, "client_updated", {"index": "WRONG_REQUEST", "target": "client"})
             return
 
         username, nickname, about_me, avatar_url, color_theme = body.username, body.nickname, body.about_me, body.avatr_url, body.color_theme
@@ -424,7 +444,7 @@ class Listener: #Add objectifiers!
         username_check = username_check_res.scalar_one_or_none()
 
         if username_check:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "USERNAME_EXISTS", "target": "client"})
+            await self.__emit_error(sid, "client_updated", {"index": "USERNAME_EXISTS", "target": "client"})
             return
 
         update_status_res = await session.execute(update(Client).where(Client.id == client.id).values(username=username, nickname=nickname, about_me=about_me, avatar_url=avatar_url, color_theme=color_theme).returning(Client.id))
@@ -436,7 +456,7 @@ class Listener: #Add objectifiers!
             client_updated = client_updated_res.scalar_one_or_none()
 
             if not client_updated:
-                await self.__emit_error(sid, client.id, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
+                await self.__emit_error(sid, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
                 return
             
             await self.gateway.save_session(sid, {"client": client_updated})
@@ -463,24 +483,25 @@ class Listener: #Add objectifiers!
             )
             await asyncio.gather(*emits)
         else:
-            await self.__emit_error(sid, client.id, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
+            await self.__emit_error(sid, "client_updated", {"index": "UPDATE_FAILED", "target": "client"})
 
     async def __on_update_group(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "group_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "group_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "group_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "group_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, UpdateGroup):
-            await self.__emit_error(sid, id, "group_updated", {"index": "WRONG_REQUEST", "target": "group"})
+            await self.__emit_error(sid, "group_updated", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
         name, global_name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = body.owner_id, body.name, body.global_name, body.about_group, body.icon_url, body.nsfw, body.content_filter, body.content_filter_level, body.id
@@ -492,11 +513,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "group_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "group_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "group_updated", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "group_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -511,26 +532,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${id}")
             else:
-                await self.__emit_error(sid, id, "group_updated", {"index": "UPDATE_FAILED", "target": "group"})
+                await self.__emit_error(sid, "group_updated", {"index": "UPDATE_FAILED", "target": "group"})
         else:
-            await self.__emit_error(sid, id, "group_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_GROUP"})
+            await self.__emit_error(sid, "group_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_GROUP"})
     
     async def __on_update_space(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "space_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "space_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "space_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "space_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, UpdateSpace):
-            await self.__emit_error(sid, id, "space_updated", {"index": "WRONG_REQUEST", "target": "space"})
+            await self.__emit_error(sid, "space_updated", {"index": "WRONG_REQUEST", "target": "space"})
             return
 
         group_id, name, id = body.group_id, body.creator_id, body.name, body.id
@@ -542,11 +564,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "space_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "space_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_updated", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "space_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -561,26 +583,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "space_updated", {"index": "UPDATE_FAILED", "target": "space"})
+                await self.__emit_error(sid, "space_updated", {"index": "UPDATE_FAILED", "target": "space"})
         else:
-            await self.__emit_error(sid, id, "space_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
+            await self.__emit_error(sid, "space_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
     async def __on_update_room(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "room_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "room_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "room_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "room_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, UpdateRoom):
-            await self.__emit_error(sid, id, "room_updated", {"index": "WRONG_REQUEST", "target": "room"})
+            await self.__emit_error(sid, "room_updated", {"index": "WRONG_REQUEST", "target": "room"})
             return
 
         group_id, space_id, name, about_room, nsfw, id = body.group_id, body.space_id, body.creator_id, body.name, body.about_room, body.nsfw, body.id
@@ -592,11 +615,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "room_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "room_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "room_updated", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "room_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -611,26 +634,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "room_updated", {"index": "UPDATE_FAILED", "target": "room"})
+                await self.__emit_error(sid, "room_updated", {"index": "UPDATE_FAILED", "target": "room"})
         else:
-            await self.__emit_error(sid, id, "room_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
+            await self.__emit_error(sid, "room_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
     async def __on_edit_message(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "message_edited", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "message_edited", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, EditMessage):
-            await self.__emit_error(sid, id, "message_edited", {"index": "WRONG_REQUEST", "target": "message"})
+            await self.__emit_error(sid, "message_edited", {"index": "WRONG_REQUEST", "target": "message"})
             return
 
         group_id, room_id, content, id = body.group_id, body.space_id, body.room_id, body.content, body.id
@@ -647,15 +671,15 @@ class Listener: #Add objectifiers!
         message = message_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "message_edited", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "message_edited", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         if not message:
-            await self.__emit_error(sid, id, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
+            await self.__emit_error(sid, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -675,26 +699,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"#{room_id}")
             else:
-                await self.__emit_error(sid, id, "message_edited", {"index": "UPDATE_FAILED", "target": "message"})
+                await self.__emit_error(sid, "message_edited", {"index": "UPDATE_FAILED", "target": "message"})
         else:
-            await self.__emit_error(sid, id, "message_edited", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
+            await self.__emit_error(sid, "message_edited", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
 
     async def __on_update_role(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "role_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "role_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "role_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "role_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, UpdateRole):
-            await self.__emit_error(sid, id, "role_updated", {"index": "WRONG_REQUEST", "target": "role"})
+            await self.__emit_error(sid, "role_updated", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
         group_id, name, color, global_permissions, id = body.group_id, body.name, body.color, body.global_permissions, body.id
@@ -706,11 +731,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "role_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "role_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "role_updated", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "role_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -731,26 +756,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "role_updated", {"index": "UPDATE_FAILED", "target": "role"})
+                await self.__emit_error(sid, "role_updated", {"index": "UPDATE_FAILED", "target": "role"})
         else:
-            await self.__emit_error(sid, id, "role_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+            await self.__emit_error(sid, "role_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
     async def __on_update_permissions_table(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "permissions_table_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "permissions_table_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, UpdatePermissionsTable):
-            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "WRONG_REQUEST", "target": "role"})
+            await self.__emit_error(sid, "permissions_table_updated", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
         group_id, permissions, id = body.group_id, body.permissions, body.id
@@ -762,11 +788,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "permissions_table_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -785,9 +811,9 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "permissions_table_updated", {"index": "UPDATE_FAILED", "target": "permissions_table"})
+                await self.__emit_error(sid, "permissions_table_updated", {"index": "UPDATE_FAILED", "target": "permissions_table"})
         else:
-            await self.__emit_error(sid, id, "permissions_table_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+            await self.__emit_error(sid, "permissions_table_updated", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
     
     #ON_DELETE
     async def __on_delete_client(self, sid, data, session) -> EmitCommon:
@@ -795,12 +821,12 @@ class Listener: #Add objectifiers!
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "client_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "client_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "client_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "client_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
          
         deletion_status_res = await session.execute(delete(Client).where(Client.id == client.id))
@@ -813,24 +839,25 @@ class Listener: #Add objectifiers!
             }, to=sid)
             await self.gateway.disconnect(sid)
         else:
-            await self.__emit_error(sid, id, "client_deleted", {"index": "DELETION_FAILED", "target": "client"})
+            await self.__emit_error(sid, "client_deleted", {"index": "DELETION_FAILED", "target": "client"})
     
     async def __on_delete_group(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "group_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "group_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, DeleteGroup):
-            await self.__emit_error(sid, id, "group_deleted", {"index": "WRONG_REQUEST", "target": "group"})
+            await self.__emit_error(sid, "group_deleted", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
         id = body.id
@@ -841,11 +868,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "group_deleted", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "group_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
 
         if group.owner.id == client.id:
@@ -858,26 +885,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${id}")
             else:
-                await self.__emit_error(sid, id, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+                await self.__emit_error(sid, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
         else:
-            await self.__emit_error(sid, id, "group_deleted", {"index": "DELETION_REJECTED", "target": "group"})
+            await self.__emit_error(sid, "group_deleted", {"index": "DELETION_REJECTED", "target": "group"})
 
     async def __on_delete_space(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "space_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "space_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, DeleteSpace):
-            await self.__emit_error(sid, id, "space_deleted", {"index": "WRONG_REQUEST", "target": "space"})
+            await self.__emit_error(sid, "space_deleted", {"index": "WRONG_REQUEST", "target": "space"})
             return
 
         group_id, id = body.group_id, body.id
@@ -889,11 +917,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "space_deleted", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "space_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -908,26 +936,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "space"})
+                await self.__emit_error(sid, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "space"})
         else:
-            await self.__emit_error(sid, id, "space_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
+            await self.__emit_error(sid, "space_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_SPACES"})
     
     async def __on_delete_room(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "room_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "room_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, DeleteRoom):
-            await self.__emit_error(sid, id, "room_deleted", {"index": "WRONG_REQUEST", "target": "room"})
+            await self.__emit_error(sid, "room_deleted", {"index": "WRONG_REQUEST", "target": "room"})
             return
 
         group_id, id = body.group_id, body.id
@@ -939,11 +968,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "room_deleted", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "room_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -958,26 +987,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "room"})
+                await self.__emit_error(sid, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "room"})
         else:
-            await self.__emit_error(sid, id, "room_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
+            await self.__emit_error(sid, "room_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROOMS"})
     
     async def __on_delete_message(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "message_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "message_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, DeleteMessage):
-            await self.__emit_error(sid, id, "message_deleted", {"index": "WRONG_REQUEST", "target": "message"})
+            await self.__emit_error(sid, "message_deleted", {"index": "WRONG_REQUEST", "target": "message"})
             return
 
         group_id, room_id, id = body.group_id, body.room_id, body.id
@@ -992,15 +1022,15 @@ class Listener: #Add objectifiers!
         message = message_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "message_deleted", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "message_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         if not message:
-            await self.__emit_error(sid, id, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
+            await self.__emit_error(sid, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "message"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -1017,26 +1047,27 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${room_id}")
             else:
-                await self.__emit_error(sid, id, "message_deleted", {"index": "DELETION_FAILED", "target": "message"})
+                await self.__emit_error(sid, "message_deleted", {"index": "DELETION_FAILED", "target": "message"})
         else:
-            await self.__emit_error(sid, id, "message_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
+            await self.__emit_error(sid, "message_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_MESSAGES"})
     
     async def __on_delete_role(self, sid, data, session) -> EmitCommon:
         client_session = await self.gateway.get_session(sid)
         client, access_token = client_session["client"], client_session["access_token"]
 
         if not client:
-            await self.__emit_error(sid, client.id, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            await self.__emit_error(sid, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
             return
         
         valid = ClientValidator(self.access_key, self.algorithm)
         if not await valid.running_session_is_valid(access_token):
-            await self.__emit_error(sid, client.id, "role_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            await self.__emit_error(sid, "role_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
+        data = Objectify(data)
         body = data.body
         if not isinstance(body, DeleteRole):
-            await self.__emit_error(sid, id, "role_deleted", {"index": "WRONG_REQUEST", "target": "role"})
+            await self.__emit_error(sid, "role_deleted", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
         group_id, id = body.group_id, body.id
@@ -1048,11 +1079,11 @@ class Listener: #Add objectifiers!
         group = group_res.scalar_one_or_none()
 
         if not group:
-            await self.__emit_error(sid, id, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            await self.__emit_error(sid, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
         if not client in group.members:
-            await self.__emit_error(sid, id, "role_deleted", {"index": "UNRELATED", "target": "client<->group"})
+            await self.__emit_error(sid, "role_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
         perm_valid = PermissionValidator(client, group, self.perms)
@@ -1067,9 +1098,9 @@ class Listener: #Add objectifiers!
                     "error": None
                 }, room=f"${group_id}")
             else:
-                await self.__emit_error(sid, id, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "role"})
+                await self.__emit_error(sid, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "role"})
         else:
-            await self.__emit_error(sid, id, "role_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+            await self.__emit_error(sid, "role_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
 
 
 #Add fetchers to router tasks.
