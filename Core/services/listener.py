@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
-from pydantic import BaseModel, TypeAdapter, Field as _type
+from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
 from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,6 +14,7 @@ from PIL import Image
 from functools import wraps
 import aiofiles
 from socketio.async_server import AsyncServer
+from typing import Union
 import asyncio
 import jwt
 
@@ -23,17 +24,28 @@ EmitError: TypeAlias = None
 EmitCommon: TypeAlias = None
 
 
-#Objectifier
-class Objectify(dict):
-    def __getattribute__(self, name):
-        try: return self[name]
-        except KeyError: raise AttributeError(name)
-    
-    def __setattr__(self, name, value):
-        self[name] = value
-
-    def __delattr__(self, name):
-        del self[name]
+class GatewayModel(BaseModel):
+    body: Union[
+        UpdateClient,
+        CreateGroup,
+        UpdateGroup,
+        DeleteGroup,
+        SendMessage,
+        EditMessage,
+        DeleteMessage,
+        CreateRole,
+        UpdateRole,
+        DeleteRole,
+        CreateRoom,
+        UpdateRoom,
+        DeleteRoom,
+        CreateSpace,
+        UpdateSpace,
+        DeleteSpace,
+        CreatePermissionsTable,
+        UpdatePermissionsTable,
+        #DeletePermissionsTable, not implemented yet.
+    ]
 
 
 class Listener: #Add objectifiers!
@@ -105,6 +117,14 @@ class Listener: #Add objectifiers!
         for event, handler in self.event_bindings.items():
             self.gateway.on(event, self.ws(handler, self.session))
 
+    def __verify_request(self, data: dict) -> tuple[bool, GatewayModel | None]:
+        try:
+            model_data = GatewayModel(**data)
+            return True, model_data
+        except ValidationError:
+            return False, None
+        
+
     async def __emit_error(self, sid, event: str, error: dict) -> EmitError:
         await self.gateway.emit(event, {
             "status": False,
@@ -143,15 +163,23 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "group_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, CreateGroup):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "group_created", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
+        body = data.body
         name, global_name, about_group, icon_url, id = body.name, body.global_name, body.about_group, body.icon_url, body.id
 
-        session.add(Group(owner_id=client.id, name=name, global_name=global_name, about_group=about_group, icon_url=icon_url, id=id)) 
+        extra_client_res = await session.execute(select(Client).options(
+            selectinload(Client.groups),
+        ).where(Client.id == client.id))
+        extra_client = extra_client_res.scalar_one_or_none()
+
+        new_group = Group(owner_id=client.id, name=name, global_name=global_name, about_group=about_group, icon_url=icon_url, id=id)
+        
+        session.add(new_group) 
+        extra_client.groups.append(new_group)
         await session.commit()
 
         await self.gateway.emit("group_created", {
@@ -173,12 +201,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "space_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, CreateSpace):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "space_created", {"index": "WRONG_REQUEST", "target": "space"})
             return
 
+        body = data.body
         group_id, name, id = body.group_id, body.name, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -222,12 +250,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "room_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, CreateRoom):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "room_created", {"index": "WRONG_REQUEST", "target": "room"})
             return
 
+        body = data.body
         group_id, space_id, name, about_room, id = body.group_id, body.space_id, body.name, body.about_room, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -271,12 +299,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "message_sent", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, SendMessage):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "message_sent", {"index": "WRONG_REQUEST", "target": "message"})
             return
 
+        body = data.body
         group_id, room_id, content, id = body.group_id, body.room_id, body.content, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -335,12 +363,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "role_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, CreateRole):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "role_created", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
+        body = data.body
         group_id, name, id = body.group_id, body.name, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -383,12 +411,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "permissions_table_created", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, CreatePermissionsTable):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "permissions_table_created", {"index": "WRONG_REQUEST", "target": "permissions_table"})
             return
 
+        body = data.body
         group_id, role_id, room_id, permissions, id = body.group_id, body.role_id, body.room_id, body.permissions, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -432,12 +460,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "client_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, UpdateClient):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "client_updated", {"index": "WRONG_REQUEST", "target": "client"})
             return
 
+        body = data.body
         username, nickname, about_me, avatar_url, color_theme = body.username, body.nickname, body.about_me, body.avatr_url, body.color_theme
 
         username_check_res = await session.execute(select(Client).where(Client.username == username))
@@ -498,12 +526,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "group_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, UpdateGroup):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "group_updated", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
+        body = data.body
         name, global_name, about_group, icon_url, nsfw, content_filter, content_filter_level, id = body.owner_id, body.name, body.global_name, body.about_group, body.icon_url, body.nsfw, body.content_filter, body.content_filter_level, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -549,12 +577,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "space_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, UpdateSpace):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "space_updated", {"index": "WRONG_REQUEST", "target": "space"})
             return
 
+        body = data.body
         group_id, name, id = body.group_id, body.creator_id, body.name, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -600,12 +628,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "room_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, UpdateRoom):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "room_updated", {"index": "WRONG_REQUEST", "target": "room"})
             return
 
+        body = data.body
         group_id, space_id, name, about_room, nsfw, id = body.group_id, body.space_id, body.creator_id, body.name, body.about_room, body.nsfw, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -651,12 +679,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "message_edited", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, EditMessage):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "message_edited", {"index": "WRONG_REQUEST", "target": "message"})
             return
 
+        body = data.body
         group_id, room_id, content, id = body.group_id, body.space_id, body.room_id, body.content, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -716,12 +744,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "role_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, UpdateRole):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "role_updated", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
+        body = data.body
         group_id, name, color, global_permissions, id = body.group_id, body.name, body.color, body.global_permissions, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -773,12 +801,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "permissions_table_updated", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, UpdatePermissionsTable):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "permissions_table_updated", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
+        body = data.body
         group_id, permissions, id = body.group_id, body.permissions, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -854,12 +882,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "group_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, DeleteGroup):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "group_deleted", {"index": "WRONG_REQUEST", "target": "group"})
             return
 
+        body = data.body
         id = body.id
 
         group_res = await session.execute(select(Group).options(
@@ -902,12 +930,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "space_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, DeleteSpace):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "space_deleted", {"index": "WRONG_REQUEST", "target": "space"})
             return
 
+        body = data.body
         group_id, id = body.group_id, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -953,12 +981,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "room_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, DeleteRoom):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "room_deleted", {"index": "WRONG_REQUEST", "target": "room"})
             return
 
+        body = data.body
         group_id, id = body.group_id, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -1004,12 +1032,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "message_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, DeleteMessage):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "message_deleted", {"index": "WRONG_REQUEST", "target": "message"})
             return
 
+        body = data.body
         group_id, room_id, id = body.group_id, body.room_id, body.id
 
         group_res = await session.execute(select(Group).options(
@@ -1064,12 +1092,12 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "role_deleted", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
             return
 
-        data = Objectify(data)
-        body = data.body
-        if not isinstance(body, DeleteRole):
+        status, data = self.__verify_request(data)
+        if not status:
             await self.__emit_error(sid, "role_deleted", {"index": "WRONG_REQUEST", "target": "role"})
             return
 
+        body = data.body
         group_id, id = body.group_id, body.id
 
         group_res = await session.execute(select(Group).options(

@@ -105,7 +105,7 @@ export const ErrorAssessor: React.FC<ErrorAssessorProperties> = ({ children }) =
                 break;
 
             case "WRONG_REQUEST":
-                //
+                console.warn(`Called by: [${called_by}] <-> Wrong request`);
                 break;
 
 

@@ -82,7 +82,7 @@ class APIListener:
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         extra_client_res = await session.execute(select(Client).options(
             selectinload(Client.groups),
@@ -115,7 +115,7 @@ class APIListener:
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -161,7 +161,7 @@ class APIListener:
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -249,7 +249,7 @@ class APIListener:
         status, _ = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -276,7 +276,7 @@ class APIListener:
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -315,7 +315,7 @@ class APIListener:
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -362,7 +362,7 @@ class APIListener:
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -404,7 +404,7 @@ class APIListener:
         status, client = await valid.access_token_is_valid(access_token, session)
 
         if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_SESSION_TOKEN", "client")
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -415,7 +415,7 @@ class APIListener:
         if not group:
             return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         owner = group.owner.id == client.id
         if owner or \
@@ -440,33 +440,41 @@ class APIListener:
 
     def router_tasks(self):
         @self.router.post("/fetch_groups")
-        async def fetch_groups(request: Request, access_token: str = Header(...)):
+        async def fetch_groups(request: Request, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_groups(access_token)
 
         @self.router.post("/fetch_rooms")
-        async def fetch_rooms(request: Request, payload: GroupRelated, access_token: str = Header(...)):
+        async def fetch_rooms(request: Request, payload: GroupRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_rooms(access_token, payload.group_id)
 
         @self.router.post("/fetch_group")
-        async def fetch_group(request: Request, payload: RoomRelated, access_token: str = Header(...)):
+        async def fetch_group(request: Request, payload: RoomRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_group(access_token, payload.group_id, payload.room_id)
 
         @self.router.post("/fetch_members")
-        async def fetch_members(request: Request, payload: GroupRelated, access_token: str = Header(...)):
+        async def fetch_members(request: Request, payload: GroupRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_members(access_token, payload.group_id)
 
         @self.router.post("/fetch_roles")
-        async def fetch_roles(request: Request, payload: GroupRelated, access_token: str = Header(...)):
+        async def fetch_roles(request: Request, payload: GroupRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_roles(access_token, payload.group_id)
 
         @self.router.post("/fetch_messages")
-        async def fetch_messages(request: Request, payload: RoomRelated, access_token: str = Header(...)):
+        async def fetch_messages(request: Request, payload: RoomRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_messages(access_token, payload.group_id, payload.room_id)
         
         @self.router.post("/fetch_permstable")
-        async def fetch_permstable(request: Request, payload: RoleRelated, access_token: str = Header(...)):
+        async def fetch_permstable(request: Request, payload: RoleRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_permstable(access_token, payload.group_id, payload.room_id, payload.role_id)
         
         @self.router.post("/fetch_primary_room")
-        async def fetch_primary_room(request: Request, payload: GroupRelated, access_token: str = Header(...)):
+        async def fetch_primary_room(request: Request, payload: GroupRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_primary_room(access_token, payload.group_id)

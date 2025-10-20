@@ -28,6 +28,7 @@ import { useObjects } from "./worker";
 import { AuthHatch } from "./oauth";
 import { ErrorHandler } from "./error_assessor";
 import { useNavigate } from "react-router-dom";
+import { APIHatch } from "./api_listener";
 
 
 interface GatewayProperties {
@@ -61,7 +62,7 @@ const BasicSchema = z.object({
 export const ErrorSchema = z.object({
     index: z.string(),
     target: z.string(),
-});
+}).nullable();
 
 const GatewayResponseSchema = z.object({
     status: z.boolean(),
@@ -72,7 +73,7 @@ const GatewayResponseSchema = z.object({
         EssentialClientSchema,
         NotificationSchema,
     ]).nullable(),
-    error: ErrorSchema.nullable(), //Error can be null!
+    error: ErrorSchema,
 });
 
 
@@ -100,6 +101,11 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
     const auth_hatch = useContext(AuthHatch);
     if (!auth_hatch) {
         throw new Error("[Listener] Can't load AuthHatch for oauth");
+    }
+
+    const api_listener_hatch = useContext(APIHatch);
+    if (!api_listener_hatch) {
+        throw new Error("[Listener] Can't load APIListenerHatch for oauth");
     }
 
     const error_handler = useContext(ErrorHandler);
@@ -178,7 +184,23 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
-                emit_to_console("warn", `Incoming request can't be processed: ${response.data}`);
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
+                return;
+            }
+
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
                 return;
             }
 
@@ -190,24 +212,30 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
 
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
-                }
-                return;
-            }
-
-            //to be continued..
+            api_listener_hatch.fetchGroups();
         });
 
         gateway.on("space_created", (data) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                return;
+            }
+
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
                 return;
             }
 
@@ -218,16 +246,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -239,6 +257,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -246,16 +280,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -267,23 +291,29 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
-            const basic = MessageSchema.safeParse(response.data.body);
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
                 return;
             }
 
-            const body: z.infer<typeof MessageSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
+            const body: z.infer<typeof BasicSchema> = basic.data;
 
             //to be continued..
         });
@@ -295,6 +325,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -302,16 +348,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -323,6 +359,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -330,16 +382,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -352,23 +394,29 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
-            const basic = EssentialClientSchema.safeParse(response.data.body);
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
                 return;
             }
 
-            const body: z.infer<typeof EssentialClientSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
+            const body: z.infer<typeof BasicSchema> = basic.data;
 
             //to be continued..
         });
@@ -380,6 +428,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -387,16 +451,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -408,6 +462,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -415,16 +485,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -436,6 +496,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -443,16 +519,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -464,23 +530,29 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
-            const basic = EssentialMessageSchema.safeParse(response.data.body);
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
                 return;
             }
 
-            const body: z.infer<typeof EssentialMessageSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
+            const body: z.infer<typeof BasicSchema> = basic.data;
 
             //to be continued..
         });
@@ -492,6 +564,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -499,16 +587,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -520,6 +598,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -527,16 +621,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -549,6 +633,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -556,16 +656,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -577,6 +667,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -584,16 +690,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -605,6 +701,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -612,16 +724,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -633,6 +735,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -640,16 +758,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -661,6 +769,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -668,16 +792,6 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
-
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
 
             //to be continued..
         });
@@ -689,6 +803,22 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                 return;
             }
 
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
             const basic = BasicSchema.safeParse(response.data.body);
 
             if (!basic.success) {
@@ -696,18 +826,8 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             }
 
             const body: z.infer<typeof BasicSchema> = basic.data;
-            const error: z.infer<typeof ErrorSchema> = response.data.error;
 
-            if (!response.data.status) {
-                if (error.index) {
-                    error_handler.handle(error.index, error.target, "Listener");
-                } else {
-                    emit_to_console("error", "Can't display exact error, no index provided");
-                }
-                return;
-            }
-
-            //to be continued..
+            //to be continued...
         });
 
         return () => {

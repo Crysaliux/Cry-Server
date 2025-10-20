@@ -106,7 +106,7 @@ const GroupLayout: React.FC = () => {
                 <hr className={styles.divisionLine}></hr>
                         
                 {groups_array.map(group => (
-                    <div className={styles.group} key={group.id}>
+                    <div className={styles.group} key={group.id} onClick={() => navigate(context_data.main_path.current + group.id)}>
                         <div className={styles.groupShrunk}></div>
                     </div>
                 ))}
