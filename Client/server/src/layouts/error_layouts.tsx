@@ -1,7 +1,8 @@
 import React from "react";
 
 
-const DMSLayout: React.FC = () => {
+//404
+const ObjectNotFoundError = () => {
 
     return (
         <>

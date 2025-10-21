@@ -12,6 +12,7 @@ interface CoreGlobalProperties {
     signup_path: RefObject<string>;
     client_path: RefObject<string>;
     group_creation_modal_path: RefObject<string>;
+    room_void_path: RefObject<string>;
     oauth_ignore: RefObject<string[]>;
     max_reconnection_attempts: RefObject<number>;
     max_refresh_attempts: RefObject<number>;
@@ -52,6 +53,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const signup_path = useRef<string>("/oauth2/signup");
     const client_path = useRef<string>("/dms");
     const group_creation_modal_path = useRef<string>("/create_group");
+    const room_void_path = useRef<string>("/void");
     const oauth_ignore = useRef<string[]>([main_path.current, login_path.current, signup_path.current]);
 
     const max_reconnection_attempts = useRef<number>(5);
@@ -79,6 +81,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             signup_path,
             client_path,
             group_creation_modal_path,
+            room_void_path,
             oauth_ignore,
             max_reconnection_attempts,
             max_refresh_attempts,

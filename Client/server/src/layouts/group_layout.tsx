@@ -33,20 +33,27 @@ const GroupLayout: React.FC = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { group_id, room_id } = useParams();
 
     useEffect(() => {
+        if (!context_data.gateway_ready.status) return;
+
+        const [_, group_id, room_id] = location.pathname.split("/");
+
         if (group_id) {
-            if (!room_id) {
+            if (room_id === undefined) {
                 const id = api_hatch.fetchPrimaryRoom(group_id);
                 if (validate(id)) {
                     navigate(`/${group_id}/${room_id}`);
                 } else {
-                    console.log("404 not found, this group might not have any open rooms!");
+                    navigate(location.pathname + context_data.room_void_path.current);
                     return;
-                    //404 not found, this group might not have any open rooms!
+                    //404 not found, this group might not have any public rooms!
                 }
             } else {
+                if (room_id === context_data.room_void_path.current) { //we don't count void!
+                    return;
+                }
+
                 if (context_data.current_group.current) {
                     if (context_data.current_group.current.id !== group_id) {
                         api_hatch.fetchGroup(group_id, room_id);
@@ -63,7 +70,7 @@ const GroupLayout: React.FC = () => {
             return;
             //404 not found page!
         }
-    }, []);
+    }, [location, context_data.gateway_ready.status]);
 
     const groups_array = Object.values(groups);
     const rooms_array = Object.values(rooms);

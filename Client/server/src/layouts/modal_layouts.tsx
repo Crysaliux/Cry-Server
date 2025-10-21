@@ -146,7 +146,7 @@ export const CreateGroupModal: React.FC = () => {
                         "global_name": global_name_field_ref.current.value,
                         "about_group": about_group_field_ref.current?.value ?? null,
                         "icon_url": null,
-                        "id": "34466wwwww767777776645", //Id's must be server side only!
+                        "id": "367777776645", //Id's must be server side only!
                     },
                 }
             );
@@ -167,7 +167,7 @@ export const CreateGroupModal: React.FC = () => {
                         <input  type="file" accept="image/*" id={styles.modalGroupImgInput} onChange={onImageSelected}></input>
                     </div>
                     <input type="text" placeholder="Group name" className={styles.field} maxLength={25} ref={name_field_ref}></input>
-                    <div className={styles.sectionHeader}>Make if recognizable!</div>
+                    <div className={styles.sectionHeader}>Make it recognizable!</div>
                     <input type="text" placeholder="Global name" className={styles.field} maxLength={25} ref={global_name_field_ref}></input>
                     <div className={styles.sectionHeader}>Anything fun?</div>
                     <div id={styles.aboutGroupArea}>

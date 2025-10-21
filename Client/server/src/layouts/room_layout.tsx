@@ -29,6 +29,13 @@ function useAdditionalMessages(adms: Message[]) {
     );
 };
 
+export const RoomVoid: React.FC = () => {
+    return (
+        <>
+        </>
+    );
+};
+
 const RoomLayout: React.FC = () => {
     const context_data = useContext(CoreGlobalContext);
     if (!context_data) {

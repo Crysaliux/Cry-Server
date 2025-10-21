@@ -220,6 +220,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -254,6 +255,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -288,6 +290,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -322,6 +325,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -356,6 +360,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -391,6 +396,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -425,6 +431,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -459,6 +466,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -493,6 +501,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -527,6 +536,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -561,6 +571,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -595,6 +606,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -630,6 +642,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -664,6 +677,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -698,6 +712,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -732,6 +747,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -766,6 +782,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 
@@ -800,6 +817,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             const response = GatewayResponseSchema.safeParse(data);
 
             if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
                 return;
             }
 

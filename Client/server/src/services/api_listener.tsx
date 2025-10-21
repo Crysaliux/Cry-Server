@@ -81,7 +81,7 @@ interface APIProperties {
     fetchRoles: (group_id: string) => void;
     fetchPermstable: (group_id: string, room_id: string, role_id: string) => void;
     fetchMessages: (group_id: string, room_id: string) => void;
-    fetchGroup: (id: string, room_id: string) => void;
+    fetchGroup: (group_id: string, room_id: string) => void;
     fetchPrimaryRoom: (group_id: string) => void;
 }
 
@@ -380,8 +380,8 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         set_objects("messages", transform(fetched_messages));
     }, []);
 
-    const __fetch_group = useCallback(async (id: string, room_id: string) => {
-        const response = await APIrs.post("/fetch_group", { id: id, room_id: room_id }, {
+    const __fetch_group = useCallback(async (group_id: string, room_id: string) => {
+        const response = await APIrs.post("/fetch_group", { group_id: group_id, room_id: room_id }, {
             headers: {
                 "Authorization": `Bearer ${context_data.static_access_token.current}`,
             }
@@ -489,8 +489,8 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         await __fetch_messages(group_id, room_id);
     };
 
-    const fetchGroup = async (id: string, room_id: string) => {
-        await __fetch_group(id, room_id);
+    const fetchGroup = async (group_id: string, room_id: string) => {
+        await __fetch_group(group_id, room_id);
     };
 
     const fetchPrimaryRoom = async (group_id: string) => {
