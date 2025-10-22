@@ -34,7 +34,9 @@ const App: React.FC = () => {
                                     <Route path=":room_id" element={<RoomLayout />}>
                                         <Route path="create_group" element={<CreateGroupModal/>} />
                                     </Route>
-                                    <Route path="void" element={<RoomVoid />} />
+                                    <Route path="void" element={<RoomVoid />}>
+                                        <Route path="create_group" element={<CreateGroupModal/>} />
+                                    </Route>
                                 </Route>
 
                                 <Route path="dms" element={<GroupLayout />}>

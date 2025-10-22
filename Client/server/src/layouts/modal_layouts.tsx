@@ -146,7 +146,7 @@ export const CreateGroupModal: React.FC = () => {
                         "global_name": global_name_field_ref.current.value,
                         "about_group": about_group_field_ref.current?.value ?? null,
                         "icon_url": null,
-                        "id": "367777776645", //Id's must be server side only!
+                        "id": "3677776645", //Ids must be server side only!
                     },
                 }
             );

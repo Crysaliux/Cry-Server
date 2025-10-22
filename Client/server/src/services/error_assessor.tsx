@@ -36,7 +36,7 @@ export const ErrorAssessor: React.FC<ErrorAssessorProperties> = ({ children }) =
                 }
                 break;
 
-            case "INVALID_OR_EXPIRED_SESSION_TOKEN":
+            case "INVALID_OR_EXPIRED_ACCESS_TOKEN":
                 console.log(`Called by: [${called_by}] <-> Access token is either expired or invalid`);
                 break;
 

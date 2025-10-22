@@ -32,6 +32,19 @@ function useAdditionalMessages(adms: Message[]) {
 export const RoomVoid: React.FC = () => {
     return (
         <>
+            <div id={styles.rvContainer}>
+                <div id={styles.blackHole}>
+                    <div id={styles.blackHoleCover}>
+                        <div id={styles.blackHoleHeader}>
+                            Ooops... Looks like this group doesn't have any public rooms..<br></br>
+                        </div>
+                        <div id={styles.blackHoleFooter}>
+                            Enjoy the void!
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <Outlet />
         </>
     );
 };

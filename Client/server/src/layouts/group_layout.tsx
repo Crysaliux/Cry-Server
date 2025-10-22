@@ -39,6 +39,9 @@ const GroupLayout: React.FC = () => {
 
         const [_, group_id, room_id] = location.pathname.split("/");
 
+        if (context_data.group_ignore.current.includes("/" + group_id)
+            || context_data.group_ignore.current.includes("/" + room_id)) return;
+
         if (group_id) {
             if (room_id === undefined) {
                 const id = api_hatch.fetchPrimaryRoom(group_id);
@@ -107,7 +110,7 @@ const GroupLayout: React.FC = () => {
             </div>
                     
             <div id={styles.groups}>
-                <div id={styles.toContacts}>
+                <div id={styles.toContacts} onClick={() => navigate(context_data.contacts_path.current)}>
                     <div id={styles.toContactsShrunk}></div>
                 </div>
                 <hr className={styles.divisionLine}></hr>

@@ -30,7 +30,7 @@ const SignUpLayoutLoader: React.FC = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (context_data.gateway_ready.status) navigate(context_data.client_path.current);
+        if (context_data.gateway_ready.status) navigate(context_data.contacts_path.current);
     }, [navigate, context_data.gateway_ready]);
 
     if (context_data.gateway_ready.tried && !context_data.gateway_ready.status) {
@@ -153,7 +153,7 @@ const SignUpLayout: React.FC = () => {
             );
             
             if (status) {
-                navigate(context_data.client_path.current);
+                navigate(context_data.contacts_path.current);
             };
         }
     };
