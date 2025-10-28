@@ -32,6 +32,10 @@ const FetchedRoomIdSchema = z.object({
     room_id: z.string().nullable(),
 });
 
+const AttachementUrlSchema = z.object({
+    file_url: z.string().nullable(),
+});
+
 const FetchedRoomsSchema = z.object({
     spaces: z.array(SpaceSchema),
     rooms: z.array(RoomSchema),
@@ -54,6 +58,7 @@ const ResponseSchema = z.object({ //hbb - handled by backend
         PermissionsTableSchema, //fetching all permissions for some role
         FetchedRoomsSchema, //[hbb] both spaces and rooms are being fetched here
         FetchedGroupSchema, //[hbb] In case group needs to be loaded
+        AttachementUrlSchema, //[hbb], saved to backend dir
         z.array(MessageSchema), //messages (up too 100 at once!) are being fetched here
         z.array(MemberSchema), //[hbb] group members (up too 50 at once!) are being fetched here
     ]).nullable(),
@@ -83,6 +88,7 @@ interface APIProperties {
     fetchMessages: (group_id: string, room_id: string) => void;
     fetchGroup: (group_id: string, room_id: string) => void;
     fetchPrimaryRoom: (group_id: string) => void;
+    uploadAttachement: (file: File) => void;
 }
 
 export const APIHatch = createContext<APIProperties | undefined>(undefined);
@@ -465,6 +471,47 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         return room_id;
     }, []);
 
+    const __upload_attachement = useCallback(async (file: File) => {
+        const response = await APIrs.post("/upload_attachement", { "file": file }, {
+            headers: {
+                "Authorization": `Bearer ${context_data.static_access_token.current}`,
+            }
+        });
+
+        const parsed_response = ResponseSchema.safeParse(response.data);
+
+        if (!parsed_response.success) {
+            emit_to_console("error", `Falied to save attachement, can't process server response: ${parsed_response.data}`);
+            return;
+        }
+
+        if (!parsed_response.data.status) {
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
+            if (!error.success) {
+                emit_to_console("error", `Can't display exact error, parsing failed on upload attachement: ${error.error.issues}`);
+                return;
+            }
+            if (!error.data.index) {
+                emit_to_console("error", "Can't display exact error, no index provided on upload attachement");
+                return;
+            }
+
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
+            return;
+        }
+
+        const actual = AttachementUrlSchema.safeParse(parsed_response.data.body);
+
+        if (!actual.success) {
+            emit_to_console("error", `Falied to save attachement, can't process server response: ${parsed_response.data.body}`);
+            return;
+        }
+
+        const file_url: z.infer<typeof AttachementUrlSchema> = actual.data;
+
+        return file_url;
+    }, []);
+
     const fetchGroups = async () => {
         await __fetch_groups();
     };
@@ -497,6 +544,10 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         return await __fetch_primary_room(group_id);
     };
 
+    const uploadAttachement = async (file: File) => {
+        return await __upload_attachement(file);
+    };
+
 
     return (
         <APIHatch.Provider value={{ 
@@ -508,6 +559,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             fetchMessages,
             fetchGroup,
             fetchPrimaryRoom,
+            uploadAttachement,
          }}>
             { children }
         </APIHatch.Provider>

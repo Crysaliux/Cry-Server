@@ -141,6 +141,9 @@ class Core(FastAPI):
             perms = self.perms,
             access_key=self.server_access_key,
             message_load_batch_size = self.message_load_batch_size,
+            client_server_origin=self.client_server_origin,
+            storage_files_path=self.storage_files_path,
+            storage_images_path=self.storage_images_path,
         )
         self.api_listener.router_tasks()
 

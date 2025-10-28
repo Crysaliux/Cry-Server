@@ -11,6 +11,7 @@ from ..components import *
 from .validators import *
 from functools import wraps
 from logging import log
+import aiofiles
 import uuid
 
 class GroupRelated(BaseModel):
@@ -24,6 +25,9 @@ class RoleRelated(BaseModel):
     group_id: str
     room_id: str
     role_id: str
+
+class Attachementrelated(BaseModel):
+    file: UploadFile
 
 
 #Emission types
@@ -42,6 +46,10 @@ class APIListener:
             perms,
             message_load_batch_size: int,
             access_key,
+            client_server_origin,
+            storage_images_path,
+            storage_files_path,
+
         ):
         self.oauth2 = oauth2
         self.session = session
@@ -51,6 +59,10 @@ class APIListener:
         self.perms = perms
         self.message_load_batch_size = message_load_batch_size
         self.access_key = access_key
+        self.client_server_origin = client_server_origin
+        self.storage_images_path = storage_images_path
+        self.storage_files_path = storage_files_path
+
         self.router = APIRouter()
 
         self.api_call_bindings = {
@@ -62,6 +74,7 @@ class APIListener:
             "fetch_messages": self.__fetch_messages,
             "fetch_permstable": self.__fetch_permstable,
             "fetch_primary_room": self.__fetch_primary_room,
+            "upload_attachement": self.__upload_attachement,
         }
         self.__register_api_call_handlers()
 
@@ -437,6 +450,37 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
     
+    async def __upload_attachement(self, access_token: str, file: UploadFile, session) -> EmitError | EmitCommon:
+        valid = ClientValidator(self.access_key, self.algorithm, self.logger)
+        status, _ = await valid.access_token_is_valid(access_token, session)
+
+        if not status:
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
+
+        filename = f"{uuid.uuid4()}.{file.filename.split(".")[-1]}"
+        data = await file.read()
+        
+        if file.content_type.startswith("image/"):
+            save_to = f"{self.storage_images_path}/Images/Attachements/{filename}"
+            file_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Attachements/{filename}"
+        else:
+            save_to = f"{self.storage_files_path}/Files/Attachements{filename}"
+            file_url = f"http://{self.addr[0]}:{self.addr[1]}/files/Attachements/{filename}"
+
+        try:
+            async with aiofiles.open(save_to, "wb") as buffer:
+                await buffer.write(data)
+        except:
+            return self.__emit_api_error("FAILED_TO_SAVE_ATTACHEMENT", f"{file.filename}") #original filename
+        
+        return {
+            "status": True, 
+            "body": {
+                "file_url": file_url,
+            }, 
+            "error": None,
+        }
+    
 
     def router_tasks(self):
         @self.router.post("/fetch_groups")
@@ -478,3 +522,8 @@ class APIListener:
         async def fetch_primary_room(request: Request, payload: GroupRelated, authorization: str = Header(...)):
             access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_primary_room(access_token, payload.group_id)
+        
+        @self.router.post("/upload_attachement")
+        async def upload_attachement(request: Request, payload: Attachementrelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
+            return await self._call_upload_attachement(access_token, payload.channel_id, payload.file)

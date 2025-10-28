@@ -8,6 +8,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { GatewayHatch } from "services/listener";
 import Cropper from 'react-easy-crop'
 import styles from "../static/modals.module.css";
+import { APIHatch } from "services/api_listener";
 
 
 export const CreateGroupModal: React.FC = () => {
@@ -19,6 +20,11 @@ export const CreateGroupModal: React.FC = () => {
     const gateway_hatch = useContext(GatewayHatch);
     if (!gateway_hatch) {
         throw new Error("Can't load APIHatch for oauth");
+    }
+
+    const api_hatch = useContext(APIHatch);
+        if (!api_hatch) {
+            throw new Error("Can't load CoreGlobalContext for oauth");
     }
 
     const modal_root = document.getElementById("modal-root");
@@ -36,6 +42,7 @@ export const CreateGroupModal: React.FC = () => {
     const [zoom, setZoom] = useState(1);
     const [cropped_area_pixels, setCroppedAreaPixels] = useState<any>(null);
     
+    const file_ref = useRef<File>(null);
     const canvas_ref = useRef<HTMLCanvasElement>(null);
     const name_field_ref  = useRef<HTMLInputElement>(null);
     const global_name_field_ref  = useRef<HTMLInputElement>(null);
@@ -68,6 +75,7 @@ export const CreateGroupModal: React.FC = () => {
             };
 
             const compressed = await useCompress(event.target.files[0]);
+            file_ref.current = compressed;
             reader.readAsDataURL(compressed);
         }
     };
@@ -138,14 +146,24 @@ export const CreateGroupModal: React.FC = () => {
                 return;
             }
 
+            let about_group = null;
+            if (about_group_field_ref.current?.value !== "") {
+                about_group = about_group_field_ref.current?.value;
+            }
+
+            let icon_url = null;
+            if (file_ref.current) {
+                icon_url = api_hatch.uploadAttachement(file_ref.current as File);
+            }
+
             gateway_hatch.sendEvent( //fix this
                 "create_group",
                 {
                     "body": {
                         "name": name_field_ref.current.value,
                         "global_name": global_name_field_ref.current.value,
-                        "about_group": about_group_field_ref.current?.value ?? null,
-                        "icon_url": null,
+                        "about_group": about_group,
+                        "icon_url": icon_url,
                         "id": "3677776645", //Ids must be server side only!
                     },
                 }
