@@ -14,6 +14,7 @@ import {
     useRooms, 
     useSpaces,
 } from "services/worker";
+import { CSSProperties } from "@mui/material";
 
 
 const GroupLayout: React.FC = () => {
@@ -44,14 +45,15 @@ const GroupLayout: React.FC = () => {
 
         if (group_id) {
             if (room_id === undefined) {
-                const id = api_hatch.fetchPrimaryRoom(group_id);
-                if (validate(id)) {
-                    navigate(`/${group_id}/${room_id}`);
-                } else {
-                    navigate(location.pathname + context_data.room_void_path.current);
-                    return;
-                    //404 not found, this group might not have any public rooms!
-                }
+                api_hatch.fetchPrimaryRoom(group_id).then(data => {
+                    if (validate(data?.room_id)) {
+                        navigate(`/${group_id}/${room_id}`);
+                    } else {
+                        navigate(location.pathname + context_data.room_void_path.current);
+                        return;
+                        //404 not found, this group might not have any public rooms!
+                    }
+                });
             } else {
                 if (room_id === context_data.room_void_path.current) { //we don't count void!
                     return;
@@ -116,7 +118,7 @@ const GroupLayout: React.FC = () => {
                 <hr className={styles.divisionLine}></hr>
                         
                 {groups_array.map(group => (
-                    <div className={styles.group} key={group.id} onClick={() => navigate(context_data.main_path.current + group.id)}>
+                    <div className={styles.group} key={group.id} style={{ "--group-background": `url(${group.icon_url})` } as CSSProperties} onClick={() => navigate(context_data.main_path.current + group.id)}>
                         <div className={styles.groupShrunk}></div>
                     </div>
                 ))}

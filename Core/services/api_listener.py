@@ -26,9 +26,6 @@ class RoleRelated(BaseModel):
     room_id: str
     role_id: str
 
-class Attachementrelated(BaseModel):
-    file: UploadFile
-
 
 #Emission types
 EmitError: TypeAlias = dict[str, Literal[False] | None | dict[str, str]]
@@ -44,6 +41,7 @@ class APIListener:
             logger,
             algorithm,
             perms,
+            addr,
             message_load_batch_size: int,
             access_key,
             client_server_origin,
@@ -57,6 +55,7 @@ class APIListener:
         self.logger = logger
         self.algorithm = algorithm
         self.perms = perms
+        self.addr = addr
         self.message_load_batch_size = message_load_batch_size
         self.access_key = access_key
         self.client_server_origin = client_server_origin
@@ -422,8 +421,8 @@ class APIListener:
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
             selectinload(Group.rooms),
-        ).where(Group.id == group_id))
-        group = group_res.scalar_one_or_none()
+        ).where(Group.id == group_id or Group.global_name == group_id))
+        group = group_res.scalar_one_or_none() #check and|or fix
 
         if not group:
             return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
@@ -461,11 +460,11 @@ class APIListener:
         data = await file.read()
         
         if file.content_type.startswith("image/"):
-            save_to = f"{self.storage_images_path}/Images/Attachements/{filename}"
-            file_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Attachements/{filename}"
+            save_to = f"{self.storage_images_path}/{filename}"
+            file_url = f"http://{self.addr[0]}:{self.addr[1]}/images/{filename}"
         else:
-            save_to = f"{self.storage_files_path}/Files/Attachements{filename}"
-            file_url = f"http://{self.addr[0]}:{self.addr[1]}/files/Attachements/{filename}"
+            save_to = f"{self.storage_files_path}/{filename}"
+            file_url = f"http://{self.addr[0]}:{self.addr[1]}/files/{filename}"
 
         try:
             async with aiofiles.open(save_to, "wb") as buffer:
@@ -524,6 +523,6 @@ class APIListener:
             return await self._call_fetch_primary_room(access_token, payload.group_id)
         
         @self.router.post("/upload_attachement")
-        async def upload_attachement(request: Request, payload: Attachementrelated, authorization: str = Header(...)):
+        async def upload_attachement(request: Request, file: UploadFile = File(...), authorization: str = Header(...)):
             access_token = authorization.replace("Bearer", "").strip()
-            return await self._call_upload_attachement(access_token, payload.channel_id, payload.file)
+            return await self._call_upload_attachement(access_token, file)

@@ -61,6 +61,10 @@ export const ErrorAssessor: React.FC<ErrorAssessorProperties> = ({ children }) =
                 console.warn(`Called by: [${called_by}] <-> Email already exists`);
                 break;
 
+            case "GLOBAL_NAME_EXISTS":
+                console.warn(`Called by: [${called_by}] <-> Global name already exists`);
+                break;
+
             case "UPDATE_FAILED":
                 switch (target) {
                     case "client":

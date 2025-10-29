@@ -87,8 +87,8 @@ interface APIProperties {
     fetchPermstable: (group_id: string, room_id: string, role_id: string) => void;
     fetchMessages: (group_id: string, room_id: string) => void;
     fetchGroup: (group_id: string, room_id: string) => void;
-    fetchPrimaryRoom: (group_id: string) => void;
-    uploadAttachement: (file: File) => void;
+    fetchPrimaryRoom: (group_id: string) => Promise<{ room_id: string | null } | null>;
+    uploadAttachement: (file: File) => Promise<{ file_url: string | null } | null>;
 }
 
 export const APIHatch = createContext<APIProperties | undefined>(undefined);
@@ -441,29 +441,29 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
 
         if (!parsed_response.success) {
             emit_to_console("error", `Primary room fetch failed, can't process server response: ${parsed_response.data}`);
-            return;
+            return null;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 emit_to_console("error", `Can't display exact error, parsing failed on fetch primary room: ${error.error.issues}`);
-                return;
+                return null;
             }
             if (!error.data.index) {
                 emit_to_console("error", "Can't display exact error, no index provided on fetch primary room");
-                return;
+                return null;
             }
 
             error_handler.handle(error.data.index, error.data.target, "APIListener");
-            return;
+            return null;
         }
 
         const actual = FetchedRoomIdSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Primary room fetch failed, can't process server response: ${parsed_response.data.body}`);
-            return;
+            return null;
         }
 
         const room_id: z.infer<typeof FetchedRoomIdSchema> = actual.data;
@@ -471,9 +471,13 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         return room_id;
     }, []);
 
-    const __upload_attachement = useCallback(async (file: File) => {
-        const response = await APIrs.post("/upload_attachement", { "file": file }, {
+    const uploadAttachement = useCallback(async (file: File) => {
+        const formData = new FormData();
+        formData.append("file", file as File);
+
+        const response = await APIrs.post("/upload_attachement", formData, {
             headers: {
+                "Content-Type": undefined,
                 "Authorization": `Bearer ${context_data.static_access_token.current}`,
             }
         });
@@ -482,35 +486,36 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
 
         if (!parsed_response.success) {
             emit_to_console("error", `Falied to save attachement, can't process server response: ${parsed_response.data}`);
-            return;
+            return null;
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 emit_to_console("error", `Can't display exact error, parsing failed on upload attachement: ${error.error.issues}`);
-                return;
+                return null;
             }
             if (!error.data.index) {
                 emit_to_console("error", "Can't display exact error, no index provided on upload attachement");
-                return;
+                return null;
             }
 
             error_handler.handle(error.data.index, error.data.target, "APIListener");
-            return;
+            return null;
         }
 
         const actual = AttachementUrlSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Falied to save attachement, can't process server response: ${parsed_response.data.body}`);
-            return;
+            return null;
         }
 
         const file_url: z.infer<typeof AttachementUrlSchema> = actual.data;
 
         return file_url;
     }, []);
+    
 
     const fetchGroups = async () => {
         await __fetch_groups();
@@ -542,10 +547,6 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
 
     const fetchPrimaryRoom = async (group_id: string) => {
         return await __fetch_primary_room(group_id);
-    };
-
-    const uploadAttachement = async (file: File) => {
-        return await __upload_attachement(file);
     };
 
 

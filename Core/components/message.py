@@ -5,7 +5,6 @@ class SendMessage(BaseModel):
     group_id: str
     room_id: str
     content: str
-    id: str
 
 class EditMessage(BaseModel): #.edited must be set to True
     group_id: str

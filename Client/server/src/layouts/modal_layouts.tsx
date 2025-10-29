@@ -11,6 +11,12 @@ import styles from "../static/modals.module.css";
 import { APIHatch } from "services/api_listener";
 
 
+interface InputConfig {
+    name: string;
+    global_name: string;
+    about_group: string;
+}
+
 export const CreateGroupModal: React.FC = () => {
     const context_data = useContext(CoreGlobalContext);
     if (!context_data) {
@@ -35,14 +41,19 @@ export const CreateGroupModal: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
+    const [input_config, setInputConfig] = useState<InputConfig>({
+        "name": "",
+        "global_name": "",
+        "about_group": "",
+    });
     const [image_selected, setImageSelected] = useState<boolean>(false);
     const [image_data, setImageData] = useState<string | null | ArrayBuffer>("");
+    const [image_actual, setImageActual] = useState<File | null>(null);
 
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [cropped_area_pixels, setCroppedAreaPixels] = useState<any>(null);
     
-    const file_ref = useRef<File>(null);
     const canvas_ref = useRef<HTMLCanvasElement>(null);
     const name_field_ref  = useRef<HTMLInputElement>(null);
     const global_name_field_ref  = useRef<HTMLInputElement>(null);
@@ -66,8 +77,27 @@ export const CreateGroupModal: React.FC = () => {
         navigate(location.pathname.replace(context_data.group_creation_modal_path.current, ""));
     };
 
+    const onNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+        setInputConfig(prev => ({
+            ...prev, name: event.target.value
+        }));
+    };
+
+    const onGlobalNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+        setInputConfig(prev => ({
+            ...prev, global_name: event.target.value
+        }));
+    };
+
+    const onAboutGroupChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+        setInputConfig(prev => ({
+            ...prev, about_group: event.target.value
+        }));
+    };
+
     const onImageSelected = async (event: ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
+            setImageActual(event.target.files[0]);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImageData(reader.result);
@@ -75,7 +105,6 @@ export const CreateGroupModal: React.FC = () => {
             };
 
             const compressed = await useCompress(event.target.files[0]);
-            file_ref.current = compressed;
             reader.readAsDataURL(compressed);
         }
     };
@@ -124,7 +153,11 @@ export const CreateGroupModal: React.FC = () => {
 
             canvas.toBlob(
                 (blob) => {
-                    if (blob) reader.readAsDataURL(blob);
+                    if (blob) {
+                        const img = new File([blob], "jpg", { type: blob.type, lastModified: new Date().getTime() });
+                        setImageActual(img);
+                        reader.readAsDataURL(blob);
+                    };
                 },
                 "image/jpeg",
                 0.9
@@ -132,7 +165,7 @@ export const CreateGroupModal: React.FC = () => {
         };
     };
 
-    const submitData = () => {
+    const submitData = async () => {
         if (name_field_ref.current && global_name_field_ref.current) {
             if (name_field_ref.current.value === "") {
                 //
@@ -152,11 +185,12 @@ export const CreateGroupModal: React.FC = () => {
             }
 
             let icon_url = null;
-            if (file_ref.current) {
-                icon_url = api_hatch.uploadAttachement(file_ref.current as File);
+            if (image_actual) {
+                const data = await api_hatch.uploadAttachement(image_actual);
+                icon_url = data?.file_url;
             }
 
-            gateway_hatch.sendEvent( //fix this
+            gateway_hatch.sendEvent(
                 "create_group",
                 {
                     "body": {
@@ -164,12 +198,11 @@ export const CreateGroupModal: React.FC = () => {
                         "global_name": global_name_field_ref.current.value,
                         "about_group": about_group,
                         "icon_url": icon_url,
-                        "id": "3677776645", //Ids must be server side only!
                     },
                 }
             );
 
-            navigate(location.pathname.replace(context_data.group_creation_modal_path.current, ""));// no callback? :c
+            navigate(location.pathname.replace(context_data.group_creation_modal_path.current, ""));
         }
     };
     
@@ -184,12 +217,12 @@ export const CreateGroupModal: React.FC = () => {
                     <div id={styles.modalGroupImg} style={{ backgroundImage: image_data? `url(${String(image_data)})` : "none" }}>
                         <input  type="file" accept="image/*" id={styles.modalGroupImgInput} onChange={onImageSelected}></input>
                     </div>
-                    <input type="text" placeholder="Group name" className={styles.field} maxLength={25} ref={name_field_ref}></input>
+                    <input type="text" placeholder="Group name" className={styles.field} maxLength={25} ref={name_field_ref} onChange={onNameChange} value={input_config.name}></input>
                     <div className={styles.sectionHeader}>Make it recognizable!</div>
-                    <input type="text" placeholder="Global name" className={styles.field} maxLength={25} ref={global_name_field_ref}></input>
+                    <input type="text" placeholder="Global name" className={styles.field} maxLength={25} ref={global_name_field_ref} onChange={onGlobalNameChange} value={input_config.global_name}></input>
                     <div className={styles.sectionHeader}>Anything fun?</div>
                     <div id={styles.aboutGroupArea}>
-                        <TextareaAutosize id={styles.aboutGroupField} maxLength={250} placeholder="About group..." ref={about_group_field_ref}></TextareaAutosize>
+                        <TextareaAutosize id={styles.aboutGroupField} maxLength={250} placeholder="About group..." ref={about_group_field_ref} onChange={onAboutGroupChange} value={input_config.about_group}></TextareaAutosize>
                     </div>
                     <div id={styles.modalCreateGroup} onClick={() => submitData()}>Create Group</div>
                 </div>

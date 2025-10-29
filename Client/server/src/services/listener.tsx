@@ -140,7 +140,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
                     emit_to_console("log", "Session refresh failed");
                 }
                 else emit_to_console("log", "Session refresh successful");
-            })
+            });
             return;
         }
 
@@ -161,6 +161,7 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
         gateway.on("connect", () => {
             context_data.setGatewayStatus({"status": true, "tried": true});
+            api_listener_hatch.fetchGroups();
             emit_to_console("log", "Successfully connected to gateway");
         });
         gateway.on("connect_error", (error) => {

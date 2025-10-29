@@ -16,6 +16,7 @@ import aiofiles
 from socketio.async_server import AsyncServer
 from typing import Union
 import asyncio
+import uuid
 import jwt
 
 
@@ -169,12 +170,19 @@ class Listener: #Add objectifiers!
             return
 
         body = data.body
-        name, global_name, about_group, icon_url, id = body.name, body.global_name, body.about_group, body.icon_url, body.id
+        name, global_name, about_group, icon_url, id = body.name, body.global_name, body.about_group, body.icon_url, str(uuid.uuid4())
 
         extra_client_res = await session.execute(select(Client).options(
             selectinload(Client.groups),
         ).where(Client.id == client.id))
         extra_client = extra_client_res.scalar_one_or_none()
+
+        global_name_check_res = await session.execute(select(Group).where(Group.global_name == global_name))
+        global_name_check = global_name_check_res.scalar_one_or_none()
+
+        if global_name_check:
+            await self.__emit_error(sid, "group_created", {"index": "GLOBAL_NAME_EXISTS", "target": "group"})
+            return
 
         new_group = Group(owner_id=client.id, name=name, global_name=global_name, about_group=about_group, icon_url=icon_url, id=id)
         
@@ -207,7 +215,7 @@ class Listener: #Add objectifiers!
             return
 
         body = data.body
-        group_id, name, id = body.group_id, body.name, body.id
+        group_id, name, id = body.group_id, body.name, str(uuid.uuid4())
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -256,7 +264,7 @@ class Listener: #Add objectifiers!
             return
 
         body = data.body
-        group_id, space_id, name, about_room, id = body.group_id, body.space_id, body.name, body.about_room, body.id
+        group_id, space_id, name, about_room, id = body.group_id, body.space_id, body.name, body.about_room, str(uuid.uuid4())
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -305,7 +313,7 @@ class Listener: #Add objectifiers!
             return
 
         body = data.body
-        group_id, room_id, content, id = body.group_id, body.room_id, body.content, body.id
+        group_id, room_id, content, id = body.group_id, body.room_id, body.content, str(uuid.uuid4())
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -369,7 +377,7 @@ class Listener: #Add objectifiers!
             return
 
         body = data.body
-        group_id, name, id = body.group_id, body.name, body.id
+        group_id, name, id = body.group_id, body.name, str(uuid.uuid4())
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -417,7 +425,7 @@ class Listener: #Add objectifiers!
             return
 
         body = data.body
-        group_id, role_id, room_id, permissions, id = body.group_id, body.role_id, body.room_id, body.permissions, body.id
+        group_id, role_id, room_id, permissions, id = body.group_id, body.role_id, body.room_id, body.permissions, str(uuid.uuid4())
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
@@ -1129,25 +1137,3 @@ class Listener: #Add objectifiers!
                 await self.__emit_error(sid, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "role"})
         else:
             await self.__emit_error(sid, "role_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
-
-
-#Add fetchers to router tasks.
-    """def router_tasks(self):
-        @self.router.post("/upload_attachement", response_class=HTMLResponse) #Update code, modify
-        async def upload_attachement(request: Request, index: str = Form(...), channel_id: str = Form(...), file: UploadFile = File(...)):
-            if request.headers.get('origin') != self.client_server_origin:
-                raise HTTPException(status_code=403, detail="Access forbidden.")
-            filename = f"{index}.{file.filename.split(".")[-1]}"
-            data = await file.read()
-            if file.content_type.startswith("image/"):
-                save_to = f"{self.storage_images_path}/Images/Attachements/{filename}"
-                file_url = f"http://{self.addr[0]}:{self.addr[1]}/images/Attachements/{filename}"
-            else:
-                save_to = f"{self.storage_files_path}/Files/Attachements{filename}"
-                file_url = f"http://{self.addr[0]}:{self.addr[1]}/files/Attachements/{filename}"
-            try:
-                async with aiofiles.open(save_to, "wb") as buffer:
-                    await buffer.write(data)
-            except:
-                return JSONResponse(content={"success": False}, status_code=201)
-            return JSONResponse(content={"url": file_url}, status_code=201)"""

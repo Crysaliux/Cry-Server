@@ -6,7 +6,6 @@ class CreateRoom(BaseModel):
     space_id: Union[str, None]
     name: str
     about_room: Union[str, None]
-    id: str
 
 class UpdateRoom(BaseModel):
     group_id: str

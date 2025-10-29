@@ -175,6 +175,7 @@
 }
 
 .group {
+    --group-background: url('images.jpg');
     height: 40px;
     width: 40px;
     margin-top: 10px;
@@ -185,7 +186,7 @@
     transition: opacity 0.3s ease, transform 0.3s ease;
     align-content: center;
     justify-items: center;
-    background-image: url('images.jpg');
+    background-image: var(--group-background);
 }
 
 .groupShrunk {
@@ -196,7 +197,7 @@
     background-position: center;
     background-repeat: no-repeat;
     opacity: 0;
-    background-image: url('images.jpg');
+    background-image: var(--group-background);
 }
 
 .group:hover {

@@ -60,7 +60,7 @@ class Core(FastAPI):
             async_mode=CONFIG["GATEWAY_ASYNC_MODE"], 
             client_manager=self.rm, 
             logger=CONFIG["GATEWAY_LOGGER"], 
-            cors_allowed_origins=self.client_server_origin
+            cors_allowed_origins=self.client_server_origin,
         ) #Disable logger later
 
         self.worker = Worker()
@@ -133,6 +133,7 @@ class Core(FastAPI):
 
         #Initializing APIListener module
         self.api_listener = APIListener(
+            addr=(self.sv_host, self.sv_port),
             session=self.worker.session,
             ws=worker_session,
             logger=LOGGER,

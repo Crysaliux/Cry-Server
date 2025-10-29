@@ -6,7 +6,6 @@ class CreateGroup(BaseModel):
     global_name: str
     about_group: Union[str, None]
     icon_url: Union[str, None]
-    id: str
 
 class UpdateGroup(BaseModel):
     name: str

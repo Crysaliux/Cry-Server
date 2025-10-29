@@ -6,7 +6,6 @@ class CreatePermissionsTable(BaseModel):
     role_id: str
     room_id: str
     permissions: List[str]
-    id: str
 
 class UpdatePermissionsTable(BaseModel):
     group_id: str
