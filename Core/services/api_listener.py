@@ -447,7 +447,6 @@ class APIListener:
             return {
                 "status": True, 
                 "body": {
-                    "group_id": group.id,
                     "room_id": room_id,
                 }, 
                 "error": None,
@@ -462,22 +461,18 @@ class APIListener:
         if not status:
             return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
 
+        exists = False
+
         global_name_check_res = await session.execute(select(Group).where(Group.global_name == group_global_name))
         global_name_check = global_name_check_res.scalar_one_or_none()
 
         if global_name_check:
-            return {
-                "status": True, 
-                "body": {
-                    "exists": True,
-                }, 
-                "error": None,
-            }
+            exists = True
         
         return {
             "status": True, 
             "body": {
-                "exists": False,
+                "exists": exists,
             }, 
             "error": None,
         }

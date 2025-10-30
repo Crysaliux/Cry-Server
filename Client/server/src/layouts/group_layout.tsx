@@ -46,7 +46,7 @@ const GroupLayout: React.FC = () => {
         if (group_global_name) {
             if (room_id === undefined) {
                 api_hatch.getPrimaryRoom(group_global_name).then(data => {
-                    if (data.group_id) { //not used anywhere, fetched anyway. Make it an exists boolean
+                    if (data.exists) {
                         if (data.room_id) {
                             navigate(`/${group_global_name}/${room_id}`);
                         } else {
@@ -72,7 +72,7 @@ const GroupLayout: React.FC = () => {
             }
 
         } else return;
-    }, [location, context_data.gateway_ready.status]);
+    }, [location, context_data.gateway_ready.status]); 
 
     const groups_array = Object.values(groups);
     const rooms_array = Object.values(rooms);

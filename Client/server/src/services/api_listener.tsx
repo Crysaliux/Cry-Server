@@ -33,7 +33,6 @@ const CheckGlobalNameSchema = z.object({
 });
 
 const GetPrimaryRoomSchema = z.object({
-    group_id: z.string().nullable(),
     room_id: z.string().nullable(),
 });
 
@@ -93,7 +92,7 @@ interface APIProperties {
     fetchPermstable: (group_id: string, room_id: string, role_id: string) => void;
     fetchMessages: (group_id: string, room_id: string) => void;
     fetchGroup: (group_id: string, room_id: string) => void;
-    getPrimaryRoom: (group_global_name: string) => Promise<{ group_id: string | null, room_id: string | null }>;
+    getPrimaryRoom: (group_global_name: string) => Promise<{ exists: boolean, room_id: string | null }>;
     checkGlobalName: (group_global_name: string) => Promise<{ status: boolean, exists: boolean }>
     uploadAttachement: (file: File) => Promise<string | null>;
 }
@@ -448,37 +447,36 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
 
         if (!parsed_response.success) {
             emit_to_console("error", `Failed to get primary room, can't process server response: ${parsed_response.data}`);
-            return {"group_id": null, "room_id": null};
+            return {"exists": false, "room_id": null};
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
                 emit_to_console("error", `Can't display exact error, parsing failed on get primary room: ${error.error.issues}`);
-                return {"group_id": null, "room_id": null};
+                return {"exists": false, "room_id": null};
             }
             if (!error.data.index) {
                 emit_to_console("error", "Can't display exact error, no index provided on get primary room");
-                return {"group_id": null, "room_id": null};
+                return {"exists": false, "room_id": null};
             }
 
             error_handler.handle(error.data.index, error.data.target, "APIListener");
-            return {"group_id": null, "room_id": null};
+            return {"exists": false, "room_id": null};
         }
 
         const actual = GetPrimaryRoomSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Failed to get primary room, can't process server response: ${parsed_response.data.body}`);
-            return {"group_id": null, "room_id": null};
+            return {"exists": false, "room_id": null};
         }
 
         const fid_type = z.string().nullable();
 
         const room_id: z.infer<typeof fid_type> = actual.data.room_id;
-        const group_id: z.infer<typeof fid_type> = actual.data.group_id;
 
-        return {"group_id": group_id, "room_id": room_id};
+        return {"exists": true, "room_id": room_id};
     }, []);
 
     const checkGlobalName = useCallback(async (group_global_name: string) => {
