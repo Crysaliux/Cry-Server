@@ -77,7 +77,7 @@ export const CreateGroupModal: React.FC = () => {
         navigate(location.pathname.replace(context_data.group_creation_modal_path.current, ""));
     };
 
-    const onNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const onNameChange = async (event: ChangeEvent<HTMLInputElement>) => {
         setInputConfig(prev => ({
             ...prev, name: event.target.value
         }));
@@ -179,6 +179,14 @@ export const CreateGroupModal: React.FC = () => {
                 return;
             }
 
+            const data = await api_hatch.checkGlobalName(global_name_field_ref.current.value);
+            if (data.status) {
+                if (data.exists) {
+                    console.warn("Group global name already exists!");
+                    return;
+                };
+            }
+
             let about_group = null;
             if (about_group_field_ref.current?.value !== "") {
                 about_group = about_group_field_ref.current?.value;
@@ -186,8 +194,8 @@ export const CreateGroupModal: React.FC = () => {
 
             let icon_url = null;
             if (image_actual) {
-                const data = await api_hatch.uploadAttachement(image_actual);
-                icon_url = data?.file_url;
+                const file_url = await api_hatch.uploadAttachement(image_actual);
+                icon_url = file_url;
             }
 
             gateway_hatch.sendEvent(

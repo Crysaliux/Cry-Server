@@ -38,20 +38,20 @@ const GroupLayout: React.FC = () => {
     useEffect(() => {
         if (!context_data.gateway_ready.status) return;
 
-        const [_, group_id, room_id] = location.pathname.split("/");
+        const [_, group_global_name, room_id] = location.pathname.split("/");
 
-        if (context_data.group_ignore.current.includes("/" + group_id)
+        if (context_data.group_ignore.current.includes("/" + group_global_name)
             || context_data.group_ignore.current.includes("/" + room_id)) return;
 
-        if (group_id) {
+        if (group_global_name) {
             if (room_id === undefined) {
-                api_hatch.fetchPrimaryRoom(group_id).then(data => {
-                    if (validate(data?.room_id)) {
-                        navigate(`/${group_id}/${room_id}`);
-                    } else {
-                        navigate(location.pathname + context_data.room_void_path.current);
-                        return;
-                        //404 not found, this group might not have any public rooms!
+                api_hatch.getPrimaryRoom(group_global_name).then(data => {
+                    if (data.group_id) { //not used anywhere, fetched anyway. Make it an exists boolean
+                        if (data.room_id) {
+                            navigate(`/${group_global_name}/${room_id}`);
+                        } else {
+                            navigate(location.pathname + context_data.room_void_path.current);
+                        }
                     }
                 });
             } else {
@@ -60,21 +60,18 @@ const GroupLayout: React.FC = () => {
                 }
 
                 if (context_data.current_group.current) {
-                    if (context_data.current_group.current.id !== group_id) {
-                        api_hatch.fetchGroup(group_id, room_id);
+                    if (context_data.current_group.current.global_name !== group_global_name) {
+                        api_hatch.fetchGroup(group_global_name, room_id);
                         //setting current group, preferrably in fetchGroup()
                     } else {
-                        api_hatch.fetchMessages(group_id, room_id);
+                        api_hatch.fetchMessages(group_global_name, room_id);
                         //setting current room, preferrably in fetchMessages()
                     }
-                } else api_hatch.fetchGroup(group_id, room_id);
+                } else api_hatch.fetchGroup(group_global_name, room_id);
                 //setting current group, preferrably in fetchGroup()
             }
 
-        } else {
-            return;
-            //404 not found page!
-        }
+        } else return;
     }, [location, context_data.gateway_ready.status]);
 
     const groups_array = Object.values(groups);
@@ -118,7 +115,7 @@ const GroupLayout: React.FC = () => {
                 <hr className={styles.divisionLine}></hr>
                         
                 {groups_array.map(group => (
-                    <div className={styles.group} key={group.id} style={{ "--group-background": `url(${group.icon_url})` } as CSSProperties} onClick={() => navigate(context_data.main_path.current + group.id)}>
+                    <div className={styles.group} key={group.id} style={{ "--group-background": `url(${group.icon_url})` } as CSSProperties} onClick={() => navigate(context_data.main_path.current + group.global_name)}>
                         <div className={styles.groupShrunk}></div>
                     </div>
                 ))}

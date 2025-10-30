@@ -5,6 +5,7 @@ from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToR
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import or_
 from pydantic import BaseModel
 from typing import Literal, TypeAlias
 from ..components import *
@@ -16,6 +17,9 @@ import uuid
 
 class GroupRelated(BaseModel):
     group_id: str
+
+class PrimaryRoomRelated(BaseModel):
+    group_global_name: str
 
 class RoomRelated(BaseModel):
     group_id: str
@@ -72,7 +76,8 @@ class APIListener:
             "fetch_roles": self.__fetch_roles,
             "fetch_messages": self.__fetch_messages,
             "fetch_permstable": self.__fetch_permstable,
-            "fetch_primary_room": self.__fetch_primary_room,
+            "get_primary_room": self.__get_primary_room,
+            "check_global_name": self.__check_global_name,
             "upload_attachement": self.__upload_attachement,
         }
         self.__register_api_call_handlers()
@@ -411,7 +416,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "MANAGE_ROLES")
     
-    async def __fetch_primary_room(self, access_token: str, group_id: str, session) -> EmitError | EmitCommon:
+    async def __get_primary_room(self, access_token: str, group_global_name: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm, self.logger)
         status, client = await valid.access_token_is_valid(access_token, session)
 
@@ -421,8 +426,8 @@ class APIListener:
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
             selectinload(Group.rooms),
-        ).where(Group.id == group_id or Group.global_name == group_id))
-        group = group_res.scalar_one_or_none() #check and|or fix
+        ).where(Group.global_name == group_global_name))
+        group = group_res.scalar_one_or_none()
 
         if not group:
             return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
@@ -442,12 +447,40 @@ class APIListener:
             return {
                 "status": True, 
                 "body": {
+                    "group_id": group.id,
                     "room_id": room_id,
                 }, 
                 "error": None,
             }
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
+    
+    async def __check_global_name(self, access_token: str, group_global_name: str, session) -> EmitError | EmitCommon:
+        valid = ClientValidator(self.access_key, self.algorithm, self.logger)
+        status, _ = await valid.access_token_is_valid(access_token, session)
+
+        if not status:
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
+
+        global_name_check_res = await session.execute(select(Group).where(Group.global_name == group_global_name))
+        global_name_check = global_name_check_res.scalar_one_or_none()
+
+        if global_name_check:
+            return {
+                "status": True, 
+                "body": {
+                    "exists": True,
+                }, 
+                "error": None,
+            }
+        
+        return {
+            "status": True, 
+            "body": {
+                "exists": False,
+            }, 
+            "error": None,
+        }
     
     async def __upload_attachement(self, access_token: str, file: UploadFile, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm, self.logger)
@@ -517,10 +550,15 @@ class APIListener:
             access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_permstable(access_token, payload.group_id, payload.room_id, payload.role_id)
         
-        @self.router.post("/fetch_primary_room")
-        async def fetch_primary_room(request: Request, payload: GroupRelated, authorization: str = Header(...)):
+        @self.router.post("/get_primary_room")
+        async def get_primary_room(request: Request, payload: PrimaryRoomRelated, authorization: str = Header(...)):
             access_token = authorization.replace("Bearer", "").strip()
-            return await self._call_fetch_primary_room(access_token, payload.group_id)
+            return await self._call_get_primary_room(access_token, payload.group_global_name)
+        
+        @self.router.post("/check_global_name")
+        async def check_global_name(request: Request, payload: PrimaryRoomRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
+            return await self._call_check_global_name(access_token, payload.group_global_name)
         
         @self.router.post("/upload_attachement")
         async def upload_attachement(request: Request, file: UploadFile = File(...), authorization: str = Header(...)):

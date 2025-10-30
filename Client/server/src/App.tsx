@@ -30,7 +30,7 @@ const App: React.FC = () => {
                                 <Route path="oauth2/signup" element={<SignUpLayoutLoader />} />
                                 <Route path="oauth2/login" element={<LoginLayoutLoader />} />
 
-                                <Route path=":group_id" element={<GroupLayout />}>
+                                <Route path=":group_global_name" element={<GroupLayout />}>
                                     <Route path=":room_id" element={<RoomLayout />}>
                                         <Route path="create_group" element={<CreateGroupModal/>} />
                                     </Route>

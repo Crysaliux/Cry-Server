@@ -2,7 +2,7 @@ import React, { useContext, useRef, createContext, ReactNode, useCallback } from
 import { CoreGlobalContext } from "./core";
 import axios, { AxiosInstance } from "axios";
 import { useNavigate } from "react-router-dom";
-import { nullable, z } from "zod";
+import { boolean, nullable, z } from "zod";
 import { useObjects } from "./worker";
 import { ErrorHandler } from "./error_assessor";
 import { 
@@ -28,7 +28,12 @@ const ErrorSchema = z.object({
     target: z.string(),
 });
 
-const FetchedRoomIdSchema = z.object({
+const CheckGlobalNameSchema = z.object({
+    exists: z.boolean(),
+});
+
+const GetPrimaryRoomSchema = z.object({
+    group_id: z.string().nullable(),
     room_id: z.string().nullable(),
 });
 
@@ -52,7 +57,8 @@ const FetchedGroupSchema = z.object({
 const ResponseSchema = z.object({ //hbb - handled by backend
     status: z.boolean(),
     body: z.union([
-        FetchedRoomIdSchema,
+        CheckGlobalNameSchema,
+        GetPrimaryRoomSchema,
         z.array(GroupSchema), //[hbb] here we fetch all groups
         z.array(RoleSchema), //[hbb] here we fetch all roles
         PermissionsTableSchema, //fetching all permissions for some role
@@ -87,8 +93,9 @@ interface APIProperties {
     fetchPermstable: (group_id: string, room_id: string, role_id: string) => void;
     fetchMessages: (group_id: string, room_id: string) => void;
     fetchGroup: (group_id: string, room_id: string) => void;
-    fetchPrimaryRoom: (group_id: string) => Promise<{ room_id: string | null } | null>;
-    uploadAttachement: (file: File) => Promise<{ file_url: string | null } | null>;
+    getPrimaryRoom: (group_global_name: string) => Promise<{ group_id: string | null, room_id: string | null }>;
+    checkGlobalName: (group_global_name: string) => Promise<{ status: boolean, exists: boolean }>
+    uploadAttachement: (file: File) => Promise<string | null>;
 }
 
 export const APIHatch = createContext<APIProperties | undefined>(undefined);
@@ -430,8 +437,8 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         set_objects("messages", transform(fetched_group.primary_room_messages));
     }, []);
 
-    const __fetch_primary_room = useCallback(async (group_id: string) => {
-        const response = await APIrs.post("/fetch_primary_room", { group_id: group_id }, {
+    const __get_primary_room = useCallback(async (group_global_name: string) => {
+        const response = await APIrs.post("/get_primary_room", { group_global_name: group_global_name }, {
             headers: {
                 "Authorization": `Bearer ${context_data.static_access_token.current}`,
             }
@@ -440,35 +447,81 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         const parsed_response = ResponseSchema.safeParse(response.data);
 
         if (!parsed_response.success) {
-            emit_to_console("error", `Primary room fetch failed, can't process server response: ${parsed_response.data}`);
-            return null;
+            emit_to_console("error", `Failed to get primary room, can't process server response: ${parsed_response.data}`);
+            return {"group_id": null, "room_id": null};
         }
 
         if (!parsed_response.data.status) {
             const error = ErrorSchema.safeParse(parsed_response.data.error);
             if (!error.success) {
-                emit_to_console("error", `Can't display exact error, parsing failed on fetch primary room: ${error.error.issues}`);
-                return null;
+                emit_to_console("error", `Can't display exact error, parsing failed on get primary room: ${error.error.issues}`);
+                return {"group_id": null, "room_id": null};
             }
             if (!error.data.index) {
-                emit_to_console("error", "Can't display exact error, no index provided on fetch primary room");
-                return null;
+                emit_to_console("error", "Can't display exact error, no index provided on get primary room");
+                return {"group_id": null, "room_id": null};
             }
 
             error_handler.handle(error.data.index, error.data.target, "APIListener");
-            return null;
+            return {"group_id": null, "room_id": null};
         }
 
-        const actual = FetchedRoomIdSchema.safeParse(parsed_response.data.body);
+        const actual = GetPrimaryRoomSchema.safeParse(parsed_response.data.body);
 
         if (!actual.success) {
-            emit_to_console("error", `Primary room fetch failed, can't process server response: ${parsed_response.data.body}`);
-            return null;
+            emit_to_console("error", `Failed to get primary room, can't process server response: ${parsed_response.data.body}`);
+            return {"group_id": null, "room_id": null};
         }
 
-        const room_id: z.infer<typeof FetchedRoomIdSchema> = actual.data;
+        const fid_type = z.string().nullable();
 
-        return room_id;
+        const room_id: z.infer<typeof fid_type> = actual.data.room_id;
+        const group_id: z.infer<typeof fid_type> = actual.data.group_id;
+
+        return {"group_id": group_id, "room_id": room_id};
+    }, []);
+
+    const checkGlobalName = useCallback(async (group_global_name: string) => {
+        const response = await APIrs.post("/check_global_name", { group_global_name: group_global_name }, {
+            headers: {
+                "Authorization": `Bearer ${context_data.static_access_token.current}`,
+            }
+        });
+
+        const parsed_response = ResponseSchema.safeParse(response.data);
+
+        if (!parsed_response.success) {
+            emit_to_console("error", `Failed to check global name can't process server response: ${parsed_response.data}`);
+            return {"status": false, "exists": false};
+        }
+
+        if (!parsed_response.data.status) {
+            const error = ErrorSchema.safeParse(parsed_response.data.error);
+            if (!error.success) {
+                emit_to_console("error", `Can't display exact error, parsing failed on check global name: ${error.error.issues}`);
+                return {"status": false, "exists": false};
+            }
+            if (!error.data.index) {
+                emit_to_console("error", "Can't display exact error, no index provided on check global name");
+                return {"status": false, "exists": false};;
+            }
+
+            error_handler.handle(error.data.index, error.data.target, "APIListener");
+            return {"status": false, "exists": false};
+        }
+
+        const actual = CheckGlobalNameSchema.safeParse(parsed_response.data.body);
+
+        if (!actual.success) {
+            emit_to_console("error", `Failed to check global name, can't process server response: ${parsed_response.data.body}`);
+            return {"status": false, "exists": false};
+        }
+
+        const ex_type = z.boolean();
+
+        const exists: z.infer<typeof ex_type> = actual.data.exists;
+
+        return {"status": true, "exists": exists};
     }, []);
 
     const uploadAttachement = useCallback(async (file: File) => {
@@ -511,7 +564,9 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return null;
         }
 
-        const file_url: z.infer<typeof AttachementUrlSchema> = actual.data;
+        const fu_type = z.string().nullable();
+
+        const file_url: z.infer<typeof fu_type> = actual.data.file_url;
 
         return file_url;
     }, []);
@@ -545,8 +600,8 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         await __fetch_group(group_id, room_id);
     };
 
-    const fetchPrimaryRoom = async (group_id: string) => {
-        return await __fetch_primary_room(group_id);
+    const getPrimaryRoom = async (group_global_name: string) => {
+        return await __get_primary_room(group_global_name);
     };
 
 
@@ -559,7 +614,8 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             fetchPermstable,
             fetchMessages,
             fetchGroup,
-            fetchPrimaryRoom,
+            getPrimaryRoom,
+            checkGlobalName,
             uploadAttachement,
          }}>
             { children }
