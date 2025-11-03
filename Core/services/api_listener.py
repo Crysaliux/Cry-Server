@@ -29,7 +29,7 @@ class RoomRelated(BaseModel):
     group_id: str
     room_id: str
 
-class RoleRelated(BaseModel):
+class RoleRelated(BaseModel): #Rethink & Refactor!
     group_id: str
     room_id: str
     role_id: str
