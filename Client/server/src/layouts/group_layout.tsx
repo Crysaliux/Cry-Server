@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { Children, ReactNode, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useContext } from "react";
 import { CoreGlobalContext } from "services/core";
@@ -9,12 +9,69 @@ import { validate, version } from 'uuid';
 import LoadingLayout from "layouts/loading_layout";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../static/group.module.css";
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import {CSS} from '@dnd-kit/utilities';
 import { 
     useGroups,  
     useRooms, 
     useSpaces,
 } from "services/worker";
 import { CSSProperties } from "@mui/material";
+
+
+interface RoomBlockProperties {
+    id: string;
+    name: string;
+}
+
+interface SpaceBlockProperties {
+    id: string;
+    name: string;
+    children: ReactNode;
+}
+
+
+const RoomBlock: React.FC<RoomBlockProperties> = ({ id, name }) => {
+    const {attributes, listeners, setNodeRef, transform} = useDraggable({
+        id: `room-drag-${id}`,
+    });
+
+    const style = {
+        transform: CSS.Translate.toString(transform),
+    };
+
+    return (
+        <div className={styles.room} key={id} style={style} ref={setNodeRef} {...listeners} {...attributes}>
+            <div className={styles.hashtag}>#</div>{ name }
+        </div>
+    );
+};
+
+const SpaceBlock: React.FC<SpaceBlockProperties> = ({ id, name, children }) => {
+    const { attributes, listeners, setNodeRef: setDraggableNodeRef, transform } = useDraggable({
+        id: `space-drag-${id}`,
+    });
+
+    const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
+        id: `space-drop-${id}`,
+    });
+
+    const setNodeRef = (node: any) => {
+        setDraggableNodeRef(node);
+        setDroppableNodeRef(node);
+    };
+
+    const style = {
+        transform: CSS.Translate.toString(transform),
+    };
+
+    return (
+        <div className={styles.space} key={id} style={style} ref={setNodeRef} {...listeners} {...attributes}>
+            <div className={styles.spaceName}>{ name }</div>
+            { children }
+        </div>
+    );
+};
 
 
 const GroupLayout: React.FC = () => {
@@ -56,23 +113,21 @@ const GroupLayout: React.FC = () => {
                 });
             } else {
                 if (room_id === context_data.room_void_path.current) { //we don't count void!
-                    return;
+                    api_hatch.fetchVoidedGroup(group_global_name);
+                } else {
+                    if (context_data.current_group.current) {
+                        if (context_data.current_group.current.global_name !== group_global_name) {
+                            api_hatch.fetchGroup(group_global_name, room_id);
+                        } else {
+                            api_hatch.fetchMessages(group_global_name, room_id);
+                            //setting current room, preferrably in fetchMessages()
+                        }
+                    } else api_hatch.fetchGroup(group_global_name, room_id); //Fix it all, fix room modal layout.
                 }
-
-                if (context_data.current_group.current) {
-                    if (context_data.current_group.current.global_name !== group_global_name) {
-                        api_hatch.fetchGroup(group_global_name, room_id);
-                        //setting current group, preferrably in fetchGroup()
-                    } else {
-                        api_hatch.fetchMessages(group_global_name, room_id);
-                        //setting current room, preferrably in fetchMessages()
-                    }
-                } else api_hatch.fetchGroup(group_global_name, room_id);
-                //setting current group, preferrably in fetchGroup()
             }
 
         } else return;
-    }, [location, context_data.gateway_ready.status]); 
+    }, [location, context_data.gateway_ready.status]); //Rethink & Refactor
 
     const groups_array = Object.values(groups);
     const rooms_array = Object.values(rooms);
@@ -132,24 +187,19 @@ const GroupLayout: React.FC = () => {
                         Group name
                         <div id={styles.settings}></div>
                     </div>
-                    <div className={styles.action}>Add room</div>
-                    <div className={styles.action}>Add space</div>
+                    <div className={styles.action} onClick={() => navigate(location.pathname + context_data.room_creation_modal_path.current)}>Create room</div>
+                    <div className={styles.action}>Create space</div>
                 </div>
                 <hr className={styles.divisionLine}></hr>
                 {orphan_rooms.map(room => (
-                    <div className={styles.room} key={room.id}>
-                        <div className={styles.hashtag}>#</div>{ room.name }
-                    </div>
+                    <RoomBlock id={room.id} name={room.name}/>
                 ))}
                 {spaces_array.map(space => (
-                    <div className={styles.space} key={space.id}>
-                        <div className={styles.spaceName}>{ space.name }</div>
+                    <SpaceBlock id={space.id} name={space.name}>
                         {FetchChildRooms(space.id).map(room => (
-                            <div className={styles.room} key={room.id}>
-                                <div className={styles.hashtag}>#</div>{ room.name }
-                            </div>
+                            <RoomBlock id={room.id} name={room.name}/>
                         ))}
-                    </div>
+                    </SpaceBlock>
                 ))}
             </div>
             <Outlet />

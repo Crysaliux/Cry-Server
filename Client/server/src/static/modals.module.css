@@ -216,3 +216,86 @@
     opacity: 0.8;
     cursor: pointer;
 }
+
+
+/*room modal*/
+
+#roomModalForm {
+    width: 350px;
+    height: 545px;
+    border: 1px solid var(--highlight);
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 10px;
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    background-color: var(--widgets);
+}
+
+#modalCreateRoom {
+    width: 140px;
+    padding: 10px;
+    margin-top: 20px;
+    border-radius: 10px;
+    font-size: 110%;
+    user-select: none;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--active_elements);
+}
+
+#aboutRoomArea {
+    height: 100px;
+    min-height: fit-content;
+    width: 90%;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: row;
+    border-radius: 10px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    background-color: var(--elements);
+}
+
+#aboutRoomField {
+    font-family: "Inter", sans-serif;
+    max-height: 100px;
+    height: 40px;
+    width: 100%;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    resize: none;
+    background: none;
+}
+
+#aboutRoomField::placeholder {
+    color: var(--highlight);
+}
+
+#aboutRoomField::-webkit-scrollbar {
+    width: 0;
+}
+
+#aboutRoomField {
+    scrollbar-width: none;
+}
+
+.aboutRoomField::selection {
+    background: var(--highlight);
+}
+
+#modalCreateRoom:hover {
+    opacity: 0.8;
+    cursor: pointer;
+}

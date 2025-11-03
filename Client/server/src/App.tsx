@@ -5,7 +5,7 @@ import LoginLayoutLoader from "layouts/login_layout";
 import MainPageLayout from "layouts/main_page_layout";
 import SignUpLayoutLoader from "layouts/signup_layout";
 import RoomLayout, { RoomVoid } from "layouts/room_layout";
-import { CreateGroupModal } from "layouts/modal_layouts";
+import { CreateGroupModal, CreateRoomModal } from "layouts/modal_layouts";
 import { Listener } from "services/listener";
 import { APIListener } from "services/api_listener";
 import { Authentication } from "services/oauth";
@@ -33,9 +33,11 @@ const App: React.FC = () => {
                                 <Route path=":group_global_name" element={<GroupLayout />}>
                                     <Route path=":room_id" element={<RoomLayout />}>
                                         <Route path="create_group" element={<CreateGroupModal/>} />
+                                        <Route path="create_room" element={<CreateRoomModal/>} />
                                     </Route>
                                     <Route path="void" element={<RoomVoid />}>
                                         <Route path="create_group" element={<CreateGroupModal/>} />
+                                        <Route path="create_room" element={<CreateRoomModal/>} />
                                     </Route>
                                 </Route>
 

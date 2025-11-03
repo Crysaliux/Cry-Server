@@ -169,20 +169,20 @@ export const CreateGroupModal: React.FC = () => {
         if (name_field_ref.current && global_name_field_ref.current) {
             if (name_field_ref.current.value === "") {
                 //
-                console.warn("Group name field can't be empty!");
+                emit_to_console("warn", "Group name field can't be empty!");
                 return;
             }
 
             if (global_name_field_ref.current.value === "") {
                 //
-                console.warn("Group global name field can't be empty!");
+                emit_to_console("warn", "Group global name field can't be empty!");
                 return;
             }
 
             const data = await api_hatch.checkGlobalName(global_name_field_ref.current.value);
             if (data.status) {
                 if (data.exists) {
-                    console.warn("Group global name already exists!");
+                    emit_to_console("warn", "Group global name already exists!");
                     return;
                 };
             }
@@ -259,6 +259,96 @@ export const CreateGroupModal: React.FC = () => {
                     <canvas style={{ display: "none" }} ref={canvas_ref}></canvas>
                 </div>
                 <div id={styles.cropperCropAndSave} onClick={() => cropImage()}>Crop and save</div>
+            </div>
+        </div>,
+        modal_root
+    );
+};
+
+export const CreateRoomModal: React.FC = () => {
+    const context_data = useContext(CoreGlobalContext);
+    if (!context_data) {
+        throw new Error("Can't load CoreGlobalContext for oauth");
+    }
+
+    const gateway_hatch = useContext(GatewayHatch);
+    if (!gateway_hatch) {
+        throw new Error("Can't load APIHatch for oauth");
+    }
+
+    const modal_root = document.getElementById("modal-root");
+    if (!modal_root) {
+        throw new Error("Can't load modal-root for CreateGroupModal");
+    }
+
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const name_field_ref  = useRef<HTMLInputElement>(null);
+    const about_room_field_ref  = useRef<HTMLTextAreaElement>(null);
+
+    const emit_to_console = (type: string, data: string | undefined) => {
+        switch (type) {
+            case "error":
+                console.error(`[CreateRoomModal] ${data}`);
+                break;
+            case "warn":
+                console.warn(`[CreateRoomModal] ${data}`);
+                break;
+            case "log":
+                console.log(`[CreateRoomModal] ${data}`);
+                break;
+        }
+    }
+
+    const cancelCreation = () => {
+        navigate(location.pathname.replace(context_data.room_creation_modal_path.current, ""));
+    };
+
+    const submitData = async () => {
+        if (name_field_ref.current) {
+            if (name_field_ref.current.value === "") {
+                //
+                emit_to_console("warn", "Room name field can't be empty!");
+                return;
+            }
+
+            let about_room = null;
+            if (about_room_field_ref.current?.value !== "") {
+                about_room = about_room_field_ref.current?.value;
+            }
+
+            console.log(context_data.current_group.current);
+
+            gateway_hatch.sendEvent(
+                "create_room",
+                {
+                    "body": {
+                        "group_id": context_data.current_group.current?.id,
+                        "space_id": null,
+                        "name": name_field_ref.current.value,
+                        "about_room": about_room,
+                    },
+                }
+            );
+
+            navigate(location.pathname.replace(context_data.room_creation_modal_path.current, ""));
+        }
+    };
+    
+    return createPortal(
+        <div id={styles.modalContainer}>
+            <div id={styles.roomModalForm}>
+                <div id={styles.cancel}>
+                    <div id={styles.cancelCross} onClick={() => cancelCreation()}></div>
+                </div>
+                <div className={styles.sectionHeader}>Creating new room</div>
+                <input type="text" placeholder="Room name" className={styles.field} maxLength={25} ref={name_field_ref}></input>
+                <div className={styles.sectionHeader}>Describe it more!</div>
+                    <div id={styles.aboutRoomArea}>
+                        <TextareaAutosize id={styles.aboutRoomField} maxLength={250} placeholder="About room..." ref={about_room_field_ref}></TextareaAutosize>
+                    </div>
+                <div id={styles.modalCreateRoom} onClick={() => submitData()}>Create Room</div>
             </div>
         </div>,
         modal_root

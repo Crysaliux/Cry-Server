@@ -18,8 +18,12 @@ import uuid
 class GroupRelated(BaseModel):
     group_id: str
 
-class PrimaryRoomRelated(BaseModel):
+class PrimaryCheckRelated(BaseModel):
     group_global_name: str
+
+class GroupFetchRelated(BaseModel):
+    group_global_name: str
+    room_id: str
 
 class RoomRelated(BaseModel):
     group_id: str
@@ -78,6 +82,7 @@ class APIListener:
             "fetch_permstable": self.__fetch_permstable,
             "get_primary_room": self.__get_primary_room,
             "check_global_name": self.__check_global_name,
+            "fetch_voided_group": self.__fetch_voided_group,
             "upload_attachement": self.__upload_attachement,
         }
         self.__register_api_call_handlers()
@@ -173,7 +178,7 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
 
-    async def __fetch_group(self, access_token: str, group_id: str, room_id: str, session) -> EmitError | EmitCommon:
+    async def __fetch_group(self, access_token: str, group_global_name: str, room_id: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm)
         status, client = await valid.access_token_is_valid(access_token, session)
 
@@ -185,7 +190,7 @@ class APIListener:
             selectinload(Group.rooms),
             selectinload(Group.spaces),
             selectinload(Group.members),
-        ).where(Group.id == group_id))
+        ).where(Group.global_name == group_global_name))
         group = group_res.scalar_one_or_none()
 
         room_res = await session.execute(select(Room).options(
@@ -194,25 +199,23 @@ class APIListener:
         room = room_res.scalar_one_or_none()
 
         if not group:
-            try:
-                uuid.UUID(group_id)
-                return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
-            except ValueError:
-                group_res = await session.execute(select(Group).options(
-                    selectinload(Group.roles),
-                    selectinload(Group.rooms),
-                    selectinload(Group.spaces),
-                    selectinload(Group.members),
-                ).where(Group.global_name == group_id))
-                group = group_res.scalar_one_or_none()
-
-                if not group:
-                    return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
+            return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
         
         if not room:
             return self.__emit_api_error("OBJECT_NON_EXISTANT", "room")
              
         body = {
+            "self": {
+                "name": group.name,
+                "global_name": group.global_name,
+                "about_group": group.about_group,
+                "icon_url": group.icon_url,
+                "nsfw": group.nsfw,
+                "id": group.id,
+
+                "content_filter": group.content_filter,
+                "content_filter_level": group.content_filter_level,
+            },
             "spaces": [],
             "rooms": [],
             "members": [],
@@ -225,12 +228,12 @@ class APIListener:
         if owner or \
         (perm_valid.has_global_permissions_all(["VIEW_ROOMS"]) and perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"])):
             for space in group.spaces:
-                body["spaces"].append({"group_id": group_id, "name": space.name, "id": space.id})
+                body["spaces"].append({"group_id": group.id, "name": space.name, "id": space.id})
 
             for room in group.rooms:
                 if perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"]) or owner:
                     body["rooms"].append({
-                        "group_id": group_id, 
+                        "group_id": group.id, 
                         "space_id": room.space_id, 
                         "name": room.name, 
                         "about_room": room.about_room, 
@@ -454,6 +457,39 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
     
+    async def __fetch_voided_group(self, access_token: str, group_global_name: str, session) -> EmitError | EmitCommon:
+        valid = ClientValidator(self.access_key, self.algorithm, self.logger)
+        status, _ = await valid.access_token_is_valid(access_token, session)
+
+        if not status:
+            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
+
+        group_res = await session.execute(select(Group).where(Group.global_name == group_global_name))
+        group = group_res.scalar_one_or_none()
+
+        if not group:
+            return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
+        
+        body = {
+            "self": {
+                "name": group.name,
+                "global_name": group.global_name,
+                "about_group": group.about_group,
+                "icon_url": group.icon_url,
+                "nsfw": group.nsfw,
+                "id": group.id,
+
+                "content_filter": group.content_filter,
+                "content_filter_level": group.content_filter_level,
+            },
+        }
+
+        return {
+            "status": True, 
+            "body": body, 
+            "error": None,
+        }
+    
     async def __check_global_name(self, access_token: str, group_global_name: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm, self.logger)
         status, _ = await valid.access_token_is_valid(access_token, session)
@@ -521,9 +557,9 @@ class APIListener:
             return await self._call_fetch_rooms(access_token, payload.group_id)
 
         @self.router.post("/fetch_group")
-        async def fetch_group(request: Request, payload: RoomRelated, authorization: str = Header(...)):
+        async def fetch_group(request: Request, payload: GroupFetchRelated, authorization: str = Header(...)):
             access_token = authorization.replace("Bearer", "").strip()
-            return await self._call_fetch_group(access_token, payload.group_id, payload.room_id)
+            return await self._call_fetch_group(access_token, payload.group_global_name, payload.room_id)
 
         @self.router.post("/fetch_members")
         async def fetch_members(request: Request, payload: GroupRelated, authorization: str = Header(...)):
@@ -545,13 +581,18 @@ class APIListener:
             access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_permstable(access_token, payload.group_id, payload.room_id, payload.role_id)
         
+        @self.router.post("/fetch_voided_group")
+        async def fetch_voided_group(request: Request, payload: PrimaryCheckRelated, authorization: str = Header(...)):
+            access_token = authorization.replace("Bearer", "").strip()
+            return await self._call_fetch_voided_group(access_token, payload.group_global_name)
+        
         @self.router.post("/get_primary_room")
-        async def get_primary_room(request: Request, payload: PrimaryRoomRelated, authorization: str = Header(...)):
+        async def get_primary_room(request: Request, payload: PrimaryCheckRelated, authorization: str = Header(...)):
             access_token = authorization.replace("Bearer", "").strip()
             return await self._call_get_primary_room(access_token, payload.group_global_name)
         
         @self.router.post("/check_global_name")
-        async def check_global_name(request: Request, payload: PrimaryRoomRelated, authorization: str = Header(...)):
+        async def check_global_name(request: Request, payload: PrimaryCheckRelated, authorization: str = Header(...)):
             access_token = authorization.replace("Bearer", "").strip()
             return await self._call_check_global_name(access_token, payload.group_global_name)
         

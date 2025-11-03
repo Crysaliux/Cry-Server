@@ -12,6 +12,7 @@ interface CoreGlobalProperties {
     signup_path: RefObject<string>;
     contacts_path: RefObject<string>;
     group_creation_modal_path: RefObject<string>;
+    room_creation_modal_path: RefObject<string>;
     room_void_path: RefObject<string>;
     oauth_ignore: RefObject<string[]>;
     group_ignore: RefObject<string[]>;
@@ -54,6 +55,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
     const signup_path = useRef<string>("/oauth2/signup");
     const contacts_path = useRef<string>("/dms");
     const group_creation_modal_path = useRef<string>("/create_group");
+    const room_creation_modal_path = useRef<string>("/create_room");
     const room_void_path = useRef<string>("/void");
     const oauth_ignore = useRef<string[]>([main_path.current, login_path.current, signup_path.current]);
     const group_ignore = useRef<string[]>([
@@ -61,6 +63,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
         signup_path.current, 
         contacts_path.current, 
         group_creation_modal_path.current,
+        room_creation_modal_path.current,
         room_void_path.current,
     ]);
 
@@ -89,6 +92,7 @@ export const Core: React.FC<CoreProperties> = memo(({ children }) => {
             signup_path,
             contacts_path,
             group_creation_modal_path,
+            room_creation_modal_path,
             room_void_path,
             oauth_ignore,
             group_ignore,
