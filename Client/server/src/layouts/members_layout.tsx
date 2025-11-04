@@ -22,7 +22,7 @@ const MembersLayout: React.FC = () => {
                             <div className={styles.onlineStatusMarker}></div>
                         </div>
                     </div>
-                    <div className={styles.nickname}>Nickname</div>
+                    <div className={styles.nickname}>{member.nickname}</div>
                 </div>
             ))}
                 

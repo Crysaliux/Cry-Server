@@ -4,7 +4,7 @@ from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
 from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import insert, select, update, delete
+from sqlalchemy import insert, select, update, delete, exists
 from sqlalchemy.orm import selectinload
 from ast import literal_eval
 from datetime import datetime, timedelta, timezone
@@ -185,8 +185,17 @@ class Listener: #Add objectifiers!
             return
 
         new_group = Group(owner_id=client.id, name=name, global_name=global_name, about_group=about_group, icon_url=icon_url, id=id)
+        new_room = Room(
+            group_id=id, 
+            space_id=None, 
+            creator_id=client.id, 
+            name="mega room", 
+            about_room="You can rename me, but can't delete me. Unless you got plenty of other rooms!", #make it a variable
+            id=str(uuid.uuid4()),
+        )
         
-        session.add(new_group) 
+        session.add(new_group)
+        session.add(new_room)
         extra_client.groups.append(new_group)
         await session.commit()
 
@@ -276,14 +285,16 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
-            await self.__emit_error(sid, "room_created", {"index": "UNRELATED", "target": "client<->group"})
-            return
+        #client_check = await session.execute(select(exists().where(()))) FIX RELATIONSHIP CHECK!!!
+        #if not client_merge in group.members:
+            #await self.__emit_error(sid, "room_created", {"index": "UNRELATED", "target": "client<->group"})
+            #return
         
         perm_valid = PermissionValidator(client, group, self.perms)
         
         if perm_valid.global_validity(["CO_OWNER", "MANAGE_ROOMS"]):
-            session.add(Room(group_id=group_id, space_id=space_id, creator_id=client.id, name=name, about_room=about_room, id=id)) 
+            new_room = Room(group_id=group_id, space_id=space_id, creator_id=client.id, name=name, about_room=about_room, id=id)
+            session.add(new_room)
             await session.commit()
 
             await self.gateway.emit("room_created", {

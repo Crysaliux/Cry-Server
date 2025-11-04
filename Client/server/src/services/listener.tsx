@@ -73,7 +73,7 @@ const GatewayResponseSchema = z.object({
         EssentialClientSchema,
         NotificationSchema,
     ]).nullable(),
-    error: ErrorSchema,
+    error: ErrorSchema, //Zod might confuse these, refactor!!!
 });
 
 

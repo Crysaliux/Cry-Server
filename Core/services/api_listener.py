@@ -82,7 +82,6 @@ class APIListener:
             "fetch_permstable": self.__fetch_permstable,
             "get_primary_room": self.__get_primary_room,
             "check_global_name": self.__check_global_name,
-            "fetch_voided_group": self.__fetch_voided_group,
             "upload_attachement": self.__upload_attachement,
         }
         self.__register_api_call_handlers()
@@ -222,7 +221,7 @@ class APIListener:
             "primary_room_messages": [],
         }
         
-        perm_valid = PermissionValidator(client, group)
+        perm_valid = PermissionValidator(client, group, self.perms)
         
         owner = group.owner.id == client.id
         if owner or \
@@ -249,9 +248,10 @@ class APIListener:
 
             for message in room.messages:
                 body["primary_room_messages"].append({
-                    "client_id": message.author.id, 
+                    "author_id": message.author.id, 
                     "nickname": message.author.nickname,
                     "content": message.content,
+                    "sent_at": message.sent_at.strftime("%Y-%m-%d %H:%M:%S"),
                     "id": message.id, 
                 })
 
@@ -457,39 +457,6 @@ class APIListener:
         
         return self.__emit_api_error("MISSING_PERMISSION", "VIEW_ROOMS")
     
-    async def __fetch_voided_group(self, access_token: str, group_global_name: str, session) -> EmitError | EmitCommon:
-        valid = ClientValidator(self.access_key, self.algorithm, self.logger)
-        status, _ = await valid.access_token_is_valid(access_token, session)
-
-        if not status:
-            return self.__emit_api_error("INVALID_OR_EXPIRED_ACCESS_TOKEN", "client")
-
-        group_res = await session.execute(select(Group).where(Group.global_name == group_global_name))
-        group = group_res.scalar_one_or_none()
-
-        if not group:
-            return self.__emit_api_error("OBJECT_NON_EXISTANT", "group")
-        
-        body = {
-            "self": {
-                "name": group.name,
-                "global_name": group.global_name,
-                "about_group": group.about_group,
-                "icon_url": group.icon_url,
-                "nsfw": group.nsfw,
-                "id": group.id,
-
-                "content_filter": group.content_filter,
-                "content_filter_level": group.content_filter_level,
-            },
-        }
-
-        return {
-            "status": True, 
-            "body": body, 
-            "error": None,
-        }
-    
     async def __check_global_name(self, access_token: str, group_global_name: str, session) -> EmitError | EmitCommon:
         valid = ClientValidator(self.access_key, self.algorithm, self.logger)
         status, _ = await valid.access_token_is_valid(access_token, session)
@@ -580,11 +547,6 @@ class APIListener:
         async def fetch_permstable(request: Request, payload: RoleRelated, authorization: str = Header(...)):
             access_token = authorization.replace("Bearer", "").strip()
             return await self._call_fetch_permstable(access_token, payload.group_id, payload.room_id, payload.role_id)
-        
-        @self.router.post("/fetch_voided_group")
-        async def fetch_voided_group(request: Request, payload: PrimaryCheckRelated, authorization: str = Header(...)):
-            access_token = authorization.replace("Bearer", "").strip()
-            return await self._call_fetch_voided_group(access_token, payload.group_global_name)
         
         @self.router.post("/get_primary_room")
         async def get_primary_room(request: Request, payload: PrimaryCheckRelated, authorization: str = Header(...)):

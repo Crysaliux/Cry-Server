@@ -51,11 +51,6 @@ const FetchedGroupSchema = z.object({
     rooms: z.array(RoomSchema),
     members: z.array(MemberSchema),
     primary_room_messages: z.array(MessageSchema), //first channel to be loaded
-    primary_room_id: z.string(), //latest messages
-});
-
-const FetchedVoidedGroupSchema = z.object({
-    self: GroupSchema,
 });
 
 const ResponseSchema = z.object({ //hbb - handled by backend
@@ -63,7 +58,6 @@ const ResponseSchema = z.object({ //hbb - handled by backend
     body: z.union([
         CheckGlobalNameSchema,
         GetPrimaryRoomSchema,
-        FetchedVoidedGroupSchema,
         z.array(GroupSchema), //[hbb] here we fetch all groups
         z.array(RoleSchema), //[hbb] here we fetch all roles
         PermissionsTableSchema, //fetching all permissions for some role
@@ -98,7 +92,6 @@ interface APIProperties {
     fetchPermstable: (group_id: string, room_id: string, role_id: string) => void;
     fetchMessages: (group_id: string, room_id: string) => void;
     fetchGroup: (group_global_name: string, room_id: string) => void;
-    fetchVoidedGroup: (group_global_name: string) => void;
     getPrimaryRoom: (group_global_name: string) => Promise<{ exists: boolean, room_id: string | null }>;
     checkGlobalName: (group_global_name: string) => Promise<{ status: boolean, exists: boolean }>
     uploadAttachement: (file: File) => Promise<string | null>;
@@ -177,7 +170,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return;
         }
 
-        const actual = z.array(GroupSchema).safeParse(parsed_response.data.body);
+        const actual = z.array(GroupSchema).safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Groups fetch failed, can't process server response: ${parsed_response.data.body}`);
@@ -219,7 +212,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return;
         }
 
-        const actual = FetchedRoomsSchema.safeParse(parsed_response.data.body);
+        const actual = FetchedRoomsSchema.safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Rooms fetch failed, can't process server response: ${parsed_response.data.body}`);
@@ -261,7 +254,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return;
         }
 
-        const actual = z.array(MemberSchema).safeParse(parsed_response.data.body);
+        const actual = z.array(MemberSchema).safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Members fetch failed, can't process server response: ${parsed_response.data.body}`);
@@ -303,7 +296,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return;
         }
 
-        const actual = z.array(RoleSchema).safeParse(parsed_response.data.body);
+        const actual = z.array(RoleSchema).safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Roles fetch failed, can't process server response: ${parsed_response.data.body}`);
@@ -345,7 +338,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return;
         }
 
-        const actual = PermissionsTableSchema.safeParse(parsed_response.data.body);
+        const actual = PermissionsTableSchema.safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Permissions table fetch failed, can't process server response: ${parsed_response.data.body}`);
@@ -386,7 +379,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return;
         }
 
-        const actual = z.array(MessageSchema).safeParse(parsed_response.data.body);
+        const actual = z.array(MessageSchema).safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Messages fetch failed, can't process server response: ${parsed_response.data.body}`);
@@ -428,7 +421,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return;
         }
 
-        const actual = FetchedGroupSchema.safeParse(parsed_response.data.body);
+        const actual = FetchedGroupSchema.safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Group fetch failed, can't process server response: ${parsed_response.data.body}`);
@@ -442,46 +435,6 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         set_objects("rooms", transform(fetched_group.rooms));
         set_objects("members", transform(fetched_group.members));
         set_objects("messages", transform(fetched_group.primary_room_messages));
-    }, []);
-
-    const __fetch_voided_group = useCallback(async (group_global_name: string) => {
-        const response = await APIrs.post("/fetch_voided_group", { group_global_name: group_global_name }, {
-            headers: {
-                "Authorization": `Bearer ${context_data.static_access_token.current}`,
-            }
-        });
-
-        const parsed_response = ResponseSchema.safeParse(response.data);
-
-        if (!parsed_response.success) {
-            emit_to_console("error", `Group fetch failed, can't process server response: ${parsed_response.data}`);
-            return;
-        }
-
-        if (!parsed_response.data.status) {
-            const error = ErrorSchema.safeParse(parsed_response.data.error);
-            if (!error.success) {
-                emit_to_console("error", `Can't display exact error, parsing failed on fetch group: ${error.error.issues}`);
-                return;
-            }
-            if (!error.data.index) {
-                emit_to_console("error", "Can't display exact error, no index provided on fetch group");
-                return;
-            }
-
-            error_handler.handle(error.data.index, error.data.target, "APIListener");
-            return;
-        }
-
-        const actual = FetchedVoidedGroupSchema.safeParse(parsed_response.data.body);
-
-        if (!actual.success) {
-            emit_to_console("error", `Group fetch failed, can't process server response: ${parsed_response.data.body}`);
-            return;
-        }
-
-        const fetched_group: z.infer<typeof FetchedVoidedGroupSchema> = actual.data;
-        context_data.current_group.current = fetched_group.self;
     }, []);
 
     const __get_primary_room = useCallback(async (group_global_name: string) => {
@@ -513,7 +466,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return {"exists": false, "room_id": null};
         }
 
-        const actual = GetPrimaryRoomSchema.safeParse(parsed_response.data.body);
+        const actual = GetPrimaryRoomSchema.safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Failed to get primary room, can't process server response: ${parsed_response.data.body}`);
@@ -556,7 +509,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return {"status": false, "exists": false};
         }
 
-        const actual = CheckGlobalNameSchema.safeParse(parsed_response.data.body);
+        const actual = CheckGlobalNameSchema.safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Failed to check global name, can't process server response: ${parsed_response.data.body}`);
@@ -603,7 +556,7 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             return null;
         }
 
-        const actual = AttachementUrlSchema.safeParse(parsed_response.data.body);
+        const actual = AttachementUrlSchema.safeParse(response.data.body);
 
         if (!actual.success) {
             emit_to_console("error", `Falied to save attachement, can't process server response: ${parsed_response.data.body}`);
@@ -646,10 +599,6 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
         await __fetch_group(group_global_name, room_id);
     };
 
-    const fetchVoidedGroup = async (group_global_name: string) => {
-        await __fetch_voided_group(group_global_name);
-    };
-
     const getPrimaryRoom = async (group_global_name: string) => {
         return await __get_primary_room(group_global_name);
     };
@@ -664,7 +613,6 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
             fetchPermstable,
             fetchMessages,
             fetchGroup,
-            fetchVoidedGroup,
             getPrimaryRoom,
             checkGlobalName,
             uploadAttachement,

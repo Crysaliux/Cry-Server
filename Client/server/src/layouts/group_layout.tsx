@@ -41,7 +41,7 @@ const RoomBlock: React.FC<RoomBlockProperties> = ({ id, name }) => {
     };
 
     return (
-        <div className={styles.room} key={id} style={style} ref={setNodeRef} {...listeners} {...attributes}>
+        <div className={styles.room} style={style} ref={setNodeRef} {...listeners} {...attributes}>
             <div className={styles.hashtag}>#</div>{ name }
         </div>
     );
@@ -66,7 +66,7 @@ const SpaceBlock: React.FC<SpaceBlockProperties> = ({ id, name, children }) => {
     };
 
     return (
-        <div className={styles.space} key={id} style={style} ref={setNodeRef} {...listeners} {...attributes}>
+        <div className={styles.space} style={style} ref={setNodeRef} {...listeners} {...attributes}>
             <div className={styles.spaceName}>{ name }</div>
             { children }
         </div>
@@ -105,29 +105,25 @@ const GroupLayout: React.FC = () => {
                 api_hatch.getPrimaryRoom(group_global_name).then(data => {
                     if (data.exists) {
                         if (data.room_id) {
-                            navigate(`/${group_global_name}/${room_id}`);
+                            navigate(`/${group_global_name}/${data.room_id}`);
                         } else {
                             navigate(location.pathname + context_data.room_void_path.current);
                         }
                     }
                 });
             } else {
-                if (room_id === context_data.room_void_path.current) { //we don't count void!
-                    api_hatch.fetchVoidedGroup(group_global_name);
-                } else {
-                    if (context_data.current_group.current) {
-                        if (context_data.current_group.current.global_name !== group_global_name) {
-                            api_hatch.fetchGroup(group_global_name, room_id);
-                        } else {
-                            api_hatch.fetchMessages(group_global_name, room_id);
-                            //setting current room, preferrably in fetchMessages()
-                        }
-                    } else api_hatch.fetchGroup(group_global_name, room_id); //Fix it all, fix room modal layout.
+                if (room_id === context_data.room_void_path.current) {
+                    return;
                 }
-            }
 
+                if (context_data.current_group.current) {
+                    if (context_data.current_group.current.global_name !== group_global_name) {
+                        api_hatch.fetchGroup(group_global_name, room_id);
+                    }
+                } else api_hatch.fetchGroup(group_global_name, room_id);
+            }
         } else return;
-    }, [location, context_data.gateway_ready.status]); //Rethink & Refactor
+    }, [location, context_data.gateway_ready.status]);
 
     const groups_array = Object.values(groups);
     const rooms_array = Object.values(rooms);
@@ -192,10 +188,10 @@ const GroupLayout: React.FC = () => {
                 </div>
                 <hr className={styles.divisionLine}></hr>
                 {orphan_rooms.map(room => (
-                    <RoomBlock id={room.id} name={room.name}/>
+                    <RoomBlock id={room.id} name={room.name} key={room.id}/>
                 ))}
                 {spaces_array.map(space => (
-                    <SpaceBlock id={space.id} name={space.name}>
+                    <SpaceBlock id={space.id} name={space.name} key={space.id}>
                         {FetchChildRooms(space.id).map(room => (
                             <RoomBlock id={room.id} name={room.name}/>
                         ))}

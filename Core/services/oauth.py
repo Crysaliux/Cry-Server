@@ -94,6 +94,7 @@ class Authentication:
         
         session.add(Client(
             username=username,
+            nickname=username.capitalize(), #CHANGE LATER!!!
             password_hashed=self.hasher.hash(password),
             email=email,
             date_of_birth=date.fromisoformat(date_of_birth),
