@@ -205,7 +205,7 @@ This is pretty simple:
         "global": False,
     }
 
-    Keep in mind that some permissions can be in both categories.
+    Keep in mind that some permissions can be of both categories.
 
 """
 
