@@ -284,8 +284,10 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
 
             const body: z.infer<typeof BasicSchema> = basic.data;
 
-            //to be continued..
-        });
+            if (context_data.current_group.current) {
+                api_listener_hatch.fetchRooms(context_data.current_group.current.id);
+            }
+        }); 
 
         gateway.on("message_sent", (data) => {
             const response = GatewayResponseSchema.safeParse(data);

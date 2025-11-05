@@ -229,15 +229,15 @@ class APIListener:
             for space in group.spaces:
                 body["spaces"].append({"group_id": group.id, "name": space.name, "id": space.id})
 
-            for room in group.rooms:
-                if perm_valid.has_room_permissions_all(room.id, ["VIEW_ROOM"]) or owner:
+            for iter_room in group.rooms:
+                if perm_valid.has_room_permissions_all(iter_room.id, ["VIEW_ROOM"]) or owner:
                     body["rooms"].append({
                         "group_id": group.id, 
-                        "space_id": room.space_id, 
-                        "name": room.name, 
-                        "about_room": room.about_room, 
-                        "nsfw": room.nsfw, 
-                        "id": room.id,
+                        "space_id": iter_room.space_id, 
+                        "name": iter_room.name, 
+                        "about_room": iter_room.about_room, 
+                        "nsfw": iter_room.nsfw, 
+                        "id": iter_room.id,
                     })
 
             for member in group.members:

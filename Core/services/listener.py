@@ -57,6 +57,7 @@ class Listener: #Add objectifiers!
             ws,
             logger,
             oauth2,
+            cecchm,
             storage_images_path: str, 
             storage_files_path: str, 
             max_message_length: dict, 
@@ -75,6 +76,7 @@ class Listener: #Add objectifiers!
         self.ws = ws
         self.logger = logger
         self.oauth2 = oauth2
+        self.cecchm = cecchm
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
         self.max_message_length = max_message_length
@@ -111,6 +113,12 @@ class Listener: #Add objectifiers!
             "delete_message": self.__on_delete_message,
             "delete_role": self.__on_delete_role,
             "delete_permissions_table": ..., # why? Idk
+
+            "join_group": self.__on_join_group,
+            "join_room": self.__on_join_room,
+            
+            "leave_room": self.__on_leave_room,
+            "leave_group": self.__on_leave_group,
         }
         self.__register_event_handlers()
 
@@ -146,6 +154,9 @@ class Listener: #Add objectifiers!
             return False
         
         await self.gateway.save_session(sid, {"client": client, "access_token": access_token})
+        join_status = await self.cecchm.join_groups(sid, client.groups)
+        if not join_status:
+            await self.__emit_error(sid, "on_connect_operation", {"index": "CLUSTER_JOIN_FAILED", "target": "groups"})
 
     async def __on_disconnect(self, sid, session):
         ...
@@ -236,7 +247,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "space_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "space_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -285,10 +298,11 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "room_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        #client_check = await session.execute(select(exists().where(()))) FIX RELATIONSHIP CHECK!!!
-        #if not client_merge in group.members:
-            #await self.__emit_error(sid, "room_created", {"index": "UNRELATED", "target": "client<->group"})
-            #return
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
+            await self.__emit_error(sid, "room_created", {"index": "UNRELATED", "target": "client<->group"})
+            return
         
         perm_valid = PermissionValidator(client, group, self.perms)
         
@@ -336,7 +350,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "message_sent", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "message_sent", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -400,7 +416,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "role_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "role_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -448,7 +466,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "permissions_table_created", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "permissions_table_created", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -563,7 +583,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "group_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "group_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -614,7 +636,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "space_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "space_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -665,7 +689,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "room_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "room_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -721,7 +747,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "message_edited", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "message_edited", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -781,7 +809,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "role_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "role_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -838,7 +868,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "permissions_table_updated", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "permissions_table_updated", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -918,7 +950,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "group_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "group_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
 
@@ -967,7 +1001,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "space_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "space_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -1018,7 +1054,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "room_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "room_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -1072,7 +1110,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "message_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "message_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -1129,7 +1169,9 @@ class Listener: #Add objectifiers!
             await self.__emit_error(sid, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
             return
         
-        if not client in group.members:
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
             await self.__emit_error(sid, "role_deleted", {"index": "UNRELATED", "target": "client<->group"})
             return
         
@@ -1148,3 +1190,227 @@ class Listener: #Add objectifiers!
                 await self.__emit_error(sid, "role_deleted", {"index": "OBJECT_NON_EXISTANT", "target": "role"})
         else:
             await self.__emit_error(sid, "role_deleted", {"index": "MISSING_PERMISSION", "target": "MANAGE_ROLES"})
+
+    #ON_JOIN
+    async def __on_join_group(self, sid, data, session) -> EmitCommon:
+        client_session = await self.gateway.get_session(sid)
+        client, access_token = client_session["client"], client_session["access_token"]
+
+        if not client:
+            await self.__emit_error(sid, "group_joined", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not await valid.running_session_is_valid(access_token):
+            await self.__emit_error(sid, "group_joined", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        status, data = self.__verify_request(data)
+        if not status:
+            await self.__emit_error(sid, "group_joined", {"index": "WRONG_REQUEST", "target": "group"})
+            return
+
+        body = data.body
+        id = body.id
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.members),
+        ).where(Group.id == id))
+        group = group_res.scalar_one_or_none()
+
+        if not group:
+            await self.__emit_error(sid, "group_joined", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
+            await self.__emit_error(sid, "group_joined", {"index": "UNRELATED", "target": "client<->group"})
+            return
+        
+        perm_valid = PermissionValidator(client, group, self.perms) #WHAT IF BANNED/KICKED?
+        
+        join_status = await self.cecchm.join_group(sid, id)
+        if not join_status:
+            await self.__emit_error(sid, "group_joined", {"index": "CLUSTER_JOIN_FAILED", "target": "group"})
+            
+        await self.gateway.emit("group_joined", {
+            "status": True, 
+            "body": {"id": id}, 
+            "error": None
+        }, to=sid)
+
+    async def __on_join_room(self, sid, data, session) -> EmitCommon:
+        client_session = await self.gateway.get_session(sid)
+        client, access_token = client_session["client"], client_session["access_token"]
+
+        if not client:
+            await self.__emit_error(sid, "room_joined", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not await valid.running_session_is_valid(access_token):
+            await self.__emit_error(sid, "room_joined", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        status, data = self.__verify_request(data)
+        if not status:
+            await self.__emit_error(sid, "room_joined", {"index": "WRONG_REQUEST", "target": "room"})
+            return
+
+        body = data.body
+        group_id, id = body.group_id, body.id
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.members),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        room_res = await session.execute(select(Room).where(Room.id == id))
+        room = room_res.scalar_one_or_none()
+
+        if not group:
+            await self.__emit_error(sid, "room_joined", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+
+        if not room:
+            await self.__emit_error(sid, "room_joined", {"index": "OBJECT_NON_EXISTANT", "target": "room"})
+            return
+        
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
+            await self.__emit_error(sid, "room_joined", {"index": "UNRELATED", "target": "client<->group"})
+            return
+        
+        perm_valid = PermissionValidator(client, group, self.perms)
+        
+        if perm_valid.global_validity(["CO_OWNER"]) or \
+        perm_valid.has_room_permissions_all(id, ["VIEW_ROOM"]):
+            join_status = await self.cecchm.join_room(sid, id)
+            if not join_status:
+                await self.__emit_error(sid, "room_joined", {"index": "CLUSTER_JOIN_FAILED", "target": "room"})
+            await self.gateway.emit("room_joined", {
+                "status": True, 
+                "body": {"id": id}, 
+                "error": None
+            }, to=sid)
+        else:
+            await self.__emit_error(sid, "room_joined", {"index": "MISSING_PERMISSION", "target": "VIEW_ROOM"})
+
+    async def __on_leave_group(self, sid, data, session) -> EmitCommon:
+        client_session = await self.gateway.get_session(sid)
+        client, access_token = client_session["client"], client_session["access_token"]
+
+        if not client:
+            await self.__emit_error(sid, "group_left", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not await valid.running_session_is_valid(access_token):
+            await self.__emit_error(sid, "group_left", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        status, data = self.__verify_request(data)
+        if not status:
+            await self.__emit_error(sid, "group_left", {"index": "WRONG_REQUEST", "target": "room"})
+            return
+
+        body = data.body
+        id = body.id
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.members),
+        ).where(Group.id == id))
+        group = group_res.scalar_one_or_none()
+
+        if not group:
+            await self.__emit_error(sid, "group_left", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+        
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
+            await self.__emit_error(sid, "group_left", {"index": "UNRELATED", "target": "client<->group"})
+            return
+        
+        perm_valid = PermissionValidator(client, group, self.perms)
+        
+        if not perm_valid.global_validity(["CO_OWNER"]):
+            leave_status = await self.cecchm.leave_group(sid, id)
+            if not leave_status:
+                await self.__emit_error(sid, "group_left", {"index": "CLUSTER_LEAVE_FAILED", "target": "group"})
+            
+            group.members.remove(client_check)
+            await session.commit()
+            
+            await self.gateway.emit("group_left", {
+                "status": True, 
+                "body": {"id": id}, 
+                "error": None
+            }, to=sid)
+        else:
+            await self.__emit_error(sid, "room_left", {"index": "IS_AN_OWNER", "target": "group"}) #Add to errors!
+
+    #ON_LEAVE
+    async def __on_leave_room(self, sid, data, session) -> EmitCommon:
+        client_session = await self.gateway.get_session(sid)
+        client, access_token = client_session["client"], client_session["access_token"]
+
+        if not client:
+            await self.__emit_error(sid, "room_left", {"index": "OBJECT_NON_EXISTANT", "target": "client"})
+            return
+        
+        valid = ClientValidator(self.access_key, self.algorithm)
+        if not await valid.running_session_is_valid(access_token):
+            await self.__emit_error(sid, "room_left", {"index": "INVALID_OR_EXPIRED_SESSION_TOKEN", "target": "client"})
+            return
+
+        status, data = self.__verify_request(data)
+        if not status:
+            await self.__emit_error(sid, "room_left", {"index": "WRONG_REQUEST", "target": "room"})
+            return
+
+        body = data.body
+        group_id, id = body.group_id, body.id
+
+        group_res = await session.execute(select(Group).options(
+            selectinload(Group.roles),
+            selectinload(Group.members),
+        ).where(Group.id == group_id))
+        group = group_res.scalar_one_or_none()
+
+        room_res = await session.execute(select(Room).where(Room.id == id))
+        room = room_res.scalar_one_or_none()
+
+        if not group:
+            await self.__emit_error(sid, "room_left", {"index": "OBJECT_NON_EXISTANT", "target": "group"})
+            return
+
+        if not room:
+            await self.__emit_error(sid, "room_left", {"index": "OBJECT_NON_EXISTANT", "target": "room"})
+            return
+        
+        client_chec_res = await session.execute(select(Client).where(Client.id == client.id))
+        client_check = client_chec_res.scalar_one_or_none()
+        if not client_check in group.members:
+            await self.__emit_error(sid, "room_left", {"index": "UNRELATED", "target": "client<->group"})
+            return
+        
+        perm_valid = PermissionValidator(client, group, self.perms)
+        
+        if perm_valid.global_validity(["CO_OWNER"]) or \
+        perm_valid.has_room_permissions_all(id, ["VIEW_ROOM"]): #are they neccessary?
+            join_status = await self.cecchm.join_room(sid, id)
+            if not join_status:
+                await self.__emit_error(sid, "room_left", {"index": "CLUSTER_JOIN_FAILED", "target": "room"})
+            await self.gateway.emit("room_left", {
+                "status": True, 
+                "body": {"id": id}, 
+                "error": None
+            }, to=sid)
+        else:
+            await self.__emit_error(sid, "room_left", {"index": "MISSING_PERMISSION", "target": "VIEW_ROOM"})

@@ -11,6 +11,13 @@
     "IMAGE_STORAGE_PATH": "../Storage/Images",
     "FILE_STORAGE_PATH": "../Storage/Files",
 
+    "GROUP_CLUSTER_INDEX": "$",
+    "ROOM_CLUSTER_INDEX": "#",
+
+    "_cecchm comm": "concurrency: number of async tasks",
+    "CECCHM_CONCURRENCY": 10,
+    "CECCHM_BATCH_SIZE": 200,
+
     "GATEWAY_ASYNC_MODE": "asgi",
     "GATEWAY_LOGGER": true,
     

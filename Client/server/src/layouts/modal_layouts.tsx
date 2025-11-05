@@ -318,8 +318,6 @@ export const CreateRoomModal: React.FC = () => {
                 about_room = about_room_field_ref.current?.value;
             }
 
-            console.log(context_data.current_group.current);
-
             gateway_hatch.sendEvent(
                 "create_room",
                 {

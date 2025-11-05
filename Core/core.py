@@ -56,6 +56,8 @@ class Core(FastAPI):
         self.rm = AsyncRedisManager(f"redis:{CONFIG['REDIS_SERVER_HOST']}:{CONFIG['REDIS_SERVER_PORT']}/0") 
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["FILE_STORAGE_PATH"])
+        self.group_cluster_index = CONFIG["GROUP_CLUSTER_INDEX"]
+        self.room_cluster_index = CONFIG["ROOM_CLUSTER_INDEX"]
         self.gateway = AsyncServer(
             async_mode=CONFIG["GATEWAY_ASYNC_MODE"], 
             client_manager=self.rm, 
@@ -64,7 +66,13 @@ class Core(FastAPI):
         ) #Disable logger later
 
         self.worker = Worker()
-        self.cecchm = CECCHManager(self.gateway)
+        self.cecchm = CECCHManager(
+            gateway=self.gateway, 
+            concurrency=CONFIG["CECCHM_CONCURRENCY"], 
+            batch_size=CONFIG["CECCHM_BATCH_SIZE"],
+            group_cluster_index=self.group_cluster_index,
+            room_cluster_index=self.room_cluster_index,
+        )
         
         self.server_access_key = str(uuid.uuid4())
         self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
@@ -107,6 +115,7 @@ class Core(FastAPI):
             logger=LOGGER,
             oauth2=self.oauth2,
             hasher=self.hasher, 
+            cecchm=self.cecchm,
             algorithm=self.algorithm, 
             storage_images_path=self.storage_images_path, 
             storage_files_path=self.storage_files_path, 
