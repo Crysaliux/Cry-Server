@@ -103,12 +103,12 @@ export const APIListener: React.FC<APIListenerProperties> = ({ children }) => {
     //Fetch core global context
     const context_data = useContext(CoreGlobalContext);
     if (!context_data) {
-        throw new Error("Can't load CoreGlobalContext for oauth");
+        throw new Error("Can't load CoreGlobalContext for APIListener");
     }
 
     const error_handler = useContext(ErrorHandler);
     if (!error_handler) {
-        throw new Error("Can't load CoreGlobalContext for oauth");
+        throw new Error("Can't load ErrorHandler for APIListener");
     }
 
     const set_objects = useObjects((state) => state.setObjects);

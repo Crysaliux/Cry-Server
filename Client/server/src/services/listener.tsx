@@ -851,6 +851,147 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             //to be continued...
         });
 
+        //s
+        gateway.on("group_joined", (data) => {
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
+                return;
+            }
+
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+
+            //to be continued...
+        });
+
+        gateway.on("room_joined", (data) => {
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
+                return;
+            }
+
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+
+            //to be continued...
+        });
+
+        gateway.on("room_left", (data) => {
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
+                return;
+            }
+
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+
+            //to be continued...
+        });
+
+        gateway.on("group_left", (data) => {
+            const response = GatewayResponseSchema.safeParse(data);
+
+            if (!response.success) {
+                emit_to_console("warn", `Incoming request can't be processed: ${response.error}`);
+                return;
+            }
+
+            const error: z.infer<typeof ErrorSchema> = response.data.error;
+
+            if (!response.data.status) {
+                if (!error) {
+                    emit_to_console("error", `Can't process error data as it's null: ${response.data.body}`);
+                    return;
+                }
+
+                if (error.index) {
+                    error_handler.handle(error.index, error.target, "Listener");
+                } else {
+                    emit_to_console("error", "Can't display exact error, no index provided"); //continue!!!
+                }
+                return;
+            }
+
+            const basic = BasicSchema.safeParse(response.data.body);
+
+            if (!basic.success) {
+                return;
+            }
+
+            const body: z.infer<typeof BasicSchema> = basic.data;
+
+            //to be continued...
+        });
+
         return () => {
             gateway.off("connect");
             gateway.off("connect_error");
@@ -884,6 +1025,14 @@ export const Listener: React.FC<ListenerProperties> = ({ children }) => {
             gateway.off("room_deleted");
             gateway.off("message_deleted");
             gateway.off("role_deleted");
+
+
+            gateway.off("group_joined");
+            gateway.off("room_joined");
+            
+            
+            gateway.off("room_left");
+            gateway.off("group_left");
         };
 
     }, [context_data.access_token]);
