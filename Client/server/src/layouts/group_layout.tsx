@@ -17,6 +17,7 @@ import {
     useSpaces,
 } from "services/worker";
 import { CSSProperties } from "@mui/material";
+import { GatewayHatch } from "services/listener";
 
 
 interface RoomBlockProperties {
@@ -77,12 +78,17 @@ const SpaceBlock: React.FC<SpaceBlockProperties> = ({ id, name, children }) => {
 const GroupLayout: React.FC = () => {
     const context_data = useContext(CoreGlobalContext);
     if (!context_data) {
-        throw new Error("Can't load CoreGlobalContext for oauth");
+        throw new Error("Can't load CoreGlobalContext for group_layout");
+    }
+
+    const gateway_hatch = useContext(GatewayHatch);
+    if (!gateway_hatch) {
+        throw new Error("Can't load GatewayHatch for group_layout");
     }
 
     const api_hatch = useContext(APIHatch);
     if (!api_hatch) {
-        throw new Error("Can't load CoreGlobalContext for oauth");
+        throw new Error("Can't load APIHatch for group_layout");
     }
 
     const groups = useGroups();
@@ -121,6 +127,18 @@ const GroupLayout: React.FC = () => {
                         api_hatch.fetchGroup(group_global_name, room_id);
                     }
                 } else api_hatch.fetchGroup(group_global_name, room_id);
+
+                gateway_hatch.sendEvent("join_group", { //Check if joined?
+                    "body": {
+                        "global_name": group_global_name, //No more hell-to-handle rooms!
+                    }
+                });
+
+                gateway_hatch.sendEvent("join_room", {
+                    "body": {
+                        "room_id": room_id,
+                    }
+                })
             }
         } else return;
     }, [location, context_data.gateway_ready.status]);

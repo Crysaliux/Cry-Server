@@ -20,3 +20,6 @@ class UpdateGroup(BaseModel):
 
 class DeleteGroup(BaseModel):
     id: str
+
+class JoinGroup(BaseModel):
+    global_name: str

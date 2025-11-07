@@ -46,6 +46,7 @@ class GatewayModel(BaseModel):
         CreatePermissionsTable,
         UpdatePermissionsTable,
         #DeletePermissionsTable, not implemented yet.
+        JoinGroup,
     ]
 
 
@@ -1211,12 +1212,12 @@ class Listener: #Add objectifiers!
             return
 
         body = data.body
-        id = body.id
+        global_name = body.global_name
 
         group_res = await session.execute(select(Group).options(
             selectinload(Group.roles),
-            selectinload(Group.members),
-        ).where(Group.id == id))
+            selectinload(Group.members), #Members needed?
+        ).where(Group.global_name == global_name))
         group = group_res.scalar_one_or_none()
 
         if not group:
