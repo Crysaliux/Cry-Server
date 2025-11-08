@@ -113,7 +113,6 @@ class Listener: #Add objectifiers!
             "delete_room": self.__on_delete_room,
             "delete_message": self.__on_delete_message,
             "delete_role": self.__on_delete_role,
-            "delete_permissions_table": ..., # why? Idk
 
             "join_group": self.__on_join_group,
             "join_room": self.__on_join_room,
@@ -125,8 +124,11 @@ class Listener: #Add objectifiers!
 
     def __register_event_handlers(self) -> None:
         for event, handler in self.event_bindings.items():
-            self.gateway.on(event, self.ws(handler, self.session))
+            setattr(self, f"_call_{event}", self.ws(handler, self.session))
 
+    #def __verify(self, access_token: str,  )
+
+"""
     def __verify_request(self, data: dict) -> tuple[bool, GatewayModel | None]:
         try:
             model_data = GatewayModel(**data)
@@ -1415,3 +1417,4 @@ class Listener: #Add objectifiers!
             }, to=sid)
         else:
             await self.__emit_error(sid, "room_left", {"index": "MISSING_PERMISSION", "target": "VIEW_ROOM"})
+"""

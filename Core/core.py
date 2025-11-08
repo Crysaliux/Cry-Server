@@ -7,9 +7,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
-from socketio.async_redis_manager import AsyncRedisManager
-from socketio.async_server import AsyncServer
-from socketio.asgi import ASGIApp
 from pydantic import BaseModel
 from itertools import takewhile
 from datetime import datetime
@@ -53,17 +50,14 @@ class Core(FastAPI):
         self.sv_host = CONFIG["SERVER_HOST"]
         self.sv_port = CONFIG["SERVER_PORT"]
         self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
-        self.rm = AsyncRedisManager(f"redis:{CONFIG['REDIS_SERVER_HOST']}:{CONFIG['REDIS_SERVER_PORT']}/0") 
+        self.redis = aioredis.from_url(
+            f"redis:{CONFIG['REDIS_SERVER_HOST']}:{CONFIG['REDIS_SERVER_PORT']}",
+            decode_response=True
+        ) 
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["FILE_STORAGE_PATH"])
         self.group_cluster_index = CONFIG["GROUP_CLUSTER_INDEX"]
         self.room_cluster_index = CONFIG["ROOM_CLUSTER_INDEX"]
-        self.gateway = AsyncServer(
-            async_mode=CONFIG["GATEWAY_ASYNC_MODE"], 
-            client_manager=self.rm, 
-            logger=CONFIG["GATEWAY_LOGGER"], 
-            cors_allowed_origins=self.client_server_origin,
-        ) #Disable logger later
 
         self.worker = Worker()
         self.cecchm = CECCHManager(
