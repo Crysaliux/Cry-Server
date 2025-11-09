@@ -2,14 +2,15 @@ from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, W
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
-from ..services.worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
+from .worker import Client, Group, Space, Room, Message, Role, RoleToRoomPerms
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete, exists
 from sqlalchemy.orm import selectinload
 from ast import literal_eval
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
+from jwt import ExpiredSignatureError, InvalidTokenError
 from ..components import *
-from .validators import *
+from .permgate import *
 from PIL import Image
 from functools import wraps
 import aiofiles
@@ -17,6 +18,7 @@ from socketio.async_server import AsyncServer
 from typing import Union
 import asyncio
 import uuid
+import httpx
 import jwt
 
 
@@ -45,19 +47,21 @@ class GatewayModel(BaseModel):
         DeleteSpace,
         CreatePermissionsTable,
         UpdatePermissionsTable,
-        #DeletePermissionsTable, not implemented yet.
         JoinGroup,
     ]
 
 
-class Listener: #Add objectifiers!
+class Gateway:
     def __init__(
             self, 
+            rtmserver_url,
+            rtmserver_access_key,
             hasher, 
             session,  
             ws,
             logger,
             oauth2,
+            rdserver,
             cecchm,
             storage_images_path: str, 
             storage_files_path: str, 
@@ -71,10 +75,13 @@ class Listener: #Add objectifiers!
             perms,
         ):
         self.addr = addr
+        self.rtmserver_url = rtmserver_url
+        self.rtmserver_access_key = rtmserver_access_key
         self.access_key = access_key
         self.hasher = hasher
         self.session = session
         self.ws = ws
+        self.rdserver = rdserver
         self.logger = logger
         self.oauth2 = oauth2
         self.cecchm = cecchm
@@ -88,8 +95,8 @@ class Listener: #Add objectifiers!
         self.gateway = gateway
         self.perms = perms
 
-        self.event_bindings = {
-            "connect": self.__on_connect,
+        """
+        "connect": self.__on_connect,
             "disconnect": self.__on_disconnect,
 
             "create_group": self.__on_create_group,
@@ -119,12 +126,354 @@ class Listener: #Add objectifiers!
             
             "leave_room": self.__on_leave_room,
             "leave_group": self.__on_leave_group,
-        }
+        """
+
+        self.events = [ #operations: create, edit, delete
+            {"name": "login", "handler": self.__signup},
+            {"name": "signup", "handler": self.__login},
+            {"name": "refresh_session", "handler": self.__refresh_session},
+
+            {"name": "create_group", "handler": ...},
+            {"name": "edit_group", "handler": ...},
+            {"name": "delete_group", "handler": ...},
+
+            {"name": "create_space", "handler": ...},
+            {"name": "edit_space", "handler": ...},
+            {"name": "delete_space", "handler": ...},
+
+            {"name": "create_room", "handler": ...},
+            {"name": "edit_room", "handler": ...},
+            {"name": "delete_room", "handler": ...},
+
+            {"name": "create_message", "handler": ...},
+            {"name": "edit_message", "handler": ...},
+            {"name": "delete_message", "handler": ...},
+        ]
         self.__register_event_handlers()
 
-    def __register_event_handlers(self) -> None:
-        for event, handler in self.event_bindings.items():
-            setattr(self, f"_call_{event}", self.ws(handler, self.session))
+    def __register_events(self) -> None:
+        for event in self.event_bindings.items():
+            setattr(self, f"_call_{event["name"]}", self.ws(event["handler"], self.session))
+    
+    async def __run_session_monitor(self):
+        pubsub = self.rdserver.pubsub()
+        await pubsub.psubscribe("__keyevent@0__:expired")
+
+        async for message in pubsub.listen():
+            key = message.get("data")
+            if key and key.startswith("client:"):
+                client_id = key.split(":")[1]
+                await self.__force_disconnect(client_id)
+
+    async def __force_disconnect(self, client_id):
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.rtmserver_url,
+                headers={"Authorization": f"apikey {self.rtmserver_access_key}"},
+                json={
+                    "method": "disconnect", 
+                    "params": {"user": client_id}
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+        
+    def __decode_session_token(self, session_token: str):
+        try:
+            payload = jwt.decode(session_token, self.rtmserver_access_key, algorithms=[self.algorithm])
+            return True, payload["sub"], payload["ext"]
+        except (ExpiredSignatureError, InvalidTokenError):
+            return False, None, None
+        
+    def __decode_refresh_token(self, refresh_token: str):
+        try:
+            payload = jwt.decode(refresh_token, self.access_key, algorithms=[self.algorithm])
+            return True, payload["username"], payload["id"], payload["exp"]
+        except (ExpiredSignatureError, InvalidTokenError):
+            return False, None, None, None
+        
+    def __encode_session_token(self, id: str):
+        expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=15)).timestamp())
+        
+        session_token = jwt.encode(
+            {
+                "sub": id, 
+                "exp": expires_at,
+            }, self.rtmserver_access_key, algorithm=self.algorithm)
+
+        return session_token
+    
+    def __encode_refresh_token(self, id: str, username: str):
+        expires_at = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
+        expires_in = int(timedelta(days=7).total_seconds())
+
+        refresh_token = jwt.encode(
+            {
+                "username": username, 
+                "id": id,
+                "exp": expires_at,
+            }, self.access_key, algorithm=self.algorithm)
+
+        return refresh_token, expires_in
+    
+    def __validate_request_model(self, data: dict):
+        try:
+            model_data = GatewayModel(**data)
+            return True, model_data
+        except ValidationError:
+            return False, None
+
+
+
+    async def __verify_session(self, session_token: str, session):
+        status, id, _ = self.__decode_session_token(session_token)
+        if not status:
+            return False, None
+
+        fetched = await self.rdserver.get(f"client:{id}")
+        if fetched == session_token:
+            client_res = await session.execute(select(Client).where(Client.id == id))
+            client = client_res.scalar_one_or_none()
+
+            if not client:
+                self.rdserver.delete(f"client:{id}")
+                return False, None
+            return True, client
+        
+        return False, None
+    
+    async def __verify_refresh(self, refresh_token: str, session):
+        status, username, id, expires_at = self.__decode_refresh_token(refresh_token)
+        if not status:
+            return False, None
+
+        client_res = await session.execute(select(Client).options(
+            selectinload(Client.groups),
+        ).where(
+            Client.username == username,
+            Client.id == id, 
+            Client.token == refresh_token))
+        client = client_res.scalar_one_or_none()
+
+        if not client:
+            return False, None
+        
+        return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc), client
+
+
+
+    async def __refresh_session(self, refresh_token: str, session):
+        status, client = await self.__verify_refresh(refresh_token, session)
+        if not status:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+
+        return {
+            "status": True,
+            "body": {
+                "session_token": self.__encode_session_token(client.id),
+            },
+            "error": None,
+        }
+    
+    """
+    AUTHENTICATION:
+        ...
+    """
+    
+    async def __signup(self, response: Response, username: str, email: str, password: str, date_of_birth: date, session):
+        username_exists = await session.execute(select(exists().where(Client.username == username))).scalar()
+        if username_exists:
+            return {
+                "status": False,
+                "body": None,
+                "error": "..."
+            }
+    
+        email_exists = await session.execute(select(exists().where(Client.email == email))).scalar()
+        if email_exists:
+            return {
+                "status": False,
+                "body": None,
+                "error": "..."
+            }
+    
+        datedelta = date.today() - date.fromisoformat(date_of_birth)
+        if divmod(datedelta.total_seconds(), 31536000)[0] < 13:
+            return {
+                "status": False,
+                "body": None,
+                "error": "..."
+            }
+
+        id = str(uuid.uuid4())
+        refresh_token, expires_in = self.__encode_refresh_token(id, username)
+
+        session.add(Client(
+            username=username,
+            nickname=username.capitalize(), #CHANGE LATER!!!
+            password_hashed=self.hasher.hash(password),
+            email=email,
+            date_of_birth=date.fromisoformat(date_of_birth),
+            token=refresh_token, 
+            id=id
+        ))
+        await session.commit()
+
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=expires_in,
+        )
+
+        session_token = self.__encode_session_token(id)
+        await self.rdserver.setex(f"client:{id}", session_token, expires_in)
+
+        return {
+            "status": True,
+            "body": {
+                "session_token": self.__encode_session_token()
+            }
+        }
+    
+    async def __login(self, response: Response, email: str, password: str, session):
+        client_res = await session.execute(select(Client).where(Client.email == email))
+        client = client_res.scalar_one_or_none()
+
+        if not client:
+            return {
+                "status": False,
+                "body": None,
+                "error": "..."
+            }
+        
+        if self.hasher.verify(client.password_hashed, password):
+            refresh_token, expires_in = self.__encode_refresh_token(client.id, client.username)
+
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                httponly=True,
+                secure=True,
+                samesite="none",
+                max_age=expires_in,
+            )
+
+            session_token = self.__encode_session_token(client.id)
+            await self.rdserver.setex(f"client:{client.id}", session_token, expires_in)
+
+            return {
+                "status": True,
+                "body": {
+                    "session_token": self.__encode_session_token()
+                }
+            }
+        
+    """
+    EVENTS:
+        ...
+    """
+            
+    async def __create_group(self, session_token: str, body: CreateGroup, session):
+        status, client = await self.__verify_session(session_token)
+        if not status:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        status, body = self.__validate_request_model(body)
+        if not status:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        global_name_exists = await session.execute(select(exists().where(Group.global_name == body.global_name))).scalar()
+        if global_name_exists:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        id, room_id = map(str, [uuid.uuid4() for _ in range(2)])
+
+        session.add(Group(
+            owner=client,
+            name=body.name,
+            globla_name=body.global_name,
+            about_group=body.about_group,
+            icon_url=body.icon_url,
+            rooms=[
+                Room(
+                    creator=client,
+                    name="mega room",
+                    about_room="Invincible room",
+                    id=room_id,
+                )
+            ],
+            id=id,
+        ))
+        await session.commit()
+
+        return {
+            "status": True,
+            "body": {
+                "id": id,
+                "room_id": room_id,
+            },
+            "error": None,
+        }
+    
+    async def __edit_group(self, session_token: str, body: CreateGroup, session):
+        status, client = await self.__verify_session(session_token)
+        if not status:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        status, body = self.__validate_request_model(body)
+        if not status:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        ...
+
+    async def __delete_group(self, session_token: str, body: CreateGroup, session):
+        status, client = await self.__verify_session(session_token)
+        if not status:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        status, body = self.__validate_request_model(body)
+        if not status:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        ... #Include router
+    
+
+
 
     #def __verify(self, access_token: str,  )
 

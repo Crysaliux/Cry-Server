@@ -9,7 +9,7 @@ from sqlalchemy.sql import or_
 from pydantic import BaseModel
 from typing import Literal, TypeAlias
 from ..components import *
-from .validators import *
+from .permgate import *
 from functools import wraps
 from logging import log
 import aiofiles

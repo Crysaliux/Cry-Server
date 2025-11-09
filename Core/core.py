@@ -50,10 +50,11 @@ class Core(FastAPI):
         self.sv_host = CONFIG["SERVER_HOST"]
         self.sv_port = CONFIG["SERVER_PORT"]
         self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
-        self.redis = aioredis.from_url(
-            f"redis:{CONFIG['REDIS_SERVER_HOST']}:{CONFIG['REDIS_SERVER_PORT']}",
+        self.rtmserver_url = f"http://{CONFIG['RTMSERVER_HOST']}:{CONFIG['RTMSERVER_PORT']}"
+        self.rdserver = aioredis.from_url(
+            f"redis:{CONFIG['RDSERVER_HOST']}:{CONFIG['RDSERVER_PORT']}",
             decode_response=True
-        ) 
+        )
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["FILE_STORAGE_PATH"])
         self.group_cluster_index = CONFIG["GROUP_CLUSTER_INDEX"]
@@ -69,8 +70,9 @@ class Core(FastAPI):
         )
         
         self.server_access_key = str(uuid.uuid4())
+        self.rtmserver_access_key =CONFIG["RTMSERVER_ACCESS_KEY"]
         self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
-        self.login_expiration = 24 #days
+        self.login_expiration = CONFIG["LOGIN_EXPIRATION"]
         self.hasher = PasswordHasher()
         self.oauth2 = OAuth2PasswordBearer(tokenUrl=CONFIG["BEARER_TOKEN_URL"])
         
@@ -101,10 +103,13 @@ class Core(FastAPI):
             allow_headers=["*"],
         )
 
-        #Initializing Listener module
-        self.listener = Listener(
+        #Initializing Gateway module
+        self.gateway = Gateway(
             addr=(self.sv_host, self.sv_port),
+            rtmserver_url=self.rtmserver_url,
+            rtmserver_access_key=self.rtmserver_access_key,
             session=self.worker.session,
+            rdserver=self.rdserver,
             ws=worker_session,
             logger=LOGGER,
             oauth2=self.oauth2,
@@ -121,6 +126,7 @@ class Core(FastAPI):
             gateway=self.gateway,
             perms = self.perms,
         )
+        self.gateway.router_tasks()
 
         #Initializing Oauth module
         self.oauth = Authentication(
@@ -134,25 +140,8 @@ class Core(FastAPI):
         )
         self.oauth.router_tasks()
 
-        #Initializing APIListener module
-        self.api_listener = APIListener(
-            addr=(self.sv_host, self.sv_port),
-            session=self.worker.session,
-            ws=worker_session,
-            logger=LOGGER,
-            oauth2=self.oauth2,
-            algorithm=self.algorithm, 
-            perms = self.perms,
-            access_key=self.server_access_key,
-            message_load_batch_size = self.message_load_batch_size,
-            client_server_origin=self.client_server_origin,
-            storage_files_path=self.storage_files_path,
-            storage_images_path=self.storage_images_path,
-        )
-        self.api_listener.router_tasks()
-
         self.include_router(self.oauth.router, prefix=CONFIG["OAUTH_PATH"])
-        self.include_router(self.api_listener.router, prefix=CONFIG["API_PATH"])
+        self.include_router(self.gateway.router, prefix=CONFIG["GATEWAY_PATH"])
 
         self.main_routes = [
             {"path": "/", "func": self.__main, "method": ["GET"]},
@@ -161,9 +150,6 @@ class Core(FastAPI):
         for route in self.main_routes:
             self.add_api_route(route["path"], route["func"], methods=route["method"], response_class=HTMLResponse)
 
-        self.gt_app = ASGIApp(self.gateway, other_asgi_app=self, socketio_path=CONFIG["GATEWAY_PATH"])
-
-        self.mount(CONFIG["GATEWAY_PATH"], self.gt_app)
         self.mount(CONFIG["STATIC_IMAGE_PATH"], StaticFiles(directory=self.storage_images_path), name="images")
         self.mount(CONFIG["STATIC_FILE_PATH"], StaticFiles(directory=self.storage_files_path), name="files")
 

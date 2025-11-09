@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date, timezone
-from .validators import ClientValidator
+from .permgate import ClientValidator
 from typing import Literal, TypeAlias
 from functools import wraps
 import jwt

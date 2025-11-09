@@ -2,8 +2,12 @@
     "SERVER_HOST": "localhost",
     "SERVER_PORT": 8080,
 
-    "REDIS_SERVER_HOST": "localhost",
-    "REDIS_SERVER_PORT": 6379,
+    "RDSERVER_HOST": "localhost",
+    "RDSERVER_PORT": 6379,
+
+    "RTMSERVER_HOST": "localhost",
+    "RTMSERVER_PORT": 8000, 
+    "RTMSERVER_ACCESS_KEY": "N2FnkoQIsNYaWWV8DDuIfZS3BKB8DSMvk8fMwyGL9LkE9xkQFiNfWC2cQrrswcxUVjqjNIDdAwLVOlwi5t0nHg", 
 
     "CLIENT_SERVER_HOST": "localhost",
     "CLIENT_SERVER_PORT": 5173,
@@ -22,6 +26,8 @@
     "GATEWAY_LOGGER": true,
     
     "ENCRYPTION_ALGORITHM": "HS256",
+
+    "_le comm": "days",
     "LOGIN_EXPIRATION": 7,
     "BEARER_TOKEN_URL": "access_token",
     
@@ -35,7 +41,6 @@
     "MAX_FILE_SIZE": 10,
 
     "OAUTH_PATH": "/oauth",
-    "API_PATH": "/api",
     "GATEWAY_PATH": "/gateway",
     "STATIC_IMAGE_PATH": "/images",
     "STATIC_FILE_PATH": "/files",
