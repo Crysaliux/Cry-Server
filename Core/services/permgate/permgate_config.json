@@ -1,0 +1,62 @@
+{
+    "GLOBAL_PERMISSIONS": {
+        "p1": {
+            "name": "CO_OWNER", 
+            "children": ["p2", "p3", "p4", "p5", "p6", "p7"], 
+            "desc": "..."
+        },
+        "p2": {
+            "name": "BAN", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p3": {
+            "name": "KICK", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p4": {
+            "name": "MANAGE_GROUP", 
+            "children": ["p5", "p6", "p7"], 
+            "desc": "..."
+        },
+        "p5": {
+            "name": "MANAGE_ROOMS", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p6": {
+            "name": "MANAGE_NICKNAMES", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p7": {
+            "name": "SEND_MESSAGES", 
+            "children": [], 
+            "desc": "..."
+        }
+    },
+
+    "ROLE_TO_ROOM_PERMISSIONS": {
+        "p1": {
+            "name": "VIEW_ROOM", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p2": {
+            "name": "SEND_MESSAGES", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p3": {
+            "name": "SEND_ATTACHEMENTS", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p4": {
+            "name": "SEND_EMOJIS", 
+            "children": [], 
+            "desc": "..."
+        }
+    }
+}

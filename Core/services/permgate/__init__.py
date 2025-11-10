@@ -1,2 +1,2 @@
-from .assign import Assign
+from .permgate import Assign
 from .shift import Shift
