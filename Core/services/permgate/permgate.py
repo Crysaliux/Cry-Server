@@ -1,8 +1,10 @@
-from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission
+from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
 from sqlalchemy import insert, select, update, delete, exists
 from sqlalchemy.orm import selectinload
+from typing import Literal
 import json
 import os
+import uuid
 
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "permgate_config.json")) as conf:
@@ -12,42 +14,65 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "permgate_con
 class Permgate:
     def __init__(self):
         self.global_permissions = PERMGATE_CONFIG["GLOBAL_PERMISSIONS"]
-        self.role_to_room_permissions = PERMGATE_CONFIG["ROLE_TO_ROOM_PERMISSIONS"]
+        self.rtr_permissions = PERMGATE_CONFIG["ROLE_TO_ROOM_PERMISSIONS"]
         self.global_all = {}
-        self.role_to_room_all = {}
+        self.rtr_all = {}
         self.global_lookup = {}
-        self.role_to_room_lookup = {}
+        self.rtr_lookup = {}
 
         for key, parent in self.global_permissions.items():
             self.global_all[key] = [parent["name"]] + [self.global_permissions[child]["name"] for child in parent["children"]]
 
         for key, parent in self.role_to_room_permissions.items():
-            self.role_to_room_all[key] = [parent["name"]] + [self.role_to_room_permissions[child]["name"] for child in parent["children"]]
+            self.rtr_all[key] = [parent["name"]] + [self.rtr_permissions[child]["name"] for child in parent["children"]]
 
         for key, item in self.global_permissions.items():
             self.global_lookup[item["name"]] = key
 
-        for key, item in self.role_to_room_permissions.items():
-            self.role_to_room_lookup[item["name"]] = key
+        for key, item in self.rtr_permissions.items():
+            self.rtr_lookup[item["name"]] = key
 
-    def __fetch_children(self, perms: list[GlobalPermission], _all: dict[str, list[str]], lookup: dict[str, str]) -> list[str]:
+        self.checks = {
+            "must_have": self.__must_have,
+            "one_of": self.__one_of,
+        }
+
+    def __fetch_children(self, perms: list[str], _all: dict[str, list[str]], lookup: dict[str, str]) -> list[str]:
         try:
             actual = []
 
             for perm in perms:
-                if not perm.name in actual:
-                    actual += _all[lookup[perm.name]]
+                if not perm in actual:
+                    actual += _all[lookup[perm]]
 
             return True, actual
         except KeyError:
             return False, []
         
-    async def global_must_have(self, client_id: str, perms: list[str], session):
+    def __must_have(self, perms: list[str], actual: list[str]):
+        return set(perms).issubset(set(actual))
+    
+    def __one_of(self, perms: list[str], actual: list[str]):
+        return set(perms) & set(actual)
+    
+
+    async def check_global(
+            self, 
+            group_id: str, 
+            client_id: str, 
+            perms: list[str], 
+            check: Literal["must_have", "any_of"], 
+            session
+        ):
         permissions_res = await session.scalars(
-            select(GlobalPermission)
-            .join(Role.global_permissions)
+            select(GlobalPermission.name)
+            .join(Client.groups)
             .join(Client.roles)
-            .where(Client.id == client_id)
+            .join(Role.global_permissions)
+            .where(
+                Client.id == client_id,
+                Group.id == group_id,
+            )
             .distinct()
         )
         permissions = permissions_res.all()
@@ -56,17 +81,24 @@ class Permgate:
         if not status:
             return False
             
-        if not set(perms).issubset(set(actual)):
-            return False
-            
-        return True
-
-    async def global_one_of(self, client_id: str, perms: list[str], session): #Fix it, (One of!)
+        return self.checks[check](perms, actual)
+    
+    async def check_rtr(
+            self, 
+            client_id: str, 
+            room_id: str, 
+            perms: list[str], 
+            check: Literal["must_have", "any_of"], 
+            session
+        ):
         permissions_res = await session.scalars(
-            select(GlobalPermission)
-            .join(Role.global_permissions)
+            select(RoleToRoomPermission.name)
             .join(Client.roles)
-            .where(Client.id == client_id)
+            .join(Role.role_to_room_permissions)
+            .where(
+                Client.id == client_id,
+                RoleToRoomPermission.room_id == room_id,
+            )
             .distinct()
         )
         permissions = permissions_res.all()
@@ -74,11 +106,54 @@ class Permgate:
         status, actual = self.__fetch_children(permissions, self.global_all, self.global_lookup)
         if not status:
             return False
-            
-        if not set(perms).issubset(set(actual)):
-            return False
-            
-        return True
+        
+        return self.checks[check](perms, actual)
+    
+
+    async def assign_global(role_id: str, perms: list[str], session):
+        query = insert(GlobalPermission).values(
+            [
+                {
+                    "role_id": role_id,
+                    "name": perm.name,
+                    "id": str(uuid.uuid4()),
+                } 
+            for perm in perms])
+        query = query.prefix_with("IGNORE")
+
+        await session.execute(query)
+        await session.commit()
+
+    async def remove_global(role_id: str, perms: list[str], session):
+        await session.execute(delete(GlobalPermission).where(
+            GlobalPermission.role_id == role_id,
+            GlobalPermission.permission_name.in_(perms)
+        ))
+        await session.commit()
+
+    
+    async def assign_rtr(role_id: str, room_id: str, perms: list[str], session):
+        query = insert(GlobalPermission).values(
+            [
+                {
+                    "room_id": room_id,
+                    "role_id": role_id,
+                    "name": perm.name,
+                    "id": str(uuid.uuid4()),
+                } 
+            for perm in perms])
+        query = query.prefix_with("IGNORE")
+
+        await session.execute(query)
+        await session.commit()
+
+    async def remove_rtr(role_id: str, room_id: str, perms: list[str], session):
+        await session.execute(delete(RoleToRoomPermission).where(
+            RoleToRoomPermission.role_id == role_id,
+            RoleToRoomPermission.room_id == room_id,
+            RoleToRoomPermission.permission_name.in_(perms)
+        ))
+        await session.commit()
 
 """
 role = session.query(Role).filter_by(name="moderator").one()
