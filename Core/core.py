@@ -41,7 +41,7 @@ logging.basicConfig(
 LOGGER = logging.getLogger("system_logger")
 LOGGER.setLevel(logging.DEBUG)
 
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.json")) as conf:
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "core_config.json")) as conf:
     CONFIG = {key: value for key, value in json.load(conf).items() if not key.startswith("_")}
 
 
@@ -69,7 +69,6 @@ class Core(FastAPI):
         self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
         self.login_expiration = CONFIG["LOGIN_EXPIRATION"]
         self.hasher = PasswordHasher()
-        self.oauth2 = OAuth2PasswordBearer(tokenUrl=CONFIG["BEARER_TOKEN_URL"])
         
         self.message_load_batch_size = CONFIG["MESSAGE_LOAD_BATCH_SIZE"]
         self.max_message_length = CONFIG["MAX_MESSAGE_LENGTH"]
@@ -107,21 +106,8 @@ class Core(FastAPI):
             access_key=self.server_access_key,
             pg=self.pg,
         )
+
         self.gateway.router_tasks()
-
-        #Initializing Oauth module
-        self.oauth = Authentication(
-            session=self.worker.session,
-            ws=worker_session,
-            logger=LOGGER,
-            hasher=self.hasher, 
-            algorithm=self.algorithm, 
-            access_key=self.server_access_key,
-            oauth2=self.oauth2,
-        )
-        self.oauth.router_tasks()
-
-        self.include_router(self.oauth.router, prefix=CONFIG["OAUTH_PATH"])
         self.include_router(self.gateway.router, prefix=CONFIG["GATEWAY_PATH"])
 
         self.main_routes = [
@@ -145,14 +131,11 @@ class Core(FastAPI):
         asyncio.run(self.__gather_background())
 
     async def __gather_background(self):
-        await asyncio.gather(self.__background_worker(), self.__background_ceecchm())
+        await asyncio.gather(self.__background_worker())
 
     #Background services
     async def __background_worker(self):
         await self.worker.start()
-
-    async def __background_ceecchm(self):
-        await self.cecchm.start()
 
 
     async def __main(self, request: Request):

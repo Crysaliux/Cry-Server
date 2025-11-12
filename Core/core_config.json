@@ -17,19 +17,11 @@
 
     "GROUP_CLUSTER_INDEX": "$",
     "ROOM_CLUSTER_INDEX": "#",
-
-    "_cecchm comm": "concurrency: number of async tasks",
-    "CECCHM_CONCURRENCY": 10,
-    "CECCHM_BATCH_SIZE": 200,
-
-    "GATEWAY_ASYNC_MODE": "asgi",
-    "GATEWAY_LOGGER": true,
     
     "ENCRYPTION_ALGORITHM": "HS256",
 
     "_le comm": "days",
     "LOGIN_EXPIRATION": 7,
-    "BEARER_TOKEN_URL": "access_token",
     
     "MESSAGE_LOAD_BATCH_SIZE": 60,
     "MAX_MESSAGE_LENGTH": 1024,
