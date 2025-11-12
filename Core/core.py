@@ -15,6 +15,7 @@ from argon2 import PasswordHasher
 import redis.asyncio as aioredis
 from pathlib import Path
 from Core.services import *
+from Core.services.permgate import *
 import subprocess
 import threading
 import asyncio
@@ -61,13 +62,7 @@ class Core(FastAPI):
         self.room_cluster_index = CONFIG["ROOM_CLUSTER_INDEX"]
 
         self.worker = Worker()
-        self.cecchm = CECCHManager(
-            gateway=self.gateway, 
-            concurrency=CONFIG["CECCHM_CONCURRENCY"], 
-            batch_size=CONFIG["CECCHM_BATCH_SIZE"],
-            group_cluster_index=self.group_cluster_index,
-            room_cluster_index=self.room_cluster_index,
-        )
+        self.pg = Permgate()
         
         self.server_access_key = str(uuid.uuid4())
         self.rtmserver_access_key =CONFIG["RTMSERVER_ACCESS_KEY"]
@@ -81,19 +76,6 @@ class Core(FastAPI):
         self.max_image_size = CONFIG["MAX_IMAGE_SIZE"]
         self.max_file_size = CONFIG["MAX_FILE_SIZE"]
 
-        class PERMISSIONS:
-            class _global:
-                pass
-            class _room_oriented:
-                pass
-        
-        for name, code in CONFIG["PERMISSIONS"]["GLOBAL"].items():
-            setattr(PERMISSIONS._global, name, 1 << code)
-
-        for name, code in CONFIG["PERMISSIONS"]["ROOM_ORIENTED"].items():
-            setattr(PERMISSIONS._room_oriented, name, 1 << code)
-
-        self.perms = PERMISSIONS
 
         self.add_middleware(
             CORSMiddleware,
@@ -123,8 +105,7 @@ class Core(FastAPI):
             max_message_length=self.max_message_length,
             client_server_origin=self.client_server_origin,
             access_key=self.server_access_key,
-            gateway=self.gateway,
-            perms = self.perms,
+            pg=self.pg,
         )
         self.gateway.router_tasks()
 

@@ -1,5 +1,5 @@
 from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
-from sqlalchemy import insert, select, update, delete, exists
+from sqlalchemy import insert, select, update, delete, exists 
 from sqlalchemy.orm import selectinload
 from typing import Literal
 import json
@@ -151,7 +151,7 @@ class Permgate:
         await session.execute(delete(RoleToRoomPermission).where(
             RoleToRoomPermission.role_id == role_id,
             RoleToRoomPermission.room_id == room_id,
-            RoleToRoomPermission.permission_name.in_(perms)
+            RoleToRoomPermission.permission_name.in_(perms),
         ))
         await session.commit()
 

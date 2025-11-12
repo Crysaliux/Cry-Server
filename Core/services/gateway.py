@@ -71,8 +71,7 @@ class Gateway:
             client_server_origin: str, 
             algorithm, access_key, 
             addr: tuple, 
-            gateway: AsyncServer,
-            perms,
+            pg,
         ):
         self.addr = addr
         self.rtmserver_url = rtmserver_url
@@ -92,41 +91,7 @@ class Gateway:
         self.max_file_size = max_file_size
         self.client_server_origin = client_server_origin
         self.algorithm = algorithm
-        self.gateway = gateway
-        self.perms = perms
-
-        """
-        "connect": self.__on_connect,
-            "disconnect": self.__on_disconnect,
-
-            "create_group": self.__on_create_group,
-            "create_space": self.__on_create_space,
-            "create_room": self.__on_create_room,
-            "send_message": self.__on_send_message,
-            "create_role": self.__on_create_role,
-            "create_permissions_table": self.__on_create_permissions_table,
-
-            "update_client": self.__on_update_client,
-            "update_group": self.__on_update_group,
-            "update_space": self.__on_update_space,
-            "update_room": self.__on_update_room,
-            "edit_message": self.__on_edit_message,
-            "update_role": self.__on_update_role,
-            "update_permissions_table": self.__on_update_permissions_table,
-
-            "delete_client": self.__on_delete_client,
-            "delete_group": self.__on_delete_group,
-            "delete_space": self.__on_delete_space,
-            "delete_room": self.__on_delete_room,
-            "delete_message": self.__on_delete_message,
-            "delete_role": self.__on_delete_role,
-
-            "join_group": self.__on_join_group,
-            "join_room": self.__on_join_room,
-            
-            "leave_room": self.__on_leave_room,
-            "leave_group": self.__on_leave_group,
-        """
+        self.pg = pg
 
         self.events = [ #operations: create, edit, delete
             {"name": "login", "handler": self.__signup},
@@ -149,7 +114,8 @@ class Gateway:
             {"name": "edit_message", "handler": ...},
             {"name": "delete_message", "handler": ...},
         ]
-        self.__register_event_handlers()
+        self.__register_events()
+        
 
     def __register_events(self) -> None:
         for event in self.event_bindings.items():
@@ -451,7 +417,42 @@ class Gateway:
                 "error": "...",
             }
         
-        ...
+        if not self.pg.check_global( #Add owner check!
+            body.id,
+            client.id,
+            ["CO_OWNER", "MANAGE_GROUP"],
+            "any_of",
+            session
+        ):
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        result = await session.execute(update(Group).where(Group.id == body.id).values(
+            name=body.name,
+            global_name=body.global_name,
+            about_group=body.about_group,
+            icon_url=body.icon_url,
+            nsfw=body.nsfw,
+
+            content_filter=body.content_filter,
+            content_filter_level=body.content_filter_level,
+        ))
+
+        if result.rowcount() == 0:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        return {
+            "status": True,
+            "body": None,
+            "error": None,
+        }
 
     async def __delete_group(self, session_token: str, body: CreateGroup, session):
         status, client = await self.__verify_session(session_token)
@@ -470,8 +471,33 @@ class Gateway:
                 "error": "...",
             }
         
-        ... #Include router
-    
+        if not self.pg.check_global( #Add owner check!
+            body.id,
+            client.id,
+            ["CO_OWNER", "MANAGE_GROUP"],
+            "any_of",
+            session
+        ):
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            } #this must be owner only, configure permgate!
+        
+        result = await session.execute(delete(Group).where(Group.id == body.id))
+
+        if result.rowcount() == 0:
+            return {
+                "status": False,
+                "body": None,
+                "error": "...",
+            }
+        
+        return {
+            "status": True,
+            "body": None,
+            "error": None,
+        }
 
 
 
