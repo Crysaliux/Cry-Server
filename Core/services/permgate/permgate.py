@@ -1,7 +1,8 @@
 from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
-from sqlalchemy import insert, select, update, delete, exists 
+from sqlalchemy import insert, select, update, delete, exists, and_
 from sqlalchemy.orm import selectinload
 from typing import Literal
+from functools import partial
 import json
 import os
 import uuid
@@ -23,7 +24,7 @@ class Permgate:
         for key, parent in self.global_permissions.items():
             self.global_all[key] = [parent["name"]] + [self.global_permissions[child]["name"] for child in parent["children"]]
 
-        for key, parent in self.role_to_room_permissions.items():
+        for key, parent in self.rtr_permissions.items():
             self.rtr_all[key] = [parent["name"]] + [self.rtr_permissions[child]["name"] for child in parent["children"]]
 
         for key, item in self.global_permissions.items():
@@ -54,8 +55,26 @@ class Permgate:
     
     def __one_of(self, perms: list[str], actual: list[str]):
         return set(perms) & set(actual)
-    
 
+
+    async def check_owner(self, group_id: str, client_id: str, session):
+        owner_group_rel_exists = await session.execute(select(exists().where(and_(
+            Group.id == group_id,
+            Group.owner_id == client_id,
+        )))).scalar()
+        if not owner_group_rel_exists:
+            return False
+        return True
+    
+    async def check_author(self, message_id: str, client_id: str, session):
+        author_message_rel_exists = await session.execute(select(exists().where(and_(
+            Message.id == message_id,
+            Message.author_id == client_id,
+        )))).scalar()
+        if not author_message_rel_exists:
+            return False
+        return True
+    
     async def check_global(
             self, 
             group_id: str, 
@@ -63,16 +82,19 @@ class Permgate:
             perms: list[str], 
             check: Literal["must_have", "any_of"], 
             session
-        ):
+        ):   
+        if not perms:
+            return False
+
         permissions_res = await session.scalars(
             select(GlobalPermission.name)
             .join(Client.groups)
             .join(Client.roles)
             .join(Role.global_permissions)
-            .where(
+            .where(and_(
                 Client.id == client_id,
                 Group.id == group_id,
-            )
+            ))
             .distinct()
         )
         permissions = permissions_res.all()
@@ -90,15 +112,18 @@ class Permgate:
             perms: list[str], 
             check: Literal["must_have", "any_of"], 
             session
-        ):
+        ):    
+        if not perms:
+            return False
+
         permissions_res = await session.scalars(
             select(RoleToRoomPermission.name)
             .join(Client.roles)
             .join(Role.role_to_room_permissions)
-            .where(
+            .where(and_(
                 Client.id == client_id,
                 RoleToRoomPermission.room_id == room_id,
-            )
+            ))
             .distinct()
         )
         permissions = permissions_res.all()
@@ -108,6 +133,26 @@ class Permgate:
             return False
         
         return self.checks[check](perms, actual)
+    
+    async def evaluator(self, vld: dict[partial]):
+        if callable(vld):
+            return await vld()
+
+        operation, children = vld
+
+        if operation == "and":
+            for child in children:
+                if not await self.evaluator(child):
+                    return False
+            return True
+
+        if operation == "or":
+            for child in children:
+                if await self.evaluator(child):
+                    return True
+            return False
+
+        raise ValueError(f"Invalid operation: {operation}")
     
 
     async def assign_global(role_id: str, perms: list[str], session):
@@ -125,10 +170,10 @@ class Permgate:
         await session.commit()
 
     async def remove_global(role_id: str, perms: list[str], session):
-        await session.execute(delete(GlobalPermission).where(
+        await session.execute(delete(GlobalPermission).where(and_(
             GlobalPermission.role_id == role_id,
             GlobalPermission.permission_name.in_(perms)
-        ))
+        )))
         await session.commit()
 
     
@@ -148,11 +193,11 @@ class Permgate:
         await session.commit()
 
     async def remove_rtr(role_id: str, room_id: str, perms: list[str], session):
-        await session.execute(delete(RoleToRoomPermission).where(
+        await session.execute(delete(RoleToRoomPermission).where(and_(
             RoleToRoomPermission.role_id == role_id,
             RoleToRoomPermission.room_id == room_id,
             RoleToRoomPermission.permission_name.in_(perms),
-        ))
+        )))
         await session.commit()
 
 """

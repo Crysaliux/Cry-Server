@@ -5,7 +5,7 @@ class CreateSpace(BaseModel):
     group_id: str
     name: str
 
-class UpdateSpace(BaseModel):
+class EditSpace(BaseModel):
     group_id: str
     name: str
     id: str

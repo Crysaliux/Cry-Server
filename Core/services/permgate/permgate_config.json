@@ -17,7 +17,7 @@
         },
         "p4": {
             "name": "MANAGE_GROUP", 
-            "children": ["p5", "p6", "p7"], 
+            "children": ["p5", "p6", "p7", "p8"], 
             "desc": "..."
         },
         "p5": {
@@ -32,6 +32,11 @@
         },
         "p7": {
             "name": "SEND_MESSAGES", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p8": {
+            "name": "DELETE_MESSAGES", 
             "children": [], 
             "desc": "..."
         }

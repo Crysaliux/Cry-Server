@@ -54,7 +54,7 @@ class Core(FastAPI):
         self.rtmserver_url = f"http://{CONFIG['RTMSERVER_HOST']}:{CONFIG['RTMSERVER_PORT']}"
         self.rdserver = aioredis.from_url(
             f"redis:{CONFIG['RDSERVER_HOST']}:{CONFIG['RDSERVER_PORT']}",
-            decode_response=True
+            decode_responses=True
         )
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["FILE_STORAGE_PATH"])
@@ -93,9 +93,7 @@ class Core(FastAPI):
             rdserver=self.rdserver,
             ws=worker_session,
             logger=LOGGER,
-            oauth2=self.oauth2,
             hasher=self.hasher, 
-            cecchm=self.cecchm,
             algorithm=self.algorithm, 
             storage_images_path=self.storage_images_path, 
             storage_files_path=self.storage_files_path, 
@@ -131,11 +129,17 @@ class Core(FastAPI):
         asyncio.run(self.__gather_background())
 
     async def __gather_background(self):
-        await asyncio.gather(self.__background_worker())
+        await asyncio.gather(
+            self.__background_worker(),
+            self.__background_session_monitor(),
+        )
 
     #Background services
     async def __background_worker(self):
         await self.worker.start()
+
+    async def __background_session_monitor(self):
+        await self.gateway.run_session_monitor()
 
 
     async def __main(self, request: Request):

@@ -3,18 +3,22 @@ from typing import List, Union, Annotated, Literal
 
 class CreateRoom(BaseModel):
     group_id: str
-    space_id: Union[str, None]
+    space_id: str | None
     name: str
-    about_room: Union[str, None]
+    about_room: str | None
 
-class UpdateRoom(BaseModel):
+class EditRoom(BaseModel):
     group_id: str
-    space_id: Union[str, None]
     name: str
-    about_room: Union[str, None]
+    about_room: str | None
     nsfw: bool
     id: str
 
 class DeleteRoom(BaseModel):
     group_id: str
+    id: str
+
+class RelocateRoom(BaseModel):
+    group_id: str
+    space_id: str
     id: str

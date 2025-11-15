@@ -1,7 +1,7 @@
 from .client import UpdateClient
-from .group import CreateGroup, UpdateGroup, DeleteGroup, JoinGroup
-from .message import SendMessage, EditMessage, DeleteMessage
+from .group import CreateGroup, EditGroup, DeleteGroup
+from .message import CreateMessage, EditMessage, DeleteMessage
 from .role import CreateRole, UpdateRole, DeleteRole
-from .room import CreateRoom, UpdateRoom, DeleteRoom
-from .space import CreateSpace, UpdateSpace, DeleteSpace
-from .permissions_table import CreatePermissionsTable, UpdatePermissionsTable
+from .room import CreateRoom, EditRoom, DeleteRoom, RelocateRoom
+from .space import CreateSpace, EditSpace, DeleteSpace
+from .oauth import Login, Signup

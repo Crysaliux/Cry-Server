@@ -3,6 +3,6 @@ from typing import List, Union, Annotated, Literal
 
 class UpdateClient(BaseModel):
     nickname: str
-    about_me: Union[str, None]
-    avatar_url: Union[str, None]
-    color_theme: Union[str, None]
+    about_me: str | None
+    avatar_url: str | None
+    color_theme: str | None

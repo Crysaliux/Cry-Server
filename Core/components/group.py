@@ -4,14 +4,14 @@ from typing import List, Union, Annotated, Literal
 class CreateGroup(BaseModel):
     name: str
     global_name: str
-    about_group: Union[str, None]
-    icon_url: Union[str, None]
+    about_group: str | None
+    icon_url: str | None
 
-class UpdateGroup(BaseModel):
+class EditGroup(BaseModel):
     name: str
     global_name: str
-    about_group: Union[str, None]
-    icon_url: Union[str, None]
+    about_group: str | None
+    icon_url: str | None
     nsfw: bool
     id: str
 
@@ -20,6 +20,3 @@ class UpdateGroup(BaseModel):
 
 class DeleteGroup(BaseModel):
     id: str
-
-class JoinGroup(BaseModel):
-    global_name: str
