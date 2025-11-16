@@ -835,6 +835,7 @@ class Gateway:
                 "username": client.name,
                 "content": body.content,
                 "edited": False,
+                "id": id,
             }
         })
 
@@ -884,6 +885,18 @@ class Gateway:
 
         if result.rowcount() == 0:
             return self.__construct_response(False, error="...")
+        
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"#{body.room_id}",
+            "data": {
+                "content": body.content,
+                "edited": True,
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
 
@@ -936,6 +949,16 @@ class Gateway:
 
         if result.rowcount() == 0:
             return self.__construct_response(False, error="...")
+        
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"#{body.room_id}",
+            "data": {
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
     
