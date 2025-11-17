@@ -69,11 +69,7 @@ class Core(FastAPI):
         self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
         self.login_expiration = CONFIG["LOGIN_EXPIRATION"]
         self.session_expiration = CONFIG["SESSION_EXPIRATION"]
-        self.heartbeat_delta = CONFIG["HEARTBEAT_DELTA"]
-
-        if self.heartbeat_delta > self.session_expiration:
-            raise("Hearbeat delta greater than session expiration time.")
-
+        self.heartbeat_delta = (self.session_expiration // 3) * 2  #must be in config!!!
         self.hasher = PasswordHasher()
         
         self.message_load_batch_size = CONFIG["MESSAGE_LOAD_BATCH_SIZE"]
