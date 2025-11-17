@@ -8,7 +8,7 @@ Error codes:
     101 - database conenction timed out
     102 - database integrity violated
     103 - invalid database request
-    104 - unexpocted database server error
+    104 - unexpected database server error
 
 - RDServer
     200 - failed to validate response modal

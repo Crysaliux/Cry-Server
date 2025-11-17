@@ -72,7 +72,13 @@ class Gateway:
             max_image_size: int, 
             max_file_size: dict, 
             client_server_origin: str, 
-            algorithm, access_key, 
+            login_expiration: int,
+            session_expiration: int,
+            heartbeat_delta: int,
+            room_cluster_index: str,
+            group_cluster_index: str,
+            algorithm, 
+            access_key, 
             addr: tuple, 
             pg,
         ):
@@ -91,6 +97,11 @@ class Gateway:
         self.max_image_size = max_image_size
         self.max_file_size = max_file_size
         self.client_server_origin = client_server_origin
+        self.login_expiration = login_expiration
+        self.session_expiration = session_expiration
+        self.heartbeat_delta = heartbeat_delta
+        self.room_cluster_index = room_cluster_index
+        self.group_cluster_index = group_cluster_index
         self.algorithm = algorithm
         self.pg = pg
 
@@ -106,6 +117,7 @@ class Gateway:
             {"name": "create_group", "handler": self.__create_group},
             {"name": "edit_group", "handler": self.__edit_group},
             {"name": "delete_group", "handler": self.__delete_group},
+            {"name": "join_group", "handler": ...},
 
             {"name": "create_space", "handler": self.__create_space},
             {"name": "edit_space", "handler": self.__edit_space},
@@ -115,6 +127,7 @@ class Gateway:
             {"name": "edit_room", "handler": self.__edit_room},
             {"name": "delete_room", "handler": self.__delete_room},
             {"name": "relocate_room", "handler": self.__relocate_room},
+            {"name": "join_room", "handler": ...},
 
             {"name": "create_message", "handler": self.__create_message},
             {"name": "edit_message", "handler": self.__edit_message},
@@ -135,7 +148,12 @@ class Gateway:
             key = message.get("data")
             if isinstance(key, (str)):
                 client_id = key.split(":")[1]
-                await self.__disconnect(client_id)
+                await self.__call_rtmserver("disconnect", {
+                    "user_id": client_id,
+                    "data": {
+                        "type": "session_expired",
+                    }
+                })
 
 
     async def __call_rtmserver(self, method: str, params: dict[str, str | int | bool | dict[str, str | int | bool]]) -> dict[str, str | int]:
@@ -156,13 +174,13 @@ class Gateway:
                     if data.error:
                         return False, None, data.error
                     return True, data.result, None
-                except ValidationError: #validation
-                    return False, None, ...
-        except httpx.RequestError: #network
-            return False, None, ...
+                except ValidationError:
+                    return False, None, "200"
+        except httpx.RequestError:
+            return False, None, "201"
         
-        except Exception as e: #unexpected
-            return False, None, ...
+        except Exception as e: #log error in terminal
+            return False, None, "202"
 
         
     def __decode_session_token(self, session_token: str) -> tuple[bool, str | None, str | None, str | None]:
@@ -180,7 +198,7 @@ class Gateway:
             return False, None, None, None
         
     def __encode_session_token(self, id: str) -> str:
-        expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=15)).timestamp())
+        expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=self.session_expiration)).timestamp())
         
         session_token = jwt.encode(
             {
@@ -191,8 +209,8 @@ class Gateway:
         return session_token
     
     def __encode_refresh_token(self, id: str, username: str) -> tuple[str, int]:
-        expires_at = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
-        expires_in = int(timedelta(days=7).total_seconds())
+        expires_at = int((datetime.now(timezone.utc) + timedelta(days=self.login_expiration)).timestamp())
+        expires_in = int(timedelta(days=self.login_expiration).total_seconds())
 
         refresh_token = jwt.encode(
             {
@@ -260,7 +278,8 @@ class Gateway:
             return self.__construct_response(False, error="...")
 
         return self.__construct_response(True, {
-            "session_token": self.__encode_session_token(client.id)
+            "session_token": self.__encode_session_token(client.id),
+            "wait_for": self.heartbeat_delta,
         })
     
     """
@@ -271,15 +290,15 @@ class Gateway:
     async def __signup(self, response: Response, body: Signup, session) -> EmitCommon:
         username_exists = await session.execute(select(exists().where(Client.username == body.username))).scalar()
         if username_exists:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="302")
     
         email_exists = await session.execute(select(exists().where(Client.email == body.email))).scalar()
         if email_exists:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="303")
     
         datedelta = date.today() - date.fromisoformat(body.date_of_birth)
         if divmod(datedelta.total_seconds(), 31536000)[0] < 13:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="304")
 
         id = str(uuid.uuid4())
         refresh_token, expires_in = self.__encode_refresh_token(id, body.username)
@@ -309,6 +328,7 @@ class Gateway:
 
         return self.__construct_response(True, {
             "session_token": self.__encode_session_token(),
+            "wait_for": self.heartbeat_delta,
         })
     
     async def __login(self, response: Response, body: Login, session) -> EmitCommon:
@@ -316,7 +336,7 @@ class Gateway:
         client = client_res.scalar_one_or_none()
 
         if not client:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="305")
         
         if self.hasher.verify(client.password_hashed, body.password):
             refresh_token, expires_in = self.__encode_refresh_token(client.id, client.username)
@@ -335,6 +355,7 @@ class Gateway:
 
             return self.__construct_response(True, {
                 "session_token": self.__encode_session_token(),
+                "wait_for": self.heartbeat_delta,
             })
         
     """
@@ -346,7 +367,7 @@ class Gateway:
     async def __upload_attachement(self, session_token: str, file: UploadFile) -> EmitCommon:
         status, _ = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
 
         filename = f"{uuid.uuid4()}.{file.filename.split(".")[-1]}"
         data = await file.read()
@@ -362,7 +383,7 @@ class Gateway:
             async with aiofiles.open(save_to, "wb") as buffer:
                 await buffer.write(data)
         except:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="310")
         
         return self.__construct_response(True, {
             "file_url": file_url,
@@ -372,11 +393,11 @@ class Gateway:
     async def __create_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         global_name_exists = await session.execute(select(exists().where(Group.global_name == body.global_name))).scalar()
         if global_name_exists:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="311")
         
         id, room_id = map(str, [uuid.uuid4() for _ in range(2)])
 
@@ -406,7 +427,7 @@ class Gateway:
     async def __edit_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not await self.pg.evaluator((
             "or",
@@ -422,11 +443,10 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Group).where(Group.id == body.id).values(
             name=body.name,
-            global_name=body.global_name,
             about_group=body.about_group,
             icon_url=body.icon_url,
             nsfw=body.nsfw,
@@ -436,14 +456,33 @@ class Gateway:
         ))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="306")
+        
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"{self.group_cluster_index}{body.id}",
+            "data": {
+                "type": "group_edited",
+                "name": body.name,
+                "about_group": body.about_group,
+                "icon_url": body.icon_url,
+                "nsfw": body.nsfw,
+
+                "content_filter": body.content_filter,
+                "content_filter_level": body.content_filter_level,
+
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
 
     async def __delete_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not await self.pg.evaluator((
             "or",
@@ -459,28 +498,33 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...") #owner only!
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Group).where(Group.id == body.id))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="306")
         
         status, _, error = await self.__call_rtmserver("unsubscribe", {
-            "channel": f"${body.id}",  #change later
+            "channel": f"{self.group_cluster_index}{body.id}",
+            "data": {
+                "type": "group_deleted",
+                "id": body.id,
+            }
         })
 
         if not status:
             return self.__construct_response(False, error=error)
 
-        return self.__construct_response(True)
+        return self.__construct_response(True) #keep adding broadcasts, etc. group 'n channel, 
+    #start working on frontend infrastructure
     
 
     #SPACE      
     async def __create_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -488,7 +532,7 @@ class Gateway:
         group = group_res.scalar_one_or_none()
 
         if not group:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="306")
         
         if not await self.pg.evaluator((
             "or",
@@ -504,7 +548,7 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
 
         id = str(uuid.uuid4())
 
@@ -523,7 +567,7 @@ class Gateway:
     async def __edit_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not await self.pg.evaluator((
             "or",
@@ -539,21 +583,21 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Space).where(Space.id == body.id).values(
             name=body.name,
         ))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="307")
         
         return self.__construct_response(True)
 
     async def __delete_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not await self.pg.evaluator((
             "or",
@@ -569,12 +613,12 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...") #owner only!
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Space).where(Space.id == body.id))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="307")
         
         return self.__construct_response(True)
     
@@ -583,7 +627,7 @@ class Gateway:
     async def __create_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -591,7 +635,7 @@ class Gateway:
         group = group_res.scalar_one_or_none()
 
         if not group:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="306")
         
         if not await self.pg.evaluator((
             "or",
@@ -607,7 +651,7 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
 
         id = str(uuid.uuid4())
 
@@ -626,7 +670,7 @@ class Gateway:
     async def __edit_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not await self.pg.evaluator((
             "or",
@@ -655,7 +699,7 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Room).where(Room.id == body.id).values(
             name=body.name,
@@ -664,14 +708,14 @@ class Gateway:
         ))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="308")
         
         return self.__construct_response(True)
 
     async def __delete_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not self.pg.evaluator((
             "or",
@@ -700,14 +744,14 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Room).where(
             Room.id == body.id,
         ))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="308")
         
         status, _, error = await self.__call_rtmserver("unsubscribe", {
             "channel": f"#{body.id}",  #change later
@@ -721,7 +765,7 @@ class Gateway:
     async def __relocate_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         space_res = await session.execute(
             select(Space).where(Space.id == body.space_id)
@@ -755,14 +799,14 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Room).where(Room.id == body.id).values(
             space=space,
         ))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="308")
         
         return self.__construct_response(True)
 
@@ -771,7 +815,7 @@ class Gateway:
     async def __create_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -779,7 +823,7 @@ class Gateway:
         group = group_res.scalar_one_or_none()
 
         if not group:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="306")
         
         room_res = await session.execute(
             select(Room).where(Room.id == body.room_id)
@@ -787,7 +831,7 @@ class Gateway:
         room = room_res.scalar_one_or_none()
 
         if not room:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="308")
         
         if not self.pg.evaluator((
             "or",
@@ -816,7 +860,7 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
 
         id = str(uuid.uuid4())
 
@@ -832,6 +876,7 @@ class Gateway:
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"#{body.room_id}",
             "data": {
+                "type": "message_created",
                 "username": client.name,
                 "content": body.content,
                 "edited": False,
@@ -849,7 +894,7 @@ class Gateway:
     async def __edit_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not self.pg.evaluator((
             "or",
@@ -876,7 +921,7 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Message).where(Message.id == body.id).values(
             content=body.content,
@@ -884,11 +929,12 @@ class Gateway:
         ))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="309")
         
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"#{body.room_id}",
             "data": {
+                "type": "message_edited",
                 "content": body.content,
                 "edited": True,
                 "id": body.id,
@@ -903,7 +949,7 @@ class Gateway:
     async def __delete_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="301")
         
         if not self.pg.evaluator((
             "or",
@@ -943,16 +989,17 @@ class Gateway:
                 )
             ]
         )):
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Message).where(Message.id == body.id))
 
         if result.rowcount() == 0:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="309")
         
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"#{body.room_id}",
             "data": {
+                "type": "message_deleted",
                 "id": body.id,
             }
         })

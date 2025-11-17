@@ -1,7 +1,7 @@
 from sqlalchemy import ForeignKey, String, Boolean, DateTime, Date, Table, Column, Integer, func, desc, JSON, BIGINT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import DatabaseError, OperationalError, IntegrityError, ProgrammingError
 from datetime import datetime, timezone, date
 from typing import Optional
 from random import uniform
@@ -226,6 +226,14 @@ class Worker:
             await conn.run_sync(Base.metadata.create_all)
 
 #Session wrapper
+def throw_db_error(code: str):
+    return {
+        "status": False,
+        "body": None,
+        "error": code,
+    }
+
+
 def worker_session(func, session):
     @wraps(func)
     async def wrapper(self, *args, **kwargs):
@@ -233,7 +241,21 @@ def worker_session(func, session):
             async with session() as ss:
                 async with ss.begin():
                     return await func(self, *args, session=ss, **kwargs)
-        except SQLAlchemyError as e:
+        except OperationalError as e:
             await ss.rollback()
-            raise(e) #debug
+            if not "timeout" in str(e).lower():
+                return throw_db_error("101")
+            return throw_db_error("100")
+        
+        except IntegrityError as e:
+            await ss.rollback()
+            return throw_db_error("102")
+        
+        except ProgrammingError as e:
+            await ss.rollback()
+            return throw_db_error("103")
+        
+        except DatabaseError:
+            await ss.rollback()
+            return throw_db_error("104")
     return wrapper

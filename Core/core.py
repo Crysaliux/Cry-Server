@@ -68,6 +68,12 @@ class Core(FastAPI):
         self.rtmserver_access_key =CONFIG["RTMSERVER_ACCESS_KEY"]
         self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
         self.login_expiration = CONFIG["LOGIN_EXPIRATION"]
+        self.session_expiration = CONFIG["SESSION_EXPIRATION"]
+        self.heartbeat_delta = CONFIG["HEARTBEAT_DELTA"]
+
+        if self.heartbeat_delta > self.session_expiration:
+            raise("Hearbeat delta greater than session expiration time.")
+
         self.hasher = PasswordHasher()
         
         self.message_load_batch_size = CONFIG["MESSAGE_LOAD_BATCH_SIZE"]
@@ -102,6 +108,11 @@ class Core(FastAPI):
             max_message_length=self.max_message_length,
             client_server_origin=self.client_server_origin,
             access_key=self.server_access_key,
+            login_expiration=self.login_expiration,
+            session_expiration=self.session_expiration,
+            heartbeat_delta=self.heartbeat_delta,
+            room_cluster_index=self.room_cluster_index,
+            group_cluster_index=self.group_cluster_index,
             pg=self.pg,
         )
 
