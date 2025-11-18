@@ -419,6 +419,8 @@ class Gateway:
         ))
         await session.commit()
 
+        #broadcast for client
+
         return self.__construct_response(True, {
             "id": id,
             "room_id": room_id,
@@ -518,6 +520,19 @@ class Gateway:
 
         return self.__construct_response(True) #keep adding broadcasts, etc. group 'n channel, 
     #start working on frontend infrastructure
+
+    async def __join_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+        status, client = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error="301")
+        
+        #check for banned.
+        #hot refresh
+
+        return self.__construct_response(True, {
+            "session_token": ...,
+            "wait_for": ...,
+        })
     
 
     #SPACE      
@@ -560,6 +575,18 @@ class Gateway:
         ))
         await session.commit()
 
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"{self.group_cluster_index}{body.group_id}",
+            "data": {
+                "type": "space_created",
+                "name": body.name,
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
+
         return self.__construct_response(True, {
             "id": id,
         })
@@ -592,6 +619,18 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="307")
         
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"{self.group_cluster_index}{body.group_id}",
+            "data": {
+                "type": "space_edited",
+                "name": body.name,
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
+        
         return self.__construct_response(True)
 
     async def __delete_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
@@ -619,6 +658,17 @@ class Gateway:
 
         if result.rowcount() == 0:
             return self.__construct_response(False, error="307")
+        
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"{self.group_cluster_index}{body.group_id}",
+            "data": {
+                "type": "space_deleted",
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
     
@@ -659,9 +709,25 @@ class Gateway:
             group=group,
             creator=client,
             name=body.name,
+            about_room=body.about_room,
+            space_id=body.space_id,
             id=id,
         ))
         await session.commit()
+
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"{self.group_cluster_index}{body.group_id}",
+            "data": {
+                "type": "room_created",
+                "name": body.name,
+                "about_room": body.about_room,
+                "space_id": body.space_id,
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
 
         return self.__construct_response(True, {
             "id": id,
@@ -710,6 +776,19 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
         
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"{self.group_cluster_index}{body.group_id}",
+            "data": {
+                "type": "room_edited",
+                "name": body.name,
+                "about_room": body.about_room,
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
+        
         return self.__construct_response(True)
 
     async def __delete_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
@@ -754,7 +833,11 @@ class Gateway:
             return self.__construct_response(False, error="308")
         
         status, _, error = await self.__call_rtmserver("unsubscribe", {
-            "channel": f"#{body.id}",  #change later
+            "channel": f"{self.room_cluster_index}{body.id}",
+            "data": {
+                "type": "room_deleted",
+                "id": body.id,
+            }
         })
 
         if not status:
@@ -807,6 +890,18 @@ class Gateway:
 
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
+        
+        status, _, error = await self.__call_rtmserver("broadcast", {
+            "channel": f"{self.group_cluster_index}{body.group_id}",
+            "data": {
+                "type": "room_relocated",
+                "space_id": body.space_id,
+                "id": body.id,
+            }
+        })
+
+        if not status:
+            return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
 
