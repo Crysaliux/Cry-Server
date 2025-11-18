@@ -1,5 +1,5 @@
 from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
-from sqlalchemy import insert, select, update, delete, exists, and_
+from sqlalchemy import insert, select, update, delete, exists, and_, or_
 from sqlalchemy.orm import selectinload
 from typing import Literal
 from functools import partial
@@ -154,6 +154,21 @@ class Permgate:
 
         raise ValueError(f"Invalid operation: {operation}")
     
+
+    async def fetch_accessable(self, client_id: str, group_id: str, session):
+        rooms_res = await session.scalars(
+            select(Room.name)
+            .join(Client.roles)
+            .join(Client.groups)
+            .join(Role.role_to_room_permissions)
+            .where(and_(
+                Client.id == client_id,
+                Group.id == group_id,
+                RoleToRoomPermission.name == "VIEW_ROOM" #set or config? + NSFW rules
+            )))
+        rooms = rooms_res.all()
+        return rooms
+
 
     async def assign_global(role_id: str, perms: list[str], session):
         query = insert(GlobalPermission).values(

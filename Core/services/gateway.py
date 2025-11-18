@@ -270,12 +270,36 @@ class Gateway:
         
         return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc), client
 
+    """
+    HOT REFRESHER (Non-API)
+    """
 
+    async def __hot_refresh(self, client: Client, refresh_token: str) -> EmitCommon:
+        status, username, id, expires_at = self.__decode_refresh_token(refresh_token)
+        if not status:
+            return False, None
+        
+        if not datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc):
+            return False, None
+        
+        if not client.username == username and \
+        client.id == id and \
+        client.token == refresh_token:
+            return False, None
+        
+        return True, {
+            "session_token": self.__encode_session_token(client.id),
+            "wait_for": self.heartbeat_delta,
+        }
+
+    """
+    COLD REFRESHER
+    """
 
     async def __refresh_session(self, refresh_token: str, session) -> EmitCommon:
         status, client = await self.__verify_refresh(refresh_token, session)
         if not status:
-            return self.__construct_response(False, error="...")
+            return self.__construct_response(False, error="300")
 
         return self.__construct_response(True, {
             "session_token": self.__encode_session_token(client.id),
@@ -521,18 +545,21 @@ class Gateway:
         return self.__construct_response(True) #keep adding broadcasts, etc. group 'n channel, 
     #start working on frontend infrastructure
 
-    async def __join_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __join_group(self, session_token: str, refresh_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error="301")
         
         #check for banned.
-        #hot refresh
 
-        return self.__construct_response(True, {
-            "session_token": ...,
-            "wait_for": ...,
-        })
+        
+
+
+        status, data = await self.__hot_refresh(client, refresh_token)
+        if not status:
+            return self.__construct_response(False, error="300")
+
+        return self.__construct_response(True, data)
     
 
     #SPACE      
@@ -1139,6 +1166,16 @@ class Gateway:
         async def create_group(request: Request, body: DeleteGroup, authorization: str = Header(...)):
             session_token = authorization.replace("Bearer", "").strip()
             return await self._call_delete_group(session_token, body)
+        
+        @self.router.post("/join_group")
+        async def create_group(
+            request: Request, 
+            body: DeleteGroup, 
+            authorization: str = Header(...), 
+            refresh_token: str | None = Cookie(None)
+        ):
+            session_token = authorization.replace("Bearer", "").strip()
+            return await self._call_join_group(session_token, refresh_token, body)
         
 
         @self.router.post("/create_space")
