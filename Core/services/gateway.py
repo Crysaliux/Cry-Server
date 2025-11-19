@@ -65,7 +65,8 @@ class Gateway:
             session,  
             ws,
             logger,
-            rdserver,
+            rdserver_session,
+            rdserver_cache,
             storage_images_path: str, 
             storage_files_path: str, 
             max_message_length: dict, 
@@ -89,7 +90,8 @@ class Gateway:
         self.hasher = hasher
         self.session = session
         self.ws = ws
-        self.rdserver = rdserver
+        self.rdserver_session = rdserver_session
+        self.rdserver_cache = rdserver_cache
         self.logger = logger
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
@@ -141,7 +143,7 @@ class Gateway:
             setattr(self, f"_call_{event["name"]}", self.ws(event["handler"], self.session))
     
     async def run_session_monitor(self) -> None:
-        pubsub = self.rdserver.pubsub()
+        pubsub = self.rdserver_session.pubsub()
         await pubsub.psubscribe("__keyevent@0__:expired")
 
         async for message in pubsub.listen():
@@ -245,7 +247,7 @@ class Gateway:
             client = client_res.scalar_one_or_none()
 
             if not client:
-                self.rdserver.delete(f"client:{id}")
+                self.rdserver_session.delete(f"client:{id}") #?
                 return False, None
             return True, client
         

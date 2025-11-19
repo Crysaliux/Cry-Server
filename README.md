@@ -29,3 +29,9 @@ Error codes:
     310 - failed to save file(s)
     311 - global name exists
     312 - missing permissions
+
+
+RDServer (Redis server):
+
+- Cache port: 6380
+- Session port: 6381

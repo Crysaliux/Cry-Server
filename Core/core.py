@@ -12,7 +12,7 @@ from itertools import takewhile
 from datetime import datetime
 from random import uniform
 from argon2 import PasswordHasher
-import redis.asyncio as aioredis
+from redis.asyncio import Redis
 from pathlib import Path
 from Core.services import *
 from Core.services.permgate import *
@@ -52,10 +52,19 @@ class Core(FastAPI):
         self.sv_port = CONFIG["SERVER_PORT"]
         self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
         self.rtmserver_url = f"http://{CONFIG['RTMSERVER_HOST']}:{CONFIG['RTMSERVER_PORT']}"
-        self.rdserver = aioredis.from_url(
-            f"redis:{CONFIG['RDSERVER_HOST']}:{CONFIG['RDSERVER_PORT']}",
-            decode_responses=True
+        self.rdserver_cache = Redis(
+            host=CONFIG['RDSERVER_HOST'],
+            port=CONFIG['RDSERVER_CACHE_PORT'],
+            decode_responses=True,
+            db=0
         )
+        self.rdserver_session = Redis(
+            host=CONFIG['RDSERVER_HOST'],
+            port=CONFIG['RDSERVER_SESSION_PORT'],
+            decode_responses=True,
+            db=1
+        )
+        
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
         self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["FILE_STORAGE_PATH"])
         self.group_cluster_index = CONFIG["GROUP_CLUSTER_INDEX"]
@@ -92,7 +101,8 @@ class Core(FastAPI):
             rtmserver_url=self.rtmserver_url,
             rtmserver_access_key=self.rtmserver_access_key,
             session=self.worker.session,
-            rdserver=self.rdserver,
+            rdserver_session=self.rdserver_session,
+            rdserver_cache=self.rdserver_cache,
             ws=worker_session,
             logger=LOGGER,
             hasher=self.hasher, 

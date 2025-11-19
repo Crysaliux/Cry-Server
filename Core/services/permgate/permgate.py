@@ -1,6 +1,7 @@
 from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
 from sqlalchemy import insert, select, update, delete, exists, and_, or_
 from sqlalchemy.orm import selectinload
+from collections import defaultdict
 from typing import Literal
 from functools import partial
 import json
@@ -13,7 +14,8 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "permgate_con
 
 
 class Permgate:
-    def __init__(self):
+    def __init__(self, rdserver_cache):
+        self.rdserver_cache = rdserver_cache
         self.global_permissions = PERMGATE_CONFIG["GLOBAL_PERMISSIONS"]
         self.rtr_permissions = PERMGATE_CONFIG["ROLE_TO_ROOM_PERMISSIONS"]
         self.global_all = {}
@@ -56,7 +58,39 @@ class Permgate:
     def __one_of(self, perms: list[str], actual: list[str]):
         return set(perms) & set(actual)
 
+#Redis = System God, Worker = System God's accountant.
+#loading, validation
+    async def load_all(self, client_id: str, group_id: str, session):
+        global_perms_res = await session.scalars(
+            select(GlobalPermission.name)
+            .join(Group.members)
+            .join(Client.roles)
+            .join(Role.global_permissions)
+            .where(and_(
+                Client.id == client_id,
+                Group.id == group_id,
+            )).distinct()
+        )
+        global_perms = global_perms_res.all()
+        await self.rdserver_cache.set(f"client:{client_id}:global", global_perms)
 
+        rtr_perms_res = await session.execute(
+            select(Room.id, RoleToRoomPermission.name)
+            .join(Role.role_to_room_permissions)
+            .join(Client.roles)
+            .join(Room.group)
+            .where(Client.id == client_id).distinct()
+        )
+        rtr_perms = rtr_perms_res.all()
+
+        rtr_struct = defaultdict(list)
+        for room_id, perm in rtr_perms:
+            rtr_struct[room_id].append(perm)
+
+        for room_id, perms in rtr_struct:
+            await self.rdserver_cache.set(f"client:{client_id}:room:{room_id}", perms)
+
+    """
     async def check_owner(self, group_id: str, client_id: str, session):
         owner_group_rel_exists = await session.execute(select(exists().where(and_(
             Group.id == group_id,
@@ -158,17 +192,18 @@ class Permgate:
     async def fetch_accessable(self, client_id: str, group_id: str, session):
         rooms_res = await session.scalars(
             select(Room.name)
-            .join(Client.roles)
+            .join(Room.role_to_room_permissions)
+            .join(RoleToRoomPermission.role)
+            .join(Role.assignees)
             .join(Client.groups)
-            .join(Role.role_to_room_permissions)
             .where(and_(
                 Client.id == client_id,
                 Group.id == group_id,
-                RoleToRoomPermission.name == "VIEW_ROOM" #set or config? + NSFW rules
-            )))
+                RoleToRoomPermission.name == "VIEW_ROOM"
+        )))
         rooms = rooms_res.all()
         return rooms
-
+    """
 
     async def assign_global(role_id: str, perms: list[str], session):
         query = insert(GlobalPermission).values(

@@ -3,7 +3,8 @@
     "SERVER_PORT": 8080,
 
     "RDSERVER_HOST": "localhost",
-    "RDSERVER_PORT": 6379,
+    "RDSERVER_CACHE_PORT": 6379,
+    "RDSERVER_SESSION_PORT": 6379,
 
     "RTMSERVER_HOST": "localhost",
     "RTMSERVER_PORT": 8000, 
