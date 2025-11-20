@@ -66,7 +66,6 @@ class Gateway:
             ws,
             logger,
             rdserver_session,
-            rdserver_cache,
             storage_images_path: str, 
             storage_files_path: str, 
             max_message_length: dict, 
@@ -91,7 +90,6 @@ class Gateway:
         self.session = session
         self.ws = ws
         self.rdserver_session = rdserver_session
-        self.rdserver_cache = rdserver_cache
         self.logger = logger
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
@@ -247,7 +245,7 @@ class Gateway:
             client = client_res.scalar_one_or_none()
 
             if not client:
-                self.rdserver_session.delete(f"client:{id}") #?
+                self.rdserver_session.delete(f"client:{id}")
                 return False, None
             return True, client
         
@@ -258,9 +256,7 @@ class Gateway:
         if not status:
             return False, None
 
-        client_res = await session.execute(select(Client).options(
-            selectinload(Client.groups),
-        ).where(and_(
+        client_res = await session.execute(select(Client).where(and_(
             Client.username == username,
             Client.id == id, 
             Client.token == refresh_token
@@ -273,29 +269,7 @@ class Gateway:
         return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc), client
 
     """
-    HOT REFRESHER (Non-API)
-    """
-
-    async def __hot_refresh(self, client: Client, refresh_token: str) -> EmitCommon:
-        status, username, id, expires_at = self.__decode_refresh_token(refresh_token)
-        if not status:
-            return False, None
-        
-        if not datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc):
-            return False, None
-        
-        if not client.username == username and \
-        client.id == id and \
-        client.token == refresh_token:
-            return False, None
-        
-        return True, {
-            "session_token": self.__encode_session_token(client.id),
-            "wait_for": self.heartbeat_delta,
-        }
-
-    """
-    COLD REFRESHER
+    REFRESHER
     """
 
     async def __refresh_session(self, refresh_token: str, session) -> EmitCommon:
@@ -350,7 +324,7 @@ class Gateway:
         )
 
         session_token = self.__encode_session_token(id)
-        await self.rdserver.setex(f"client:{id}", session_token, expires_in)
+        await self.rdserver_session.setex(f"client:{id}", session_token, expires_in)
 
         return self.__construct_response(True, {
             "session_token": self.__encode_session_token(),
@@ -377,7 +351,7 @@ class Gateway:
             )
 
             session_token = self.__encode_session_token(client.id)
-            await self.rdserver.setex(f"client:{client.id}", session_token, expires_in)
+            await self.rdserver_session.setex(f"client:{client.id}", session_token, expires_in)
 
             return self.__construct_response(True, {
                 "session_token": self.__encode_session_token(),

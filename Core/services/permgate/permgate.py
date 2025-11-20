@@ -57,10 +57,45 @@ class Permgate:
     
     def __one_of(self, perms: list[str], actual: list[str]):
         return set(perms) & set(actual)
+    
+    """
+    fetch_global_all runs on signup/login to fetch 
+    all groups' permissions for the given client.
+    """
 
-#Redis = System God, Worker = System God's accountant.
-#loading, validation
-    async def load_all(self, client_id: str, group_id: str, session):
+    async def fetch_global_all(self, client_id: str, session):
+        global_perms_res = await session.scalars(
+            select(Group.id, GlobalPermission.name)
+            .join(Group.members)
+            .join(Client.roles)
+            .join(Role.global_permissions)
+            .where(Client.id == client_id).distinct()
+        )
+        global_perms = global_perms_res.all()
+        
+        global_struct = defaultdict(list)
+        for group_id, perm in global_perms:
+            global_struct[group_id].append(perm)
+
+        async with self.rdserver_cache.pipeline(transaction=False) as pipe:
+            for group_id, perms in global_struct.items():
+                await pipe.set(f"client:{client_id}:group:{group_id}", perms) 
+            result = await pipe.execute() #does it return a boolelan?
+
+        if not result:
+            return False, "..."
+        
+        return True, None
+    
+    """
+    fetch_global fetches permissions for the given group. Pass if cached.
+    """
+    
+    async def fetch_global(self, client_id: str, group_id: str, session):
+        index = f"client:{client_id}:group:{group_id}"
+        if await self.rdserver_cache.get(index):
+            return True, None
+
         global_perms_res = await session.scalars(
             select(GlobalPermission.name)
             .join(Group.members)
@@ -72,23 +107,41 @@ class Permgate:
             )).distinct()
         )
         global_perms = global_perms_res.all()
-        await self.rdserver_cache.set(f"client:{client_id}:global", global_perms)
+        
+        result = await self.rdserver_cache.set(index, global_perms) #does it return a boolean?
+
+        if not result:
+            return False, "..."
+        
+        return True, None
+    
+    """
+    fetch_rtr fetches permissions for the given room. Pass if cached.
+    """
+    
+    async def fetch_rtr(self, client_id: str, room_id: str, session):
+        index = f"client:{client_id}:room:{room_id}"
+        if await self.rdserver_cache.get(index):
+            return True, None
 
         rtr_perms_res = await session.execute(
-            select(Room.id, RoleToRoomPermission.name)
-            .join(Role.role_to_room_permissions)
+            select(RoleToRoomPermission.name)
             .join(Client.roles)
-            .join(Room.group)
-            .where(Client.id == client_id).distinct()
+            .join(Role.role_to_room_permissions)
+            .where(and_(
+                Client.id == client_id,
+                RoleToRoomPermission.room_id == room_id,
+            )).distinct()
         )
         rtr_perms = rtr_perms_res.all()
 
-        rtr_struct = defaultdict(list)
-        for room_id, perm in rtr_perms:
-            rtr_struct[room_id].append(perm)
+        result = await self.rdserver_cache.set(index, rtr_perms) #does it return a boolean?
 
-        for room_id, perms in rtr_struct:
-            await self.rdserver_cache.set(f"client:{client_id}:room:{room_id}", perms)
+        if not result:
+            return False, "..."
+        
+        return True, None
+        
 
     """
     async def check_owner(self, group_id: str, client_id: str, session):
