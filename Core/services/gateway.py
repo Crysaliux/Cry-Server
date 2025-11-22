@@ -1,3 +1,10 @@
+"""
+The gateway module handles client API requests.
+
+v0.0.1 beta
+"""
+
+
 from fastapi import FastAPI, Request, Form, Header, Cookie, WebSocket, HTTPException, Depends, WebSocketDisconnect, WebSocketException, APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError

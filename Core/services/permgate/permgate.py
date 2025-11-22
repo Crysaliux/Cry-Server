@@ -1,3 +1,17 @@
+"""
+The permgate module is initialized on the core startup. It parses the requested permissions and resolves their
+child permissions, allowing the client to perform the operation.
+
+The RDServer, later referred to as "the cache", is a Redis-backed server which stores the client
+permissions for faster retrieval.
+
+If the requested data isn't present in the cache, a fallback operation is triggered: the worker queries the database
+through the session instance and fetches the missing data for future use.
+
+v0.0.1 beta
+"""
+
+
 from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
 from sqlalchemy import insert, select, update, delete, exists, and_, or_
 from sqlalchemy.orm import selectinload
@@ -37,7 +51,7 @@ class Permgate:
 
         self.checks = {
             "must_have": self.__must_have,
-            "one_of": self.__one_of,
+            "any_of": self.__any_of,
         }
 
     def __fetch_children(self, perms: list[str], _all: dict[str, list[str]], lookup: dict[str, str]) -> list[str]:
@@ -55,15 +69,61 @@ class Permgate:
     def __must_have(self, perms: list[str], actual: list[str]):
         return set(perms).issubset(set(actual))
     
-    def __one_of(self, perms: list[str], actual: list[str]):
+    def __any_of(self, perms: list[str], actual: list[str]):
         return set(perms) & set(actual)
     
+    def __global_index(self, client_id: str, group_id: str):
+        return f"client:{client_id}:group:{group_id}"
+    
+    def __rtr_index(self, client_id: str, room_id: str):
+        return f"client:{client_id}:room:{room_id}"
+    
     """
-    fetch_global_all runs on signup/login to fetch 
-    all groups' permissions for the given client.
+    CACHING DATA
     """
 
-    async def fetch_global_all(self, client_id: str, session):
+    async def __cache_global_all(self, client_id: str, global_perms: list[tuple[str]]):
+        global_struct = defaultdict(list) #returns status, error
+        for group_id, perm in global_perms:
+            global_struct[group_id].append(perm)
+
+        async with self.rdserver_cache.pipeline(transaction=False) as pipe:
+            for group_id, perms in global_struct.items():
+                await pipe.set(self.__global_index(client_id, group_id), perms) 
+            result = await pipe.execute() #does it return a boolelan?
+
+        if not result:
+            return False, "..."
+        
+        return True, None
+    
+    async def __cache_global(self, client_id: str, group_id: str, global_perms: list[str]):
+        result = await self.rdserver_cache.set(
+            self.__global_index(client_id, group_id), 
+            global_perms,
+        ) #does it return a boolean?
+
+        if not result:
+            return False, "..."
+        
+        return True, None
+    
+    async def __cache_rtr(self, client_id: str, room_id: str, rtr_perms: list[str]):
+        result = await self.rdserver_cache.set(
+            self.__rtr_index(client_id, room_id), 
+            rtr_perms,
+        ) #does it return a boolean?
+
+        if not result:
+            return False, "..."
+        
+        return True, None
+    
+    """
+    FETCHING DATA
+    """
+
+    async def prefetch_global_all(self, client_id: str, session):
         global_perms_res = await session.scalars(
             select(Group.id, GlobalPermission.name)
             .join(Group.members)
@@ -73,27 +133,19 @@ class Permgate:
         )
         global_perms = global_perms_res.all()
         
-        global_struct = defaultdict(list)
-        for group_id, perm in global_perms:
-            global_struct[group_id].append(perm)
+        status, error = await self.__cache_global_all(client_id, global_perms)
 
-        async with self.rdserver_cache.pipeline(transaction=False) as pipe:
-            for group_id, perms in global_struct.items():
-                await pipe.set(f"client:{client_id}:group:{group_id}", perms) 
-            result = await pipe.execute() #does it return a boolelan?
-
-        if not result:
-            return False, "..."
+        if not status:
+            return False, error
         
         return True, None
     
     """
-    fetch_global fetches permissions for the given group. Pass if cached.
+    fetch_global fetches permissions for the given group. Passes if cached.
     """
     
-    async def fetch_global(self, client_id: str, group_id: str, session):
-        index = f"client:{client_id}:group:{group_id}"
-        if await self.rdserver_cache.get(index):
+    async def prefetch_global(self, client_id: str, group_id: str, session):
+        if await self.rdserver_cache.get(self.__global_index(client_id, group_id)):
             return True, None
 
         global_perms_res = await session.scalars(
@@ -108,20 +160,19 @@ class Permgate:
         )
         global_perms = global_perms_res.all()
         
-        result = await self.rdserver_cache.set(index, global_perms) #does it return a boolean?
+        status, error = await self.__cache_global(client_id, group_id, global_perms)
 
-        if not result:
-            return False, "..."
+        if not status:
+            return False, error
         
         return True, None
     
     """
-    fetch_rtr fetches permissions for the given room. Pass if cached.
+    fetch_rtr fetches permissions for the given room. Passes if cached.
     """
     
-    async def fetch_rtr(self, client_id: str, room_id: str, session):
-        index = f"client:{client_id}:room:{room_id}"
-        if await self.rdserver_cache.get(index):
+    async def prefetch_rtr(self, client_id: str, room_id: str, session):
+        if await self.rdserver_cache.get(self.__rtr_index(client_id, room_id)):
             return True, None
 
         rtr_perms_res = await session.execute(
@@ -135,92 +186,78 @@ class Permgate:
         )
         rtr_perms = rtr_perms_res.all()
 
-        result = await self.rdserver_cache.set(index, rtr_perms) #does it return a boolean?
+        status, error = await self.__cache_rtr(client_id, room_id, rtr_perms)
 
-        if not result:
-            return False, "..."
+        if not status:
+            return False, error
         
         return True, None
-        
+    
 
-    """
-    async def check_owner(self, group_id: str, client_id: str, session):
-        owner_group_rel_exists = await session.execute(select(exists().where(and_(
-            Group.id == group_id,
-            Group.owner_id == client_id,
-        )))).scalar()
-        if not owner_group_rel_exists:
-            return False
-        return True
-    
-    async def check_author(self, message_id: str, client_id: str, session):
-        author_message_rel_exists = await session.execute(select(exists().where(and_(
-            Message.id == message_id,
-            Message.author_id == client_id,
-        )))).scalar()
-        if not author_message_rel_exists:
-            return False
-        return True
-    
     async def check_global(
             self, 
-            group_id: str, 
             client_id: str, 
-            perms: list[str], 
+            group_id: str, 
             check: Literal["must_have", "any_of"], 
             session
-        ):   
+        ):
+        index = f"client:{client_id}:group:{group_id}"
+        perms = await self.rdserver_cache.get(index)
         if not perms:
-            return False
+            perms_res = await session.scalars(
+                select(GlobalPermission.name)
+                .join(Client.groups)
+                .join(Client.roles)
+                .join(Role.global_permissions)
+                .where(and_(
+                    Client.id == client_id,
+                    Group.id == group_id,
+                ))
+                .distinct()
+            )
+            perms = perms_res.all()
 
-        permissions_res = await session.scalars(
-            select(GlobalPermission.name)
-            .join(Client.groups)
-            .join(Client.roles)
-            .join(Role.global_permissions)
-            .where(and_(
-                Client.id == client_id,
-                Group.id == group_id,
-            ))
-            .distinct()
-        )
-        permissions = permissions_res.all()
 
-        status, actual = self.__fetch_children(permissions, self.global_all, self.global_lookup)
+        if not perms:
+            return False, "..."
+        
+        
+        status, actual = self.__fetch_children(perms, self.global_all, self.global_lookup)
         if not status:
-            return False
+            return False, "..."
             
-        return self.checks[check](perms, actual)
+        return self.checks[check](perms, actual), None
     
+
     async def check_rtr(
             self, 
             client_id: str, 
             room_id: str, 
-            perms: list[str], 
             check: Literal["must_have", "any_of"], 
             session
-        ):    
+        ):
+        perms = await self.rdserver_cache.get(self.__rtr_index(client_id, room_id))
         if not perms:
-            return False
-
-        permissions_res = await session.scalars(
-            select(RoleToRoomPermission.name)
-            .join(Client.roles)
-            .join(Role.role_to_room_permissions)
-            .where(and_(
-                Client.id == client_id,
-                RoleToRoomPermission.room_id == room_id,
-            ))
-            .distinct()
-        )
-        permissions = permissions_res.all()
-
-        status, actual = self.__fetch_children(permissions, self.global_all, self.global_lookup)
-        if not status:
-            return False
+            perms_res = await session.scalars(
+                select(RoleToRoomPermission.name)
+                .join(Client.roles)
+                .join(Role.role_to_room_permissions)
+                .where(and_(
+                    Client.id == client_id,
+                    RoleToRoomPermission.room_id == room_id,
+                )).distinct()
+            )
+            perms = perms_res.all()
+        if not perms:
+            return False, "..."
         
-        return self.checks[check](perms, actual)
-    
+        status, actual = self.__fetch_children(perms, self.rtr_all, self.rtr_lookup)
+        if not status:
+            return False, "..."
+            
+        return self.checks[check](perms, actual), None
+
+
     async def evaluator(self, vld: dict[partial]):
         if callable(vld):
             return await vld()
@@ -229,33 +266,22 @@ class Permgate:
 
         if operation == "and":
             for child in children:
-                if not await self.evaluator(child):
-                    return False
+                status, error = await self.evaluator(child)
+                if not status:
+                    return False, error
             return True
 
         if operation == "or":
             for child in children:
-                if await self.evaluator(child):
-                    return True
+                status, _ = await self.evaluator(child)
+                if status:
+                    return True, None
             return False
 
         raise ValueError(f"Invalid operation: {operation}")
-    
 
-    async def fetch_accessable(self, client_id: str, group_id: str, session):
-        rooms_res = await session.scalars(
-            select(Room.name)
-            .join(Room.role_to_room_permissions)
-            .join(RoleToRoomPermission.role)
-            .join(Role.assignees)
-            .join(Client.groups)
-            .where(and_(
-                Client.id == client_id,
-                Group.id == group_id,
-                RoleToRoomPermission.name == "VIEW_ROOM"
-        )))
-        rooms = rooms_res.all()
-        return rooms
+    """
+    ASSIGNING PERMISSIONS
     """
 
     async def assign_global(role_id: str, perms: list[str], session):
@@ -279,9 +305,35 @@ class Permgate:
         )))
         await session.commit()
 
-    
-    async def assign_rtr(role_id: str, room_id: str, perms: list[str], session):
+    """
+    ADDING/REMOVING PERMISSIONS
+    """
+
+    async def add_global(role_id: str, perms: list[str], session):
         query = insert(GlobalPermission).values(
+            [
+                {
+                    "role_id": role_id,
+                    "name": perm.name,
+                    "id": str(uuid.uuid4()),
+                } 
+            for perm in perms])
+        query = query.prefix_with("IGNORE")
+
+        await session.execute(query)
+        await session.commit()
+
+
+    async def remove_global(role_id: str, perms: list[str], session):
+        await session.execute(delete(GlobalPermission).where(and_(
+            GlobalPermission.role_id == role_id,
+            GlobalPermission.name.in_(perms),
+        )))
+        await session.commit()
+
+
+    async def add_rtr(role_id: str, room_id: str, perms: list[str], session):
+        query = insert(RoleToRoomPermission).values(
             [
                 {
                     "room_id": room_id,
@@ -295,33 +347,11 @@ class Permgate:
         await session.execute(query)
         await session.commit()
 
+
     async def remove_rtr(role_id: str, room_id: str, perms: list[str], session):
         await session.execute(delete(RoleToRoomPermission).where(and_(
             RoleToRoomPermission.role_id == role_id,
             RoleToRoomPermission.room_id == room_id,
-            RoleToRoomPermission.permission_name.in_(perms),
+            RoleToRoomPermission.name.in_(perms),
         )))
         await session.commit()
-
-"""
-role = session.query(Role).filter_by(name="moderator").one()
-channel = session.query(Channel).filter_by(name="general").one()
-
-link = RoleToRoomPermission(
-    role=role,
-    channel=channel,
-    can_send_message=True, 
-    can_pin_message=True
-)
-session.add(link)
-session.commit()
-
-for link in role.channel_links:
-    print(link.channel.name, link.can_send_message, link.can_pin_message)
-
-
-FOR SPEED:
-
-session.add_all([Permission(name=n) for n in names])
-session.commit() !!!
-"""
