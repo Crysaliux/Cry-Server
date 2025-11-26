@@ -108,6 +108,21 @@ class Permgate:
         
         return True, None
     
+    async def __cache_rtr_all(self, client_id: str, rtr_perms: list[tuple[str]]):
+        rtr_struct = defaultdict(list) #returns status, error
+        for room_id, perm in rtr_perms:
+            rtr_struct[room_id].append(perm)
+
+        async with self.rdserver_cache.pipeline(transaction=False) as pipe:
+            for room_id, perms in rtr_struct.items():
+                await pipe.set(self.__global_index(client_id, room_id), perms) 
+            result = await pipe.execute() #does it return a boolelan?
+
+        if not result:
+            return False, "..."
+        
+        return True, None
+    
     async def __cache_rtr(self, client_id: str, room_id: str, rtr_perms: list[str]):
         result = await self.rdserver_cache.set(
             self.__rtr_index(client_id, room_id), 
@@ -144,7 +159,7 @@ class Permgate:
     fetch_global fetches permissions for the given group. Passes if cached.
     """
     
-    async def prefetch_global(self, client_id: str, group_id: str, session):
+    async def prefetch_global(self, client_id: str, group_id: str, session): #run on every group join
         if await self.rdserver_cache.get(self.__global_index(client_id, group_id)):
             return True, None
 
@@ -159,6 +174,14 @@ class Permgate:
             )).distinct()
         )
         global_perms = global_perms_res.all()
+
+        rtr_perms_res = await session.execute(
+            select(Room.id, RoleToRoomPermission.name)
+            .join(Client.roles)
+            .join(Role.role_to_room_permissions)
+            .where(and_(Client.id == client_id,)).distinct()
+        )
+        rtr_perms = rtr_perms_res.all()
         
         status, error = await self.__cache_global(client_id, group_id, global_perms)
 
@@ -171,7 +194,7 @@ class Permgate:
     fetch_rtr fetches permissions for the given room. Passes if cached.
     """
     
-    async def prefetch_rtr(self, client_id: str, room_id: str, session):
+    async def prefetch_rtr(self, client_id: str, room_id: str, session): #run on every room join
         if await self.rdserver_cache.get(self.__rtr_index(client_id, room_id)):
             return True, None
 
@@ -201,8 +224,7 @@ class Permgate:
             check: Literal["must_have", "any_of"], 
             session
         ):
-        index = f"client:{client_id}:group:{group_id}"
-        perms = await self.rdserver_cache.get(index)
+        perms = await self.rdserver_cache.get(self.__rtr_index(client_id, group_id))
         if not perms:
             perms_res = await session.scalars(
                 select(GlobalPermission.name)
@@ -217,10 +239,12 @@ class Permgate:
             )
             perms = perms_res.all()
 
+            status, error = await self.__cache_global(client_id, group_id, perms)
+            if not status:
+                return False, error
 
         if not perms:
             return False, "..."
-        
         
         status, actual = self.__fetch_children(perms, self.global_all, self.global_lookup)
         if not status:
@@ -248,6 +272,11 @@ class Permgate:
                 )).distinct()
             )
             perms = perms_res.all()
+
+            status, error = await self.__cache_rtr(client_id, room_id, perms)
+            if not status:
+                return False, error
+
         if not perms:
             return False, "..."
         
