@@ -52,16 +52,14 @@ class Core(FastAPI):
         self.sv_port = CONFIG["SERVER_PORT"]
         self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
         self.rtmserver_url = f"http://{CONFIG['RTMSERVER_HOST']}:{CONFIG['RTMSERVER_PORT']}"
-        self.rdserver_cache = Redis(
+        self.rdserver_cache = RDServer(
             host=CONFIG['RDSERVER_HOST'],
             port=CONFIG['RDSERVER_CACHE_PORT'],
-            decode_responses=True,
             db=0
         )
-        self.rdserver_session = Redis(
+        self.rdserver_session = RDServer(
             host=CONFIG['RDSERVER_HOST'],
             port=CONFIG['RDSERVER_SESSION_PORT'],
-            decode_responses=True,
             db=1
         )
         
@@ -149,6 +147,8 @@ class Core(FastAPI):
         await asyncio.gather(
             self.__background_worker(),
             self.__background_session_monitor(),
+            self.__background_rdserver_cache(),
+            self.__background_rdserver_session(),
         )
 
     #Background services
@@ -157,6 +157,12 @@ class Core(FastAPI):
 
     async def __background_session_monitor(self):
         await self.gateway.run_session_monitor()
+
+    async def __background_rdserver_cache(self):
+        await self.rdserver_cache.connect()
+
+    async def __background_rdserver_session(self):
+        await self.rdserver_session.connect()
 
 
     async def __main(self, request: Request):

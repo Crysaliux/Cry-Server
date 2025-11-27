@@ -22,7 +22,6 @@ from PIL import Image
 from functools import wraps
 from functools import partial
 import aiofiles
-from socketio.async_server import AsyncServer
 from typing import Union
 import asyncio
 import uuid
@@ -148,7 +147,7 @@ class Gateway:
             setattr(self, f"_call_{event["name"]}", self.ws(event["handler"], self.session))
     
     async def run_session_monitor(self) -> None:
-        pubsub = self.rdserver_session.pubsub()
+        pubsub = self.rdserver_session.r.pubsub()
         await pubsub.psubscribe("__keyevent@0__:expired")
 
         async for message in pubsub.listen():
@@ -244,19 +243,21 @@ class Gateway:
     async def __verify_session(self, session_token: str, session) -> tuple[bool, Client | None]:
         status, id, _ = self.__decode_session_token(session_token)
         if not status:
-            return False, None
+            return False, None, "313"
 
-        fetched = await self.rdserver.get(f"client:{id}")
+        status, fetched, error = await self.rdserver.get_(f"client:{id}") #compatability?
         if fetched == session_token:
             client_res = await session.execute(select(Client).where(Client.id == id))
             client = client_res.scalar_one_or_none()
 
             if not client:
-                self.rdserver_session.delete(f"client:{id}")
-                return False, None
-            return True, client
+                status, error = self.rdserver_session.delete_(f"client:{id}")
+                if not status:
+                    return False, None, error
+                return False, None, "305"
+            return True, client, None
         
-        return False, None
+        return False, None, "..."
     
     async def __verify_refresh(self, refresh_token: str, session) -> tuple[bool, Client | None]:
         status, username, id, expires_at = self.__decode_refresh_token(refresh_token)

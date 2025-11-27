@@ -11,9 +11,15 @@ Error codes:
     104 - unexpected database server error
 
 - RDServer
-    200 - failed to validate response modal
-    201 - network error upon request
-    202 - unexpected error upon request
+    200 - server disconnected
+    201 - failed to set data
+    202 - data validation error
+    203 - execution error
+    204 - skipped empty update
+    205 - unexpected error during update process
+    206 - no existing data found
+    207 - data not found or could not be deleted
+    208 - unexpected error upon deleting data
 
 - Oauth/events
     300 - session refresh failed
@@ -29,6 +35,7 @@ Error codes:
     310 - failed to save file(s)
     311 - global name exists
     312 - missing permissions
+    313 - session token decoding failed
 
 
 RDServer (Redis server):

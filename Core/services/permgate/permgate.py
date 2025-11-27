@@ -159,7 +159,7 @@ class Permgate:
     fetch_global fetches permissions for the given group. Passes if cached.
     """
     
-    async def prefetch_global(self, client_id: str, group_id: str, session): #run on every group join
+    async def fetch_global(self, client_id: str, group_id: str, session): #status, error
         if await self.rdserver_cache.get(self.__global_index(client_id, group_id)):
             return True, None
 
@@ -179,12 +179,15 @@ class Permgate:
             select(Room.id, RoleToRoomPermission.name)
             .join(Client.roles)
             .join(Role.role_to_room_permissions)
-            .where(and_(Client.id == client_id,)).distinct()
+            .where(Client.id == client_id).distinct()
         )
         rtr_perms = rtr_perms_res.all()
         
         status, error = await self.__cache_global(client_id, group_id, global_perms)
-
+        if not status:
+            return False, error
+        
+        status, error = await self.__cache_rtr_all(client_id, rtr_perms)
         if not status:
             return False, error
         
@@ -194,7 +197,7 @@ class Permgate:
     fetch_rtr fetches permissions for the given room. Passes if cached.
     """
     
-    async def prefetch_rtr(self, client_id: str, room_id: str, session): #run on every room join
+    async def fetch_rtr(self, client_id: str, room_id: str, session):
         if await self.rdserver_cache.get(self.__rtr_index(client_id, room_id)):
             return True, None
 
