@@ -45,7 +45,7 @@ class Client(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     id : Mapped[str] = mapped_column(String(36), primary_key=True)
 
-    token: Mapped[str]
+    refresh_token: Mapped[str]
     last_login: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     friends = relationship("Client", 

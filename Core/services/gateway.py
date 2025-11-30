@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTML
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
 from .worker import Client, Group, Space, Room, Message, Role
+from .rdserver import RedisDataModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete, exists, and_
 from sqlalchemy.orm import selectinload
@@ -145,21 +146,6 @@ class Gateway:
     def __register_events(self) -> None:
         for event in self.events:
             setattr(self, f"_call_{event["name"]}", self.ws(event["handler"], self.session))
-    
-    async def run_session_monitor(self) -> None:
-        pubsub = self.rdserver_session.r.pubsub()
-        await pubsub.psubscribe("__keyevent@0__:expired")
-
-        async for message in pubsub.listen():
-            key = message.get("data")
-            if isinstance(key, (str)):
-                client_id = key.split(":")[1]
-                await self.__call_rtmserver("disconnect", {
-                    "user_id": client_id,
-                    "data": {
-                        "type": "session_expired",
-                    }
-                })
 
 
     async def __call_rtmserver(self, method: str, params: dict[str, str | int | bool | dict[str, str | int | bool]]) -> dict[str, str | int]:
@@ -199,9 +185,9 @@ class Gateway:
     def __decode_refresh_token(self, refresh_token: str) -> tuple[bool, str | None, str | None, str | None, str | None]:
         try:
             payload = jwt.decode(refresh_token, self.access_key, algorithms=[self.algorithm])
-            return True, payload["username"], payload["id"], payload["exp"]
+            return True, payload["sub"], payload["exp"]
         except (ExpiredSignatureError, InvalidTokenError):
-            return False, None, None, None
+            return False, None, None
         
     def __encode_session_token(self, id: str) -> str:
         expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=self.session_expiration)).timestamp())
@@ -214,14 +200,13 @@ class Gateway:
 
         return session_token
     
-    def __encode_refresh_token(self, id: str, username: str) -> tuple[str, int]:
+    def __encode_refresh_token(self, id: str) -> tuple[str, int]:
         expires_at = int((datetime.now(timezone.utc) + timedelta(days=self.login_expiration)).timestamp())
         expires_in = int(timedelta(days=self.login_expiration).total_seconds())
 
         refresh_token = jwt.encode(
             {
-                "username": username, 
-                "id": id,
+                "sub": id,
                 "exp": expires_at,
             }, self.access_key, algorithm=self.algorithm)
 
@@ -240,53 +225,87 @@ class Gateway:
 
 
 
-    async def __verify_session(self, session_token: str, session) -> tuple[bool, Client | None]:
-        status, id, _ = self.__decode_session_token(session_token)
+    async def __verify_session(self, session_token: str) -> tuple[bool, Client | None]:
+        status, id, expires_at = self.__decode_session_token(session_token)
         if not status:
             return False, None, "313"
-
-        status, fetched, error = await self.rdserver.get_(f"client:{id}") #compatability?
-        if fetched == session_token:
-            client_res = await session.execute(select(Client).where(Client.id == id))
-            client = client_res.scalar_one_or_none()
-
-            if not client:
-                status, error = self.rdserver_session.delete_(f"client:{id}")
-                if not status:
-                    return False, None, error
-                return False, None, "305"
-            return True, client, None
         
-        return False, None, "..."
+        if datetime.now(timezone.utc) > datetime.fromtimestamp(expires_at, tz=timezone.utc):
+            return False, None, "301"
+
+        status, client, error = await self.rdserver_session.get_(f"client:{id}")
+        if not status:
+            return False, None, error
+        if not client:
+            return False, None, "305"
+        if client.session_token != session_token:
+            return False, None, "314"
+        return True, client, None
     
     async def __verify_refresh(self, refresh_token: str, session) -> tuple[bool, Client | None]:
-        status, username, id, expires_at = self.__decode_refresh_token(refresh_token)
+        status, id, expires_at = self.__decode_refresh_token(refresh_token)
         if not status:
-            return False, None
+            return False, None, "315"
 
-        client_res = await session.execute(select(Client).where(and_(
-            Client.username == username,
-            Client.id == id, 
-            Client.token == refresh_token
-        )))
-        client = client_res.scalar_one_or_none()
+        if datetime.now(timezone.utc) > datetime.fromtimestamp(expires_at, tz=timezone.utc):
+            return False, None, "316"
 
+        status, client, error = await self.rdserver_session.get_(f"client:{id}")
+        if not status:
+            return False, None, error
         if not client:
-            return False, None
-        
-        return datetime.now(timezone.utc) <= datetime.fromtimestamp(expires_at, tz=timezone.utc), client
+            fback_client_res = await session.execute(select(Client).where(
+                and_(
+                    Client.id == id,
+                    Client.refresh_token == refresh_token,
+                )
+            ))
+            fback_client = fback_client_res.scalar_one_or_none()
+            if not fback_client:
+                return False, None, "305"
+            
+            model = RedisDataModel(**{
+                "username": fback_client.username,
+                "nickname": fback_client.nickname,
+                "password": fback_client.password_hashed,
+                "email": fback_client.email,
+                "date_or_birth": fback_client.date_of_birth,
+
+                "refresh_token": refresh_token,
+                "permissions": {
+                    "groups": {}, # "group_id": [..]
+                    "rooms": {},# "room_id": [...]
+                },
+            })
+
+            await self.rdserver_session.set_(
+                f"client:{id}",
+                model,
+            )
+
+            return True, id, None
+
+        if client.refresh_token != refresh_token:
+            return False, None, "317"
+        return True, id, None
 
     """
     REFRESHER
     """
 
     async def __refresh_session(self, refresh_token: str, session) -> EmitCommon:
-        status, client = await self.__verify_refresh(refresh_token, session)
+        status, id, error = await self.__verify_refresh(refresh_token, session)
         if not status:
-            return self.__construct_response(False, error="300")
+            return self.__construct_response(False, error=error)
+        
+        session_token = self.__encode_session_token(id)
+
+        status, error = await self.rdserver_session.update_(f"client:{id}", {"session_token": session_token})
+        if not status:
+            return self.__construct_response(False, error=error)
 
         return self.__construct_response(True, {
-            "session_token": self.__encode_session_token(client.id),
+            "session_token": self.__encode_session_token(id),
             "wait_for": self.heartbeat_delta,
         })
     
@@ -309,18 +328,38 @@ class Gateway:
             return self.__construct_response(False, error="304")
 
         id = str(uuid.uuid4())
-        refresh_token, expires_in = self.__encode_refresh_token(id, body.username)
+        refresh_token, expires_in = self.__encode_refresh_token(id)
+        password_hashed, dob = self.hasher.hash(body.password), date.fromisoformat(body.date_of_birth)
 
         session.add(Client(
             username=body.username,
             nickname=body.username.capitalize(), #CHANGE LATER!!!
-            password_hashed=self.hasher.hash(body.password),
+            password_hashed=password_hashed,
             email=body.email,
-            date_of_birth=date.fromisoformat(body.date_of_birth),
-            token=refresh_token, 
+            date_of_birth=dob,
+            refresh_token=refresh_token,
             id=id
         ))
         await session.commit()
+
+        model = RedisDataModel(**{
+            "username": body.username,
+            "nickname": body.nickname,
+            "password": password_hashed,
+            "email": body.email,
+            "date_or_birth": dob,
+
+            "refresh_token": refresh_token,
+            "permissions": {
+                "groups": {}, # "group_id": [..]
+                "rooms": {},# "room_id": [...]
+            },
+        })
+
+        await self.rdserver_session.set_(
+            f"client:{id}",
+            model,
+        )
 
         response.set_cookie(
             key="refresh_token",
@@ -331,11 +370,8 @@ class Gateway:
             max_age=expires_in,
         )
 
-        session_token = self.__encode_session_token(id)
-        await self.rdserver_session.setex(f"client:{id}", session_token, expires_in)
-
         return self.__construct_response(True, {
-            "session_token": self.__encode_session_token(),
+            "session_token": self.__encode_session_token(id),
             "wait_for": self.heartbeat_delta,
         })
     
@@ -344,27 +380,51 @@ class Gateway:
         client = client_res.scalar_one_or_none()
 
         if not client:
-            return self.__construct_response(False, error="305")
+            return self.__construct_response(False, error="318")
+        """
+        We return 318 (invalid credentials) here as we fetch client by email
+        """
         
-        if self.hasher.verify(client.password_hashed, body.password):
-            refresh_token, expires_in = self.__encode_refresh_token(client.id, client.username)
+        if not self.hasher.verify(client.password_hashed, body.password):
+            return self.__construct_response(False, error="318")
 
-            response.set_cookie(
-                key="refresh_token",
-                value=refresh_token,
-                httponly=True,
-                secure=True,
-                samesite="none",
-                max_age=expires_in,
-            )
+        refresh_token, expires_in = self.__encode_refresh_token(client.id)
+        
+        client.refresh_token = refresh_token
+        await session.commit() #will work?
 
-            session_token = self.__encode_session_token(client.id)
-            await self.rdserver_session.setex(f"client:{client.id}", session_token, expires_in)
+        model = RedisDataModel(**{
+            "username": client.username,
+            "nickname": client.nickname,
+            "password": body.password,
+            "email": body.email,
+            "date_or_birth": client.date_of_birth,
 
-            return self.__construct_response(True, {
-                "session_token": self.__encode_session_token(),
-                "wait_for": self.heartbeat_delta,
-            })
+            "refresh_token": refresh_token,
+            "permissions": {
+                "groups": {}, # "group_id": [..]
+                "rooms": {},# "room_id": [...]
+            },
+        })
+            
+        await self.rdserver_session.set_(
+            f"client:{id}",
+            model,
+        )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=expires_in,
+        )
+
+        return self.__construct_response(True, {
+            "session_token": self.__encode_session_token(client.id),
+            "wait_for": self.heartbeat_delta,
+        })
         
     """
     EVENTS:
@@ -373,9 +433,9 @@ class Gateway:
 
     #MEDIA
     async def __upload_attachement(self, session_token: str, file: UploadFile) -> EmitCommon:
-        status, _ = await self.__verify_session(session_token)
+        status, _, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
 
         filename = f"{uuid.uuid4()}.{file.filename.split(".")[-1]}"
         data = await file.read()
@@ -399,9 +459,9 @@ class Gateway:
 
     #GROUP        
     async def __create_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         global_name_exists = await session.execute(select(exists().where(Group.global_name == body.global_name))).scalar()
         if global_name_exists:
@@ -435,9 +495,9 @@ class Gateway:
         })
     
     async def __edit_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not await self.pg.evaluator((
             "or",
@@ -490,9 +550,9 @@ class Gateway:
         return self.__construct_response(True)
 
     async def __delete_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not await self.pg.evaluator((
             "or",
@@ -530,9 +590,9 @@ class Gateway:
     #start working on frontend infrastructure
 
     async def __join_group(self, session_token: str, refresh_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         #check for banned.
 
@@ -548,9 +608,9 @@ class Gateway:
 
     #SPACE      
     async def __create_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -603,9 +663,9 @@ class Gateway:
         })
     
     async def __edit_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not await self.pg.evaluator((
             "or",
@@ -645,9 +705,9 @@ class Gateway:
         return self.__construct_response(True)
 
     async def __delete_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not await self.pg.evaluator((
             "or",
@@ -686,9 +746,9 @@ class Gateway:
 
     #ROOM    
     async def __create_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -745,9 +805,9 @@ class Gateway:
         })
     
     async def __edit_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not await self.pg.evaluator((
             "or",
@@ -803,9 +863,9 @@ class Gateway:
         return self.__construct_response(True)
 
     async def __delete_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not self.pg.evaluator((
             "or",
@@ -857,9 +917,9 @@ class Gateway:
         return self.__construct_response(True)
     
     async def __relocate_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         space_res = await session.execute(
             select(Space).where(Space.id == body.space_id)
@@ -919,9 +979,9 @@ class Gateway:
 
     #MESSAGE 
     async def __create_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -998,9 +1058,9 @@ class Gateway:
         })
     
     async def __edit_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not self.pg.evaluator((
             "or",
@@ -1053,9 +1113,9 @@ class Gateway:
         return self.__construct_response(True)
 
     async def __delete_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token)
         if not status:
-            return self.__construct_response(False, error="301")
+            return self.__construct_response(False, error=error)
         
         if not self.pg.evaluator((
             "or",

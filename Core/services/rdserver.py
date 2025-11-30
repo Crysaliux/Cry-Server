@@ -68,27 +68,27 @@ class RDServer:
 
     async def update_(self, key: str, new_data: dict) -> tuple[bool, None, str | None]:
         if not new_data: #"Update skipped: new_data dictionary is empty."
-            return False, None, "204"
+            return False, "204"
 
         if not self.r:
-            return False, None, "200"
+            return False, "200"
 
         status, existing_model, error = await self.get_data(key)
         if not status:
-            return False, None, error
+            return False, error
 
         if existing_model:
             try:
                 existing_model.details.update(new_data)
                 set_status, _, error = await self.set_data(key, existing_model)
                 if set_status:
-                    return True, None, None
+                    return True, None
                 else: #Failed to save updated data for key '{key}': {set_error}
-                    return False, None, error
+                    return False, error
             except Exception as e:
-                return False, None, "205"
+                return False, "205"
         else: #Cannot update. No existing data found for key '{key}'.
-            return False, None, "206"
+            return False, "206"
         
     async def delete_(self, key: str) -> tuple[bool, None, tuple[str, str] | None]: #status, error
         if not self.r:
