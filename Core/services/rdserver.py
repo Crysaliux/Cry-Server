@@ -43,13 +43,13 @@ class RDServer:
 
     async def set_(self, key: str, data_model: RedisDataModel) -> tuple[bool, None, str | None]:
         if not self.r: #Cannot set data: Not connected to Redis.
-            return False, None, "200"
+            return False, "200"
         try:
             json_string = data_model.to_redis()
             await self.r.set(key, json_string)
-            return True, None, None
+            return True, None
         except RedisError: #Redis error setting data for key '{key}': {e}
-            return False, None, "201"
+            return False, "201"
 
     async def get_(self, key: str) -> tuple[bool, RedisDataModel | None, str | None]:
         if not self.r:
