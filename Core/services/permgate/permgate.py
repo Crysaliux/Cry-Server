@@ -16,8 +16,11 @@ from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission
 from sqlalchemy import insert, select, update, delete, exists, and_, or_
 from sqlalchemy.orm import selectinload
 from collections import defaultdict
+import numpy as np
 from typing import Literal
 from functools import partial
+import asyncio
+from asyncio import Semaphore
 import json
 import os
 import uuid
@@ -204,8 +207,54 @@ class Permgate:
     """
     ADDING/REMOVING PERMISSIONS
     """
+    async def __batch_worker(
+            self, 
+            semaphore: Semaphore, 
+            clients_batch: list[str], 
+            perms: list[str],
+            operation: Literal["add", "remove"],
+            target: Literal["global", "rtr"],
+            object_id: str
+        ):
+        async with semaphore:
+            status, error = await self.rdserver.perms_bulk_update_(
+                clients_batch,
+                perms,
+                operation,
+                target,
+                object_id
+            )
+            return status, error
 
-    async def add_global(role_id: str, perms: list[str], session):
+    async def __perms_batch_update(
+            self, 
+            clients: list[str],
+            perms: list[str],
+            operation: Literal["add", "remove"],
+            target: Literal["global", "rtr"],
+            object_id: str
+        ):
+        clients = np.array(clients)
+        semaphore  = Semaphore(20) #make adjustable later
+        tasks = [
+            self.__batch_worker(
+                semaphore, 
+                batch, 
+                perms,
+                operation,
+                target,
+                object_id
+            ) for batch in np.array_split(clients, len(clients) // 100) #make adjustable later
+        ]
+        result = await asyncio.gather(*tasks)
+        for resp in result:
+            status, error = resp #It's unlikely to have more than 1000 concurrent tasks, aka 100000 members per group
+            if not status:
+                return False, error
+        return True, None
+
+
+    async def add_global(self, group_id: str, role_id: str, perms: list[str], session):
         query = insert(GlobalPermission).values(
             [
                 {
@@ -218,9 +267,17 @@ class Permgate:
 
         await session.execute(query)
         await session.commit()
+        
+        #selecting group
+        #updating perms
 
+    async def remove_global(self, group_id: str, role_id: str, perms: list[str], session):
+        status, group, error = await self.rdserver.get_(f"group:{group_id}")
+        if not status:
+            return False, False, error
+        if not group:
+            return False, False, "306"
 
-    async def remove_global(role_id: str, perms: list[str], session):
         await session.execute(delete(GlobalPermission).where(and_(
             GlobalPermission.role_id == role_id,
             GlobalPermission.name.in_(perms),
@@ -228,7 +285,7 @@ class Permgate:
         await session.commit()
 
 
-    async def add_rtr(role_id: str, room_id: str, perms: list[str], session):
+    async def add_rtr(self, group_id: str, role_id: str, room_id: str, perms: list[str], session):
         query = insert(RoleToRoomPermission).values(
             [
                 {
@@ -244,7 +301,7 @@ class Permgate:
         await session.commit()
 
 
-    async def remove_rtr(role_id: str, room_id: str, perms: list[str], session):
+    async def remove_rtr(self, role_id: str, room_id: str, perms: list[str], session):
         await session.execute(delete(RoleToRoomPermission).where(and_(
             RoleToRoomPermission.role_id == role_id,
             RoleToRoomPermission.room_id == room_id,

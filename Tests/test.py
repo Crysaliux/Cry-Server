@@ -1,11 +1,23 @@
-from collections import defaultdict
+import asyncio
+import numpy as np
+from asyncio import Semaphore
 
-perms = [("288343463", "BAN"), ("288343463", "KISS"), ("288343463", "NUZZLE"),
-         ("288343", "BOOP"), ("288343", "LICK"), ("288343", "SNUGGLE")]
+async def __flop(clients: list[str]):
+    for _ in clients:
+        pass
+        #print("Client flopped")
 
-struct = defaultdict(list)
-for parent, perm in perms:
-    struct[parent].append(perm)
+async def __batch_worker(semaphore: Semaphore, clients: list[str]):
+    async with semaphore:
+        await __flop(clients)
+
+async def __batch_update(clients: list[str]):
+    clients = np.array(clients)
+    semaphore  = Semaphore(20)
+    tasks = [__batch_worker(semaphore, batch) for batch in np.array_split(clients, len(clients) // 100)]
+    print(tasks)
+    await asyncio.gather(*tasks)
 
 
-print(dict(struct))
+clients = ["yyey737ry737whreueuhfhheifiq3uriq3"] * 9000
+asyncio.run(__batch_update(clients))
