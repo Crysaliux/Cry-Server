@@ -72,7 +72,7 @@ class Gateway:
             session,  
             ws,
             logger,
-            rdserver_session,
+            rdserver,
             storage_images_path: str, 
             storage_files_path: str, 
             max_message_length: dict, 
@@ -96,7 +96,7 @@ class Gateway:
         self.hasher = hasher
         self.session = session
         self.ws = ws
-        self.rdserver_session = rdserver_session
+        self.rdserver = rdserver
         self.logger = logger
         self.storage_images_path = storage_images_path
         self.storage_files_path = storage_files_path
@@ -233,7 +233,7 @@ class Gateway:
         if datetime.now(timezone.utc) > datetime.fromtimestamp(expires_at, tz=timezone.utc):
             return False, None, "301"
 
-        status, client, error = await self.rdserver_session.get_(f"client:{id}")
+        status, client, error = await self.rdserver.get_(f"client:{id}")
         if not status:
             return False, None, error
         if not client:
@@ -250,7 +250,7 @@ class Gateway:
         if datetime.now(timezone.utc) > datetime.fromtimestamp(expires_at, tz=timezone.utc):
             return False, None, "316"
 
-        status, client, error = await self.rdserver_session.get_(f"client:{id}")
+        status, client, error = await self.rdserver.get_(f"client:{id}")
         if not status:
             return False, None, error
         if not client:
@@ -272,13 +272,15 @@ class Gateway:
                 "date_or_birth": fback_client.date_of_birth,
 
                 "refresh_token": refresh_token,
+                "roles": [], #[id_1, id_2, id_3, ...]
                 "permissions": {
                     "groups": {}, # "group_id": [..]
                     "rooms": {},# "room_id": [...]
                 },
+                "id": id,
             })
 
-            await self.rdserver_session.set_(
+            await self.rdserver.set_(
                 f"client:{id}",
                 model,
             )
@@ -288,6 +290,28 @@ class Gateway:
         if client.refresh_token != refresh_token:
             return False, None, "317"
         return True, id, None
+    
+    async def __verify_group(self, group_id: str, session):
+        status, _, error = await self.rdserver.get_(f"group:{group_id}")
+        if not status:
+            return False, error
+        if not group:
+            members_res = await session.execute(
+                select(Client.id)
+                .join(Group.members)
+                .where(Group.id == group_id)
+            )
+            members = members_res.all()
+            if not members:
+                return False, "306"
+            
+            model = RedisDataModel(**{
+                "members": members,
+            })
+            status, error = await self.rdserver.set_(f"group:{group_id}", model)
+            if not status:
+                return False, error
+        return True, None
 
     """
     REFRESHER
@@ -300,7 +324,7 @@ class Gateway:
         
         session_token = self.__encode_session_token(id)
 
-        status, error = await self.rdserver_session.update_(f"client:{id}", {"session_token": session_token})
+        status, error = await self.rdserver.update_(f"client:{id}", {"session_token": session_token})
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -350,13 +374,15 @@ class Gateway:
             "date_or_birth": dob,
 
             "refresh_token": refresh_token,
+            "roles": [], #[id_1, id_2, id_3, ...]
             "permissions": {
                 "groups": {}, # "group_id": [..]
                 "rooms": {},# "room_id": [...]
             },
+            "id": id,
         })
 
-        await self.rdserver_session.set_(
+        await self.rdserver.set_(
             f"client:{id}",
             model,
         )
@@ -401,13 +427,15 @@ class Gateway:
             "date_or_birth": client.date_of_birth,
 
             "refresh_token": refresh_token,
+            "roles": [], #[id_1, id_2, id_3, ...]
             "permissions": {
                 "groups": {}, # "group_id": [..]
                 "rooms": {},# "room_id": [...]
             },
+            "id": id,
         })
             
-        await self.rdserver_session.set_(
+        await self.rdserver.set_(
             f"client:{id}",
             model,
         )
@@ -487,8 +515,6 @@ class Gateway:
         ))
         await session.commit()
 
-        #broadcast for client
-
         return self.__construct_response(True, {
             "id": id,
             "room_id": room_id,
@@ -499,20 +525,20 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not await self.pg.evaluator((
-            "or",
-            [
-                partial(self.pg.check_owner, body.id, client.id, session),
-                partial(
-                    self.pg.check_global,
-                    body.id,
-                    client.id,
-                    ["CO_OWNER", "MANAGE_GROUP"],
-                    "any_of",
-                    session
-                )
-            ]
-        )):
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.id, 
+            ["OWNER", "MANAGE_GROUPS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Group).where(Group.id == body.id).values(
@@ -554,20 +580,20 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not await self.pg.evaluator((
-            "or",
-            [
-                partial(self.pg.check_owner, body.id, client.id, session),
-                partial(
-                    self.pg.check_global,
-                    body.id,
-                    client.id,
-                    ["CO_OWNER", "MANAGE_GROUP"],
-                    "any_of",
-                    session
-                )
-            ]
-        )):
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.id, 
+            ["OWNER", "MANAGE_GROUPS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Group).where(Group.id == body.id))
@@ -575,19 +601,22 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="306")
         
-        status, _, error = await self.__call_rtmserver("unsubscribe", {
+        status, _, error = await self.__call_rtmserver("unsubscribe", {#first unsubscribe as the database instance is deleted
             "channel": f"{self.group_cluster_index}{body.id}",
             "data": {
-                "type": "group_deleted",
+                "type": "group_deleted", #"leave only if being unsubscribed" logic
                 "id": body.id,
             }
         })
 
         if not status:
             return self.__construct_response(False, error=error)
+        
+        status, error = await self.rdserver.delete_(f"group:{body.id}")
+        if not status:
+            return self.__construct_response(False, error=error)
 
-        return self.__construct_response(True) #keep adding broadcasts, etc. group 'n channel, 
-    #start working on frontend infrastructure
+        return self.__construct_response(True)#STOPPED HERE
 
     async def __join_group(self, session_token: str, refresh_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)

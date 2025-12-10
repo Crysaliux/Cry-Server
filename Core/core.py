@@ -54,7 +54,7 @@ class Core(FastAPI):
         self.rtmserver_url = f"http://{CONFIG['RTMSERVER_HOST']}:{CONFIG['RTMSERVER_PORT']}"
         self.rdserver_cache = RDServer(
             host=CONFIG['RDSERVER_HOST'],
-            port=CONFIG['RDSERVER_CACHE_PORT'],
+            port=CONFIG['RDSERVER_CACHE_PORT'], #One redis server only!
             db=0
         )
         self.rdserver_session = RDServer(

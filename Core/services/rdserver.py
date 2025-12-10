@@ -118,22 +118,23 @@ class RDServer:
             perms: list[str], 
             operation: Literal["add", "remove"],
             target: Literal["global", "rtr"],
-            object_id: str
+            target_id: str,
+            role_id: str,
         ) -> tuple[bool, str | None]:
 
         def op_add(model: RedisDataModel, data: list[str], target: Literal["global", "rtr"]):
             if target == "global":
-                model.permissions.groups[object_id].extend(data)
+                model.permissions.groups[target_id].extend(data)
             elif target == "rtr":
-                model.permissions.rooms[object_id].extend(data)
+                model.permissions.rooms[target_id].extend(data)
 
         def op_remove(model: RedisDataModel, data: list[str], target: Literal["global", "rtr"]):
             if target == "global":
-                initial = model.permissions.groups[object_id]
-                model.permissions.groups[object_id] = [_ for _ in initial if _ not in data]
+                initial = model.permissions.groups[target_id]
+                model.permissions.groups[target_id] = [_ for _ in initial if _ not in data]
             elif target == "rtr":
-                initial = model.permissions.rooms[object_id]
-                model.permissions.rooms[object_id] = [_ for _ in initial if _ not in data]
+                initial = model.permissions.rooms[target_id]
+                model.permissions.rooms[target_id] = [_ for _ in initial if _ not in data]
 
         ops = {
             "add": op_add,
@@ -156,8 +157,9 @@ class RDServer:
             try:
                 if obj:
                     model = RedisDataModel.from_redis(obj)
-                    ops[operation](model, perms, target)
-                    pipe.set(key, model.to_redis())
+                    if role_id in model.roles:
+                        ops[operation](model, perms, target)
+                        pipe.set(key, model.to_redis())
             except ValidationError: #Pydantic validation error for key '{key}': {e}. Data might be corrupted or malformed
                 return False, "202"
             except Exception as e: #for later logging!
