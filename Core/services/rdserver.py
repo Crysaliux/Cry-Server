@@ -11,6 +11,8 @@ redis_data_model = RedisData_model(**data)
 v0.0.1 beta
 """
 
+from sqlalchemy import insert, select, update, delete, exists, and_
+from .worker import Client, Group, Space, Room, Message, Role
 from redis.asyncio import Redis, ConnectionError, RedisError
 from pydantic import BaseModel, ValidationError
 from typing import Literal
@@ -25,6 +27,37 @@ class RedisDataModel(BaseModel):
 
     def to_redis(self) -> str:
         return self.model_dump_json()
+    
+
+class Fallback:
+    def __init__(self, session, rdserver):
+        self.session = session
+        self.rdsserver = rdserver
+
+    async def group_(self, group_id: str):
+        status, group, error = await self.rdserver.get_(f"group:{group_id}")
+        if not status:
+            return False, None, error
+        if not group:
+            members_res = await self.session.execute(
+                select(Client.id)
+                .join(Group.members)
+                .where(Group.id == group_id)
+            )
+            members = members_res.all()
+            if not members:
+                return False, None, "306"
+            
+            model = RedisDataModel(**{
+                "members": members,
+            })
+            group = model
+
+            status, error = await self.rdserver.set_(f"group:{group_id}", model)
+            if not status:
+                return False, None, error
+            
+        return True, group, None
 
 
 class RDServer:
@@ -157,8 +190,50 @@ class RDServer:
             try:
                 if obj:
                     model = RedisDataModel.from_redis(obj)
-                    if role_id in model.roles:
+                    if role_id in model.roles.keys():
                         ops[operation](model, perms, target)
+                        pipe.set(key, model.to_redis())
+            except ValidationError: #Pydantic validation error for key '{key}': {e}. Data might be corrupted or malformed
+                return False, "202"
+            except Exception as e: #for later logging!
+                return False, "205"
+        result = await pipe.execute() #for later logging!
+
+        return True, None
+    
+    async def perms_bulk_cleanup_(
+            self, 
+            keys: list[str], 
+            group_id: str,
+            rooms: list[str],
+        ) -> tuple[bool, str | None]:
+
+        if not self.r:
+            return False, "200"
+
+        pipe = self.r.pipeline()
+        for key in keys:
+            pipe.get(key)
+        fetched = await pipe.execute()
+
+        pipe = self.r.pipeline()
+        for key, obj in zip(keys, fetched):
+            try:
+                if obj:
+                    model = RedisDataModel.from_redis(obj)
+                    rfound, gfound, rmfound = False, False, False
+                    if group_id in model.roles.values():
+                        roles_new = {key: value for key, value in model.roles.items() if value != group_id}
+                        model.roles = roles_new
+                        rfound = True
+                    if group_id in model.groups.keys():
+                        del model.groups[group_id]
+                        gfound = True
+                    if rooms in model.rooms.keys():
+                        rooms_new = {key: value for key, value in model.rooms.items() if key not in rooms}
+                        model.rooms = rooms_new
+                        rmfound = True
+                    if rfound or gfound or rmfound:
                         pipe.set(key, model.to_redis())
             except ValidationError: #Pydantic validation error for key '{key}': {e}. Data might be corrupted or malformed
                 return False, "202"

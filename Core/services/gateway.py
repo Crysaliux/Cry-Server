@@ -9,8 +9,8 @@ from fastapi import FastAPI, Request, Form, Header, Cookie, WebSocket, HTTPExcep
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
-from .worker import Client, Group, Space, Room, Message, Role
-from .rdserver import RedisDataModel
+from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission
+from .rdserver import RedisDataModel, Fallback
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete, exists, and_
 from sqlalchemy.orm import selectinload
@@ -272,7 +272,7 @@ class Gateway:
                 "date_or_birth": fback_client.date_of_birth,
 
                 "refresh_token": refresh_token,
-                "roles": [], #[id_1, id_2, id_3, ...]
+                "roles": {}, # "role_id": "group_id"
                 "permissions": {
                     "groups": {}, # "group_id": [..]
                     "rooms": {},# "room_id": [...]
@@ -292,26 +292,9 @@ class Gateway:
         return True, id, None
     
     async def __verify_group(self, group_id: str, session):
-        status, _, error = await self.rdserver.get_(f"group:{group_id}")
-        if not status:
-            return False, error
-        if not group:
-            members_res = await session.execute(
-                select(Client.id)
-                .join(Group.members)
-                .where(Group.id == group_id)
-            )
-            members = members_res.all()
-            if not members:
-                return False, "306"
-            
-            model = RedisDataModel(**{
-                "members": members,
-            })
-            status, error = await self.rdserver.set_(f"group:{group_id}", model)
-            if not status:
-                return False, error
-        return True, None
+        fallback = Fallback(session, self.rdserver)
+        status, _, error = await fallback.group_(group_id)
+        return status, error
 
     """
     REFRESHER
@@ -374,7 +357,7 @@ class Gateway:
             "date_or_birth": dob,
 
             "refresh_token": refresh_token,
-            "roles": [], #[id_1, id_2, id_3, ...]
+            "roles": {}, # "role_id": "group_id"
             "permissions": {
                 "groups": {}, # "group_id": [..]
                 "rooms": {},# "room_id": [...]
@@ -427,7 +410,7 @@ class Gateway:
             "date_or_birth": client.date_of_birth,
 
             "refresh_token": refresh_token,
-            "roles": [], #[id_1, id_2, id_3, ...]
+            "roles": {}, # "role_id": "group_id"
             "permissions": {
                 "groups": {}, # "group_id": [..]
                 "rooms": {},# "room_id": [...]
@@ -495,7 +478,7 @@ class Gateway:
         if global_name_exists:
             return self.__construct_response(False, error="311")
         
-        id, room_id = map(str, [uuid.uuid4() for _ in range(2)])
+        id, room_id, role_id, perm_id = map(str, [uuid.uuid4() for _ in range(4)])
 
         session.add(Group(
             owner=client,
@@ -509,6 +492,18 @@ class Gateway:
                     name="mega room",
                     about_room="Invincible room",
                     id=room_id,
+                )
+            ],
+            roles=[
+                Role(
+                    name="owner",
+                    id=role_id,
+                    global_permissions=[
+                        GlobalPermission(
+                            name="OWNER",
+                            id=perm_id,
+                        )
+                    ],
                 )
             ],
             id=id,
@@ -533,7 +528,7 @@ class Gateway:
             self.pg.check_global, 
             client.id, 
             body.id, 
-            ["OWNER", "MANAGE_GROUPS"], 
+            ["OWNER", "CO_OWNER", "MANAGE_GROUPS"], 
             "any_of",
         ))
         if not status:
@@ -588,20 +583,19 @@ class Gateway:
             self.pg.check_global, 
             client.id, 
             body.id, 
-            ["OWNER", "MANAGE_GROUPS"], 
-            "any_of",
+            ["OWNER"], 
+            "must_have",
         ))
         if not status:
             return self.__construct_response(False, error=error)
         if not allowed:
             return self.__construct_response(False, error="312")
         
-        result = await session.execute(delete(Group).where(Group.id == body.id))
-
-        if result.rowcount() == 0:
-            return self.__construct_response(False, error="306")
+        status, error = await self.pg.cleanup(body.id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__call_rtmserver("unsubscribe", {#first unsubscribe as the database instance is deleted
+        status, _, error = await self.__call_rtmserver("unsubscribe", {
             "channel": f"{self.group_cluster_index}{body.id}",
             "data": {
                 "type": "group_deleted", #"leave only if being unsubscribed" logic
@@ -611,12 +605,7 @@ class Gateway:
 
         if not status:
             return self.__construct_response(False, error=error)
-        
-        status, error = await self.rdserver.delete_(f"group:{body.id}")
-        if not status:
-            return self.__construct_response(False, error=error)
-
-        return self.__construct_response(True)#STOPPED HERE
+        return self.__construct_response(True)
 
     async def __join_group(self, session_token: str, refresh_token: str, body: CreateGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
@@ -640,6 +629,10 @@ class Gateway:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -649,27 +642,23 @@ class Gateway:
         if not group:
             return self.__construct_response(False, error="306")
         
-        if not await self.pg.evaluator((
-            "or",
-            [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
-                partial(
-                    self.pg.check_global,
-                    body.id,
-                    client.id,
-                    ["CO_OWNER", "MANAGE_ROOMS"],
-                    "any_of",
-                    session
-                )
-            ]
-        )):
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.group_id, 
+            ["OWNER", "CO_OWNER", "MANAGE_ROOMS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
 
         id = str(uuid.uuid4())
 
         session.add(Space(
+            creator_id=client.id,
             group=group,
-            creator=client,
             name=body.name,
             id=id,
         ))
@@ -696,20 +685,20 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not await self.pg.evaluator((
-            "or",
-            [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
-                partial(
-                    self.pg.check_global,
-                    body.id,
-                    client.id,
-                    ["CO_OWNER", "MANAGE_ROOMS"],
-                    "any_of",
-                    session
-                )
-            ]
-        )):
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.group_id, 
+            ["OWNER", "CO_OWNER", "MANAGE_ROOMS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Space).where(Space.id == body.id).values(
@@ -738,20 +727,20 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not await self.pg.evaluator((
-            "or",
-            [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
-                partial(
-                    self.pg.check_global,
-                    body.id,
-                    client.id,
-                    ["CO_OWNER", "MANAGE_ROOMS"],
-                    "any_of",
-                    session
-                )
-            ]
-        )):
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.group_id, 
+            ["OWNER", "CO_OWNER", "MANAGE_ROOMS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Space).where(Space.id == body.id))
@@ -778,6 +767,10 @@ class Gateway:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -787,27 +780,23 @@ class Gateway:
         if not group:
             return self.__construct_response(False, error="306")
         
-        if not await self.pg.evaluator((
-            "or",
-            [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
-                partial(
-                    self.pg.check_global,
-                    body.id,
-                    client.id,
-                    ["CO_OWNER", "MANAGE_ROOMS"],
-                    "any_of",
-                    session
-                )
-            ]
-        )):
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.group_id, 
+            body.id, 
+            ["OWNER", "CO_OWNER", "MANAGE_ROOMS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
 
         id = str(uuid.uuid4())
 
         session.add(Room(
+            creator_id=client.id,
             group=group,
-            creator=client,
             name=body.name,
             about_room=body.about_room,
             space_id=body.space_id,
@@ -838,33 +827,44 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not await self.pg.evaluator((
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, allowed, error = await self.pg.evaluator((
             "or",
             [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
+                partial(
+                    self.pg.check_global, 
+                    client.id, 
+                    body.group_id, 
+                    ["OWNER", "CO_OWNER"], 
+                    "any_of"
+                ),
                 (
                     "and",
                     [
                         partial(
                             self.pg.check_global,
-                            body.group_id,
                             client.id,
-                            ["CO_OWNER", "MANAGE_ROOMS"], 
-                            "any_of",
-                            session
+                            body.group_id,
+                            ["MANAGE_GROUPS"],
+                            "must_have",
                         ),
                         partial(
                             self.pg.check_rtr,
-                            body.id,
                             client.id,
-                            ["VIEW_ROOM"], 
+                            body.room_id,
+                            ["VIEW_ROOM"],
                             "must_have",
-                            session
-                        ),
+                        )
                     ]
                 )
             ]
-        )):
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Room).where(Room.id == body.id).values(
@@ -896,33 +896,44 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not self.pg.evaluator((
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, allowed, error = await self.pg.evaluator((
             "or",
             [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
+                partial(
+                    self.pg.check_global, 
+                    client.id, 
+                    body.group_id, 
+                    ["OWNER", "CO_OWNER"], 
+                    "any_of"
+                ),
                 (
                     "and",
                     [
                         partial(
                             self.pg.check_global,
-                            body.group_id,
                             client.id,
-                            ["CO_OWNER", "MANAGE_ROOMS"],
-                            "any_of",
-                            session
+                            body.group_id,
+                            ["MANAGE_GROUPS"],
+                            "must_have",
                         ),
                         partial(
                             self.pg.check_rtr,
-                            body.id,
                             client.id,
+                            body.room_id,
                             ["VIEW_ROOM"],
                             "must_have",
-                            session
-                        ),
+                        )
                     ]
                 )
             ]
-        )):
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Room).where(
@@ -950,38 +961,52 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
         space_res = await session.execute(
             select(Space).where(Space.id == body.space_id)
         )
         space = space_res.scalar_one_or_none()
-
-        if not self.pg.evaluator((
+        
+        if not space:
+            return self.__construct_response(False, error="307")
+        
+        status, allowed, error = await self.pg.evaluator((
             "or",
             [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
+                partial(
+                    self.pg.check_global, 
+                    client.id, 
+                    body.group_id, 
+                    ["OWNER", "CO_OWNER"], 
+                    "any_of"
+                ),
                 (
                     "and",
                     [
                         partial(
                             self.pg.check_global,
-                            body.group_id,
                             client.id,
-                            ["CO_OWNER", "MANAGE_ROOMS"],
-                            "any_of",
-                            session
+                            body.group_id,
+                            ["MANAGE_GROUPS"],
+                            "must_have",
                         ),
                         partial(
                             self.pg.check_rtr,
-                            body.id,
                             client.id,
+                            body.room_id,
                             ["VIEW_ROOM"],
                             "must_have",
-                            session
-                        ),
+                        )
                     ]
                 )
             ]
-        )):
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Room).where(Room.id == body.id).values(
@@ -1011,6 +1036,10 @@ class Gateway:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -1028,33 +1057,41 @@ class Gateway:
         if not room:
             return self.__construct_response(False, error="308")
         
-        if not self.pg.evaluator((
+        status, allowed, error = await self.pg.evaluator((
             "or",
             [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
+                partial(
+                    self.pg.check_global, 
+                    client.id, 
+                    body.group_id, 
+                    ["OWNER", "CO_OWNER"], 
+                    "any_of"
+                ),
                 (
                     "and",
                     [
                         partial(
                             self.pg.check_global,
-                            body.group_id,
                             client.id,
-                            ["CO_OWNER", "SEND_MESSAGES"],
-                            "any_of",
-                            session
+                            body.group_id,
+                            ["SEND_MESSAGES"],
+                            "must_have"
                         ),
                         partial(
                             self.pg.check_rtr,
-                            body.room_id,
                             client.id,
-                            ["VIEW_ROOM", "SEND_MESSAGES"],
-                            "must_have",
-                            session
-                        ),
+                            body.room_id,
+                            ["SEND_MESSAGES", "VIEW_ROOM"],
+                            "must_have"
+                        )
                     ]
                 )
+                       
             ]
-        )):
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
 
         id = str(uuid.uuid4())
@@ -1087,35 +1124,15 @@ class Gateway:
         })
     
     async def __edit_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
-        status, client, error = await self.__verify_session(session_token)
+        status, client, error = await self.__verify_session(session_token) #ponder...
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not self.pg.evaluator((
-            "or",
-            [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
-                (
-                    "and",
-                    [
-                        partial(
-                            self.pg.check_author,
-                            body.id,
-                            client.id,
-                            session
-                        ),
-                        partial(
-                            self.pg.check_rtr,
-                            body.room_id,
-                            client.id,
-                            ["VIEW_ROOM"],
-                            "must_have",
-                            session
-                        )
-                    ]
-                )
-            ]
-        )):
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        if not await self.pg.check_author(client.id, body.id, session):
             return self.__construct_response(False, error="312")
         
         result = await session.execute(update(Message).where(Message.id == body.id).values(
@@ -1146,44 +1163,45 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        if not self.pg.evaluator((
+        status, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, allowed, error = await self.pg.evaluator((
             "or",
             [
-                partial(self.pg.check_owner, body.group_id, client.id, session),
+                partial(
+                    self.pg.check_global, 
+                    client.id, 
+                    body.group_id, 
+                    ["OWNER", "CO_OWNER"], 
+                    "any_of"
+                ),
                 (
                     "and",
                     [
                         partial(
-                            self.pg.check_rtr,
-                            body.room_id,
+                            self.pg.check_global,
                             client.id,
-                            ["VIEW_ROOM"],
-                            "must_have",
-                            session
+                            body.group_id,
+                            ["DELETE_MESSAGES"],
+                            "must_have"
                         ),
-                        (
-                            "or",
-                            [
-                                partial(
-                                    self.pg.check_global,
-                                    body.group_id,
-                                    client.id,
-                                    ["DELETE_MESSAGES"],
-                                    "must_have",
-                                    session
-                                ),
-                                partial(
-                                    self.pg.check_author,
-                                    body.id,
-                                    client.id,
-                                    session
-                                ),
-                            ]
+                        partial(
+                            self.pg.check_rtr,
+                            client.id,
+                            body.room_id,
+                            ["DELETE_MESSAGES", "VIEW_ROOM"],
+                            "must_have"
                         )
                     ]
                 )
+                       
             ]
-        )):
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
             return self.__construct_response(False, error="312")
         
         result = await session.execute(delete(Message).where(Message.id == body.id))

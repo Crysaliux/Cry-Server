@@ -14,6 +14,7 @@ v0.0.1 beta
 
 from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
 from sqlalchemy import insert, select, update, delete, exists, and_, or_
+from ..rdserver import Fallback
 from sqlalchemy.orm import selectinload
 from collections import defaultdict
 import numpy as np
@@ -176,6 +177,22 @@ class Permgate:
             return False, "..."
             
         return True, self.checks[check](perms, actual), None
+    
+    async def check_author(
+            self, 
+            client_id: str, 
+            message_id: str,
+            session
+        ):
+            
+        is_author = await session.execute(
+            select(exists().where(and_(
+                Message.id == message_id,
+                Message.author_id == client_id
+            )))
+        ).scalar()
+
+        return is_author
 
 
     async def evaluator(self, vld: dict[partial]):
@@ -207,7 +224,7 @@ class Permgate:
     """
     ADDING/REMOVING PERMISSIONS
     """
-    async def __batch_worker(
+    async def __batch_update_worker(
             self, 
             semaphore: Semaphore, 
             clients_batch: list[str], 
@@ -240,7 +257,7 @@ class Permgate:
         clients = np.array(clients)
         semaphore  = Semaphore(20) #make adjustable later
         tasks = [
-            self.__batch_worker(
+            self.__batch_update_worker(
                 semaphore, 
                 batch, 
                 perms,
@@ -256,26 +273,52 @@ class Permgate:
             if not status:
                 return False, error
         return True, None
+    
+    async def __batch_cleanup_worker(
+            self, 
+            semaphore: Semaphore, 
+            clients_batch: list[str], 
+            group_id: str,
+            rooms: list[str]
+        ):
+        async with semaphore:
+            status, error = await self.rdserver.perms_bulk_cleanup_(
+                clients_batch,
+                group_id,
+                rooms
+            )
+            return status, error
+
+    async def __perms_batch_cleanup(
+            self, 
+            clients: list[str],
+            group_id: str,
+            rooms: list[str]
+        ):
+        clients = np.array(clients)
+        semaphore  = Semaphore(20) #make adjustable later
+        tasks = [
+            self.__batch_cleanup_worker(
+                semaphore, 
+                batch, 
+                group_id,
+                rooms
+            ) for batch in np.array_split(clients, len(clients) // 100) #make adjustable later
+        ]
+        result = await asyncio.gather(*tasks)
+        for resp in result:
+            status, error = resp #It's unlikely to have more than 1000 concurrent tasks, aka 100000 members per group
+            if not status:
+                return False, error
+        return True, None
 
 
     async def add_global(self, group_id: str, role_id: str, perms: list[str], session):
-        status, group, error = await self.rdserver.get_(f"group:{group_id}")
+        fallback = Fallback()
+        status, group, error = await fallback.group_(group_id)
         if not status:
             return False, error
-        if not group:
-            return False, "306"
         
-        status, error = await self.__perms_batch_update(
-            group.members,
-            perms,
-            "add",
-            "global",
-            group_id,
-            role_id,
-        )
-        if not status:
-            return False, error
-
         query = insert(GlobalPermission).values(
             [
                 {
@@ -287,14 +330,34 @@ class Permgate:
         query = query.prefix_with("IGNORE")
 
         await session.execute(query)
-        await session.commit()        
-
-    async def remove_global(self, group_id: str, role_id: str, perms: list[str], session):
-        status, group, error = await self.rdserver.get_(f"group:{group_id}")
+        await session.commit()
+        
+        status, error = await self.__perms_batch_update(
+            group.members,
+            perms,
+            "add",
+            "global",
+            group_id,
+            role_id,
+        )
         if not status:
             return False, error
-        if not group:
-            return False, "306"
+        return True, None
+  
+    async def remove_global(self, group_id: str, role_id: str, perms: list[str], session):
+        fallback = Fallback()
+        status, group, error = await fallback.group_(group_id)
+        if not status:
+            return False, error
+        
+        result = await session.execute(delete(GlobalPermission).where(and_(
+            GlobalPermission.role_id == role_id,
+            GlobalPermission.name.in_(perms),
+        )))
+        await session.commit()
+
+        if result.rowcount() == 0:
+            return False, "320"
         
         status, error = await self.__perms_batch_update(
             group.members,
@@ -306,29 +369,12 @@ class Permgate:
         )
         if not status:
             return False, error
-
-        await session.execute(delete(GlobalPermission).where(and_(
-            GlobalPermission.role_id == role_id,
-            GlobalPermission.name.in_(perms),
-        )))
-        await session.commit()
+        return True, None
 
 
     async def add_rtr(self, group_id: str, role_id: str, room_id: str, perms: list[str], session):
-        status, group, error = await self.rdserver.get_(f"group:{group_id}")
-        if not status:
-            return False, error
-        if not group:
-            return False, "306"
-        
-        status, error = await self.__perms_batch_update(
-            group.members,
-            perms,
-            "add",
-            "rtr",
-            room_id,
-            role_id
-        )
+        fallback = Fallback()
+        status, group, error = await fallback.group_(group_id)
         if not status:
             return False, error
         
@@ -345,14 +391,34 @@ class Permgate:
 
         await session.execute(query)
         await session.commit()
-
-
-    async def remove_rtr(self, group_id: str, role_id: str, room_id: str, perms: list[str], session):
-        status, group, error = await self.rdserver.get_(f"group:{group_id}")
+        
+        status, error = await self.__perms_batch_update(
+            group.members,
+            perms,
+            "add",
+            "rtr",
+            room_id,
+            role_id
+        )
         if not status:
             return False, error
-        if not group:
-            return False, "306"
+        return True, None
+
+    async def remove_rtr(self, group_id: str, role_id: str, room_id: str, perms: list[str], session):
+        fallback = Fallback()
+        status, group, error = await fallback.group_(group_id)
+        if not status:
+            return False, error
+        
+        result = await session.execute(delete(RoleToRoomPermission).where(and_(
+            RoleToRoomPermission.role_id == role_id,
+            RoleToRoomPermission.room_id == room_id,
+            RoleToRoomPermission.name.in_(perms),
+        )))
+        await session.commit()
+        
+        if result.rowcount() == 0:
+            return False, "319"
         
         status, error = await self.__perms_batch_update(
             group.members,
@@ -364,10 +430,37 @@ class Permgate:
         )
         if not status:
             return False, error
+        return True, None
 
-        await session.execute(delete(RoleToRoomPermission).where(and_(
-            RoleToRoomPermission.role_id == role_id,
-            RoleToRoomPermission.room_id == room_id,
-            RoleToRoomPermission.name.in_(perms),
-        )))
+
+    async def cleanup(self, group_id: str, session):
+        fallback = Fallback()
+        status, group, error = await fallback.group_(group_id)
+        if not status:
+            return False, error
+        
+        rooms_res = await session.scalars(
+            select(Room.id)
+            .join(Group.rooms)
+            .where(Group.id == group_id)
+        )
+        rooms = rooms_res.all()
+
+        result = await session.execute(delete(Group).where(Group.id == group_id))
         await session.commit()
+        
+        if result.rowcount() == 0:
+            return False, "306"
+        
+        status, error = await self.__perms_batch_cleanup(
+            group.members,
+            group_id,
+            rooms
+        )
+        if not status:
+            return False, error
+        
+        status, error = await self.rdserver.delete_(f"group:{group_id}")
+        if not status:
+            return False, error
+        return True, None

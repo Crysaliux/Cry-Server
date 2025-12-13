@@ -41,6 +41,8 @@ Error codes:
     316 - refresh token expired\n
     317 - invalid refresh token\n
     318 - invalid credentials\n
+    319 - role-to-room permission not found
+    320 - global permission not found
 
 
 RDServer (Redis server):
