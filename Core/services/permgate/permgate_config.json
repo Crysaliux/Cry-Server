@@ -1,6 +1,11 @@
 {
     "GLOBAL_PERMISSIONS": {
         "p1": {
+            "name": "EVERYONE", 
+            "children": [], 
+            "desc": "..."
+        },
+        "p2": {
             "name": "OWNER", 
             "children": [
                 "p2", 
@@ -14,7 +19,7 @@
             ], 
             "desc": "..."
         },
-        "p2": {
+        "p3": {
             "name": "CO_OWNER", 
             "children": [
                 "p2", 
@@ -26,17 +31,17 @@
             ], 
             "desc": "..."
         },
-        "p3": {
+        "p4": {
             "name": "BAN", 
             "children": [], 
             "desc": "..."
         },
-        "p4": {
+        "p5": {
             "name": "KICK", 
             "children": [], 
             "desc": "..."
         },
-        "p5": {
+        "p6": {
             "name": "MANAGE_GROUP", 
             "children": [
                 "p5", 
@@ -46,22 +51,22 @@
             ], 
             "desc": "..."
         },
-        "p6": {
+        "p7": {
             "name": "MANAGE_ROOMS", 
             "children": [], 
             "desc": "..."
         },
-        "p7": {
+        "p8": {
             "name": "MANAGE_NICKNAMES", 
             "children": [], 
             "desc": "..."
         },
-        "p8": {
+        "p9": {
             "name": "SEND_MESSAGES", 
             "children": [], 
             "desc": "..."
         },
-        "p9": {
+        "p10": {
             "name": "DELETE_MESSAGES", 
             "children": [], 
             "desc": "..."

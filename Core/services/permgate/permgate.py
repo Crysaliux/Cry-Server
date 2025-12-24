@@ -350,6 +350,9 @@ class Permgate:
         if not status:
             return False, error
         
+        if "OWNER" in perms: #hardcoded
+            return False, "321"
+        
         result = await session.execute(delete(GlobalPermission).where(and_(
             GlobalPermission.role_id == role_id,
             GlobalPermission.name.in_(perms),

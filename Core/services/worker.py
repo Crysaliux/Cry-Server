@@ -31,6 +31,13 @@ client_role_relationship = Table(
     Column('role_id', String, ForeignKey('role.id'), primary_key=True)
 )
 
+banlist_relationship = Table(
+    'blrel', Base.metadata,
+    Column('client_id', String, ForeignKey('client.id'), primary_key=True),
+    Column('group_id', String, ForeignKey('group.id'), primary_key=True)
+)
+
+
 class Client(Base):
     __tablename__ = "client"
 
@@ -43,7 +50,7 @@ class Client(Base):
     avatar_url: Mapped[str] = mapped_column(String(100), nullable=True)
     color_theme: Mapped[str] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    id : Mapped[str] = mapped_column(String(36), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
     refresh_token: Mapped[str]
     last_login: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -56,6 +63,7 @@ class Client(Base):
     )
     groups = relationship("Group", secondary=client_group_relationship, back_populates="members")
     roles = relationship("Role", secondary=client_role_relationship, back_populates="assignees")
+    banned_in = relationship("Group", secondary=banlist_relationship, back_populates="banned")
     owned_groups: Mapped[List["Group"]] = relationship("Group", back_populates="owner", foreign_keys="Group.owner_id")
     created_spaces: Mapped[List["Space"]] = relationship("Space", back_populates="creator", foreign_keys="Space.creator_id")
     created_rooms: Mapped[List["Room"]] = relationship("Room", back_populates="creator", foreign_keys="Room.creator_id")
@@ -72,13 +80,14 @@ class Group(Base):
     icon_url: Mapped[str] = mapped_column(String(100), nullable=True)
     nsfw: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    id : Mapped[str] = mapped_column(String(36), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
     #settings
     content_filter: Mapped[bool] = mapped_column(Boolean(create_constraint=False), default=False)
     content_filter_level: Mapped[str] = mapped_column(String(10), default="low")
 
     members = relationship("Client", secondary=client_group_relationship, back_populates="groups")
+    banned = relationship("Client", secondary=banlist_relationship, back_populates="banned_in")
     owner: Mapped["Client"] = relationship("Client", back_populates="owned_groups", foreign_keys=[owner_id])
     roles: Mapped[List["Role"]] = relationship("Role", back_populates="group", foreign_keys="Role.group_id", cascade="all, delete-orphan")
     spaces: Mapped[List["Space"]] = relationship("Space", back_populates="group", foreign_keys="Space.group_id", cascade="all, delete-orphan")
@@ -93,7 +102,7 @@ class Space(Base):
 
     name: Mapped[str] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    id : Mapped[str] = mapped_column(String(36), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
     
     group: Mapped["Group"] = relationship("Group", back_populates="spaces", foreign_keys=[group_id])
     creator: Mapped["Client"] = relationship("Client", back_populates="created_spaces", foreign_keys=[creator_id])

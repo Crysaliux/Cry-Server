@@ -47,6 +47,7 @@ class GatewayModel(BaseModel):
         CreateGroup,
         EditGroup,
         DeleteGroup,
+        JoinGroup,
         
         CreateSpace,
         EditSpace,
@@ -124,7 +125,7 @@ class Gateway:
             {"name": "create_group", "handler": self.__create_group},
             {"name": "edit_group", "handler": self.__edit_group},
             {"name": "delete_group", "handler": self.__delete_group},
-            {"name": "join_group", "handler": ...},
+            {"name": "join_group", "handler": self.__join_group},
 
             {"name": "create_space", "handler": self.__create_space},
             {"name": "edit_space", "handler": self.__edit_space},
@@ -225,7 +226,7 @@ class Gateway:
 
 
 
-    async def __verify_session(self, session_token: str) -> tuple[bool, Client | None]:
+    async def __verify_session(self, session_token: str) -> tuple[bool, RedisDataModel | None]:
         status, id, expires_at = self.__decode_session_token(session_token)
         if not status:
             return False, None, "313"
@@ -242,7 +243,7 @@ class Gateway:
             return False, None, "314"
         return True, client, None
     
-    async def __verify_refresh(self, refresh_token: str, session) -> tuple[bool, Client | None]:
+    async def __verify_refresh(self, refresh_token: str, session) -> tuple[bool, str | None, str | None]:
         status, id, expires_at = self.__decode_refresh_token(refresh_token)
         if not status:
             return False, None, "315"
@@ -293,8 +294,8 @@ class Gateway:
     
     async def __verify_group(self, group_id: str, session):
         fallback = Fallback(session, self.rdserver)
-        status, _, error = await fallback.group_(group_id)
-        return status, error
+        status, group, error = await fallback.group_(group_id)
+        return status, group, error
 
     """
     REFRESHER
@@ -515,12 +516,12 @@ class Gateway:
             "room_id": room_id,
         })
     
-    async def __edit_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __edit_group(self, session_token: str, body: EditGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -570,12 +571,12 @@ class Gateway:
         
         return self.__construct_response(True)
 
-    async def __delete_group(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __delete_group(self, session_token: str, body: DeleteGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -607,30 +608,35 @@ class Gateway:
             return self.__construct_response(False, error=error)
         return self.__construct_response(True)
 
-    async def __join_group(self, session_token: str, refresh_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __join_group(self, session_token: str, body: JoinGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        #check for banned.
+        status, group, error = await self.__verify_group(body.id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if client.id in group.banned:
+            return self.__construct_response(False, error=error)
 
         
-
-
-        status, data = await self.__hot_refresh(client, refresh_token)
+        status, error = await self.rdserver.update_(f"group:{body.id}", {
+            "members": group.members + [client.id]
+        })
         if not status:
-            return self.__construct_response(False, error="300")
+            return self.__construct_response(False, error=error)
 
-        return self.__construct_response(True, data)
+        return self.__construct_response(True)
     
 
     #SPACE      
-    async def __create_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __create_space(self, session_token: str, body: CreateSpace, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -680,12 +686,12 @@ class Gateway:
             "id": id,
         })
     
-    async def __edit_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __edit_space(self, session_token: str, body: EditSpace, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -722,12 +728,12 @@ class Gateway:
         
         return self.__construct_response(True)
 
-    async def __delete_space(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __delete_space(self, session_token: str, body: DeleteSpace, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -763,12 +769,12 @@ class Gateway:
     
 
     #ROOM    
-    async def __create_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __create_room(self, session_token: str, body: CreateRoom, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -822,12 +828,12 @@ class Gateway:
             "id": id,
         })
     
-    async def __edit_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __edit_room(self, session_token: str, body: EditRoom, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -891,12 +897,12 @@ class Gateway:
         
         return self.__construct_response(True)
 
-    async def __delete_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __delete_room(self, session_token: str, body: DeleteRoom, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -956,12 +962,12 @@ class Gateway:
         
         return self.__construct_response(True)
     
-    async def __relocate_room(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __relocate_room(self, session_token: str, body: RelocateRoom, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1032,12 +1038,12 @@ class Gateway:
 
 
     #MESSAGE 
-    async def __create_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __create_message(self, session_token: str, body: CreateMessage, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -1123,12 +1129,12 @@ class Gateway:
             "id": id,
         })
     
-    async def __edit_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __edit_message(self, session_token: str, body: EditMessage, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token) #ponder...
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1158,12 +1164,12 @@ class Gateway:
         
         return self.__construct_response(True)
 
-    async def __delete_message(self, session_token: str, body: CreateGroup, session) -> EmitCommon:
+    async def __delete_message(self, session_token: str, body: DeleteMessage, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1259,14 +1265,9 @@ class Gateway:
             return await self._call_delete_group(session_token, body)
         
         @self.router.post("/join_group")
-        async def create_group(
-            request: Request, 
-            body: DeleteGroup, 
-            authorization: str = Header(...), 
-            refresh_token: str | None = Cookie(None)
-        ):
+        async def create_group(request: Request, body: JoinGroup, authorization: str = Header(...)):
             session_token = authorization.replace("Bearer", "").strip()
-            return await self._call_join_group(session_token, refresh_token, body)
+            return await self._call_join_group(session_token, body)
         
 
         @self.router.post("/create_space")

@@ -43,6 +43,8 @@ Error codes:
     318 - invalid credentials\n
     319 - role-to-room permission not found
     320 - global permission not found
+    321 - owner permission can't be removed
+    322 - client has been banned in this group
 
 
 RDServer (Redis server):

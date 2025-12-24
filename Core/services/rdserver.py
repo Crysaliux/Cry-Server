@@ -45,11 +45,20 @@ class Fallback:
                 .where(Group.id == group_id)
             )
             members = members_res.all()
+
             if not members:
                 return False, None, "306"
+
+            banned_res = await self.session.execute(
+                select(Client.id)
+                .join(Group.banned)
+                .where(Group.id == group_id)
+            )
+            banned = banned_res.all()
             
             model = RedisDataModel(**{
                 "members": members,
+                "banned": banned,
             })
             group = model
 
