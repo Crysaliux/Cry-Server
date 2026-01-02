@@ -1,7 +1,7 @@
-RDServer - Remote Dictionary Server<br>
+RDServer - Remote Dictionary Server
 
+Error codes:
 
-Error codes:<br>
 - database:<br>
     100 - trouble connecting to the database server<br>
     101 - database conenction timed out<br>
@@ -46,6 +46,7 @@ Error codes:<br>
     322 - client has been banned in this group<br>
 
 
-RDServer (Redis server):<br>
+RDServer (Redis server):
+
     - Cache port: 6380<br>
     - Session port: 6381<br>
