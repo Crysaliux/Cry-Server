@@ -1,8 +1,7 @@
 RDServer - Remote Dictionary Server<br>
-RTMServer - Real Time Messaging Server<br>
 
-Error codes:
 
+Error codes:<br>
 - database:<br>
     100 - trouble connecting to the database server<br>
     101 - database conenction timed out<br>
@@ -45,6 +44,7 @@ Error codes:
     320 - global permission not found<br>
     321 - owner permission can't be removed<br>
     322 - client has been banned in this group<br>
+
 
 RDServer (Redis server):<br>
     - Cache port: 6380<br>
