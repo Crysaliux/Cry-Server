@@ -1,7 +1,7 @@
 """
 The gateway module handles client API requests.
 
-v0.0.1 beta
+v0.0.2 beta
 """
 
 
@@ -67,8 +67,6 @@ class GatewayModel(BaseModel):
 class Gateway:
     def __init__(
             self, 
-            rtmserver_url,
-            rtmserver_access_key,
             hasher, 
             session,  
             ws,
@@ -91,8 +89,6 @@ class Gateway:
             pg,
         ):
         self.addr = addr
-        self.rtmserver_url = rtmserver_url
-        self.rtmserver_access_key = rtmserver_access_key
         self.access_key = access_key
         self.hasher = hasher
         self.session = session
@@ -126,20 +122,36 @@ class Gateway:
             {"name": "edit_group", "handler": self.__edit_group},
             {"name": "delete_group", "handler": self.__delete_group},
             {"name": "join_group", "handler": self.__join_group},
+            {"name": "leave_group", "handler": ...},
+            {"name": "ban_client", "handler": ...},
+            {"name": "kick_client", "handler": ...},
+            {"name": "view_group_settings", "handler": ...},
+            {"name": "view_group_roles", "handler": ...},
+            {"name": "view_banned", "handler": ...},
+            {"name": "view_kicked", "handler": ...},
 
             {"name": "create_space", "handler": self.__create_space},
             {"name": "edit_space", "handler": self.__edit_space},
             {"name": "delete_space", "handler": self.__delete_space},
+            {"name": "view_space_settings", "handler": ...},
 
             {"name": "create_room", "handler": self.__create_room},
             {"name": "edit_room", "handler": self.__edit_room},
             {"name": "delete_room", "handler": self.__delete_room},
             {"name": "relocate_room", "handler": self.__relocate_room},
             {"name": "join_room", "handler": ...},
+            {"name": "view_room_settings", "handler": ...},
 
             {"name": "create_message", "handler": self.__create_message},
             {"name": "edit_message", "handler": self.__edit_message},
             {"name": "delete_message", "handler": self.__delete_message},
+
+            {"name": "block_client", "handler": ...},
+            {"name": "view_client", "handler": ...},
+            {"name": "view_profile_settings", "handler": ...},
+            {"name": "view_blocked", "handler": ...},
+            {"name": "view_group", "handler": ...},
+            {"name": "view_room", "handler": ...},
         ]
         self.__register_events()
         
@@ -147,33 +159,6 @@ class Gateway:
     def __register_events(self) -> None:
         for event in self.events:
             setattr(self, f"_call_{event["name"]}", self.ws(event["handler"], self.session))
-
-
-    async def __call_rtmserver(self, method: str, params: dict[str, str | int | bool | dict[str, str | int | bool]]) -> dict[str, str | int]:
-        try: #status, response, error
-            async with httpx.AsyncClient() as emission:
-                response = await emission.post(
-                    self.rtmserver_url,
-                    headers={"Authorization": f"apikey {self.rtmserver_access_key}"},
-                    json={
-                        "method": method, 
-                        "params": params,
-                    }
-                )
-                response.raise_for_status()
-
-                try:
-                    data = RTMResponse(**response.json())
-                    if data.error:
-                        return False, None, data.error
-                    return True, data.result, None
-                except ValidationError:
-                    return False, None, "200"
-        except httpx.RequestError:
-            return False, None, "201"
-        
-        except Exception as e: #log error in terminal
-            return False, None, "202"
 
         
     def __decode_session_token(self, session_token: str) -> tuple[bool, str | None, str | None, str | None]:
@@ -550,6 +535,7 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="306")
         
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"{self.group_cluster_index}{body.id}",
             "data": {
@@ -565,6 +551,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -596,6 +583,7 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
+        """
         status, _, error = await self.__call_rtmserver("unsubscribe", {
             "channel": f"{self.group_cluster_index}{body.id}",
             "data": {
@@ -603,6 +591,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -618,11 +607,42 @@ class Gateway:
             return self.__construct_response(False, error=error)
 
         if client.id in group.banned:
-            return self.__construct_response(False, error=error)
+            return self.__construct_response(False, error="322")
 
-        
         status, error = await self.rdserver.update_(f"group:{body.id}", {
             "members": group.members + [client.id]
+        })
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        """
+        status, _, error = await self.__call_rtmserver("unsubscribe", { #?
+            "channel": f"{self.group_cluster_index}{body.id}",
+            "data": {
+                "type": "group_deleted", #"leave only if being unsubscribed" logic
+                "id": body.id,
+            }
+        })
+        """
+
+        if not status:
+            return self.__construct_response(False, error=error)
+        return self.__construct_response(True)
+    
+    async def __leave_group(self, session_token: str, body: JoinGroup, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(body.id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+
+        status, error = await self.rdserver.update_(f"group:{body.id}", {
+            "members": group.members - [client.id]
         })
         if not status:
             return self.__construct_response(False, error=error)
@@ -670,6 +690,7 @@ class Gateway:
         ))
         await session.commit()
 
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"{self.group_cluster_index}{body.group_id}",
             "data": {
@@ -678,6 +699,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -754,6 +776,7 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="307")
         
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"{self.group_cluster_index}{body.group_id}",
             "data": {
@@ -761,6 +784,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -810,6 +834,7 @@ class Gateway:
         ))
         await session.commit()
 
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"{self.group_cluster_index}{body.group_id}",
             "data": {
@@ -820,6 +845,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -882,6 +908,7 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
         
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"{self.group_cluster_index}{body.group_id}",
             "data": {
@@ -891,6 +918,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -949,6 +977,7 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
         
+        """
         status, _, error = await self.__call_rtmserver("unsubscribe", {
             "channel": f"{self.room_cluster_index}{body.id}",
             "data": {
@@ -956,6 +985,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -1022,6 +1052,7 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
         
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"{self.group_cluster_index}{body.group_id}",
             "data": {
@@ -1030,6 +1061,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -1111,6 +1143,7 @@ class Gateway:
         ))
         await session.commit()
 
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"#{body.room_id}",
             "data": {
@@ -1121,6 +1154,7 @@ class Gateway:
                 "id": id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -1215,6 +1249,7 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="309")
         
+        """
         status, _, error = await self.__call_rtmserver("broadcast", {
             "channel": f"#{body.room_id}",
             "data": {
@@ -1222,6 +1257,7 @@ class Gateway:
                 "id": body.id,
             }
         })
+        """
 
         if not status:
             return self.__construct_response(False, error=error)

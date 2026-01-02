@@ -45,6 +45,7 @@ Error codes:
     320 - global permission not found
     321 - owner permission can't be removed
     322 - client has been banned in this group
+    323 - client is not present in this group
 
 
 RDServer (Redis server):

@@ -51,16 +51,9 @@ class Core(FastAPI):
         self.sv_host = CONFIG["SERVER_HOST"]
         self.sv_port = CONFIG["SERVER_PORT"]
         self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
-        self.rtmserver_url = f"http://{CONFIG['RTMSERVER_HOST']}:{CONFIG['RTMSERVER_PORT']}"
-        self.rdserver_cache = RDServer(
+        self.rdserver = RDServer(
             host=CONFIG['RDSERVER_HOST'],
-            port=CONFIG['RDSERVER_CACHE_PORT'], #One redis server only!
-            db=0
-        )
-        self.rdserver_session = RDServer(
-            host=CONFIG['RDSERVER_HOST'],
-            port=CONFIG['RDSERVER_SESSION_PORT'],
-            db=1
+            port=CONFIG['RDSERVER_PORT'],
         )
         
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
@@ -72,7 +65,6 @@ class Core(FastAPI):
         self.pg = Permgate()
         
         self.server_access_key = str(uuid.uuid4())
-        self.rtmserver_access_key =CONFIG["RTMSERVER_ACCESS_KEY"]
         self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
         self.login_expiration = CONFIG["LOGIN_EXPIRATION"]
         self.session_expiration = CONFIG["SESSION_EXPIRATION"]
@@ -96,11 +88,8 @@ class Core(FastAPI):
         #Initializing Gateway module
         self.gateway = Gateway(
             addr=(self.sv_host, self.sv_port),
-            rtmserver_url=self.rtmserver_url,
-            rtmserver_access_key=self.rtmserver_access_key,
             session=self.worker.session,
-            rdserver_session=self.rdserver_session,
-            rdserver_cache=self.rdserver_cache,
+            rdserver=self.rdserver,
             ws=worker_session,
             logger=LOGGER,
             hasher=self.hasher, 
