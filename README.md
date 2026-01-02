@@ -1,51 +1,51 @@
-RDServer - Remote Dictionary Server__
-RTMServer - Real Time Messaging Server____
+RDServer - Remote Dictionary Server<br>
+RTMServer - Real Time Messaging Server<br>
 
-Error codes:____
+Error codes:
 
-- database:__
-    100 - trouble connecting to the database server__
-    101 - database conenction timed out__
-    102 - database integrity violated__
-    103 - invalid database request__
-    104 - unexpected database server error____
+- database:<br>
+    100 - trouble connecting to the database server<br>
+    101 - database conenction timed out<br>
+    102 - database integrity violated<br>
+    103 - invalid database request<br>
+    104 - unexpected database server error<br>
 
-- RDServer__
-    200 - server disconnected__
-    201 - failed to set data__
-    202 - data validation error__
-    203 - execution error__
-    204 - skipped empty update__
-    205 - unexpected error during update process__
-    206 - no existing data found__
-    207 - data not found or could not be deleted__
-    208 - unexpected error upon deleting data____
+- RDServer:<br>
+    200 - server disconnected<br>
+    201 - failed to set data<br>
+    202 - data validation error<br>
+    203 - execution error<br>
+    204 - skipped empty update<br>
+    205 - unexpected error during update process<br>
+    206 - no existing data found<br>
+    207 - data not found or could not be deleted<br>
+    208 - unexpected error upon deleting data<br>
 
-- Oauth/events:__
-    300 - ...__
-    301 - session expired__
-    302 - username exists__
-    303 - email exist__
-    304 - too young__
-    305 - client not found__
-    306 - group not found__
-    307 - space not found__
-    308 - room not found__
-    309 - message not found__
-    310 - failed to save file(s)__
-    311 - global name exists__
-    312 - missing permissions__
-    313 - session token decoding failed__
-    314 - invalid session token__
-    315 - refresh token decoding failed__
-    316 - refresh token expired__
-    317 - invalid refresh token__
-    318 - invalid credentials__
-    319 - role-to-room permission not found__
-    320 - global permission not found__
-    321 - owner permission can't be removed__
-    322 - client has been banned in this group____
+- Oauth/events:<br>
+    300 - ...<br>
+    301 - session expired<br>
+    302 - username exists<br>
+    303 - email exists<br>
+    304 - too young<br>
+    305 - client not found<br>
+    306 - group not found<br>
+    307 - space not found<br>
+    308 - room not found<br>
+    309 - message not found<br>
+    310 - failed to save file(s)<br>
+    311 - global name exists<br>
+    312 - missing permissions<br>
+    313 - session token decoding failed<br>
+    314 - invalid session token<br>
+    315 - refresh token decoding failed<br>
+    316 - refresh token expired<br>
+    317 - invalid refresh token<br>
+    318 - invalid credentials<br>
+    319 - role-to-room permission not found<br>
+    320 - global permission not found<br>
+    321 - owner permission can't be removed<br>
+    322 - client has been banned in this group<br>
 
-RDServer (Redis server):__
-    - Cache port: 6380__
-    - Session port: 6381__
+RDServer (Redis server):<br>
+    - Cache port: 6380<br>
+    - Session port: 6381<br>
