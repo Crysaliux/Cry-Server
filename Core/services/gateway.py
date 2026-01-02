@@ -11,6 +11,8 @@ from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
 from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission
 from .rdserver import RedisDataModel, Fallback
+from socketio.async_server import AsyncServer
+from socketio.exceptions import ConnectionError, BadNamespaceError, TimeoutError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import insert, select, update, delete, exists, and_
 from sqlalchemy.orm import selectinload
@@ -64,12 +66,67 @@ class GatewayModel(BaseModel):
     ]
 
 
+class Emitter:
+    def __init__(self, socket: AsyncServer):
+        self.s = socket
+        self.body = {}
+        self.cluster_id = ""
+        self.status = True
+        self.error = ""
+
+    async def init_(self, cluster_id: str, body: dict) -> None: #Clear typing later.
+        self.body, self.cluster_id = body, cluster_id
+        return self
+    
+    async def __proceed(self, func):
+        try:
+            await func()
+        except ConnectionError:
+            self.status, self.error = False, "400"
+        except BadNamespaceError:
+            self.status, self.error = False, "401"
+        except Exception as e:
+            self.status, self.error = False, "402"
+
+    async def broadcast(self, event: str, status: bool = True, error: str | None = None):
+        if not self.body or self.cluster_id == "":
+            raise("Can't broadcast, either body or cluster_id are not provided") 
+        await self.__proceed(
+            partial(
+                self.s.emit,
+                event,
+                {
+                    "status": status,
+                    "body": self.body,
+                    "error": error,
+                },
+                room=self.cluster_id
+            )
+        )
+        return self
+        
+    async def close(self):
+        if not self.body or self.cluster_id == "":
+            raise("Can't close, either body or cluster_id are not provided") 
+        await self.__proceed(
+            partial(
+                self.s.close_room,
+                self.cluster_id
+            )
+        )
+        return self
+    
+    async def done(self):
+        return self.status, self.error
+
+
 class Gateway:
     def __init__(
             self, 
             hasher, 
             session,  
             ws,
+            s,
             logger,
             rdserver,
             storage_images_path: str, 
@@ -93,6 +150,7 @@ class Gateway:
         self.hasher = hasher
         self.session = session
         self.ws = ws
+        self.s = s
         self.rdserver = rdserver
         self.logger = logger
         self.storage_images_path = storage_images_path
@@ -110,6 +168,7 @@ class Gateway:
         self.pg = pg
 
         self.router = APIRouter()
+        self.s.on("connect", self.__connect)
 
         self.events = [ #operations: create, edit, delete
             {"name": "login", "handler": self.__signup},
@@ -208,7 +267,6 @@ class Gateway:
             "body": body,
             "error": error,
         }
-
 
 
     async def __verify_session(self, session_token: str) -> tuple[bool, RedisDataModel | None]:
@@ -422,6 +480,21 @@ class Gateway:
             "session_token": self.__encode_session_token(client.id),
             "wait_for": self.heartbeat_delta,
         })
+    
+    """
+    SOCKET CONNECTION
+    """
+
+    async def __connect(self, sid, environ, auth) -> Literal[False] | EmitCommon:
+        try: session_token = auth["session_token"]
+        except KeyError:
+            return False
+        
+        status, client, _ = await self.__verify_session(session_token) #error to terminal!
+        if not status:
+            return False
+        
+        await self.gateway.save_session(sid, {"id": client.id})
         
     """
     EVENTS:
@@ -535,23 +608,18 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="306")
         
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"{self.group_cluster_index}{body.id}",
-            "data": {
-                "type": "group_edited",
-                "name": body.name,
-                "about_group": body.about_group,
-                "icon_url": body.icon_url,
-                "nsfw": body.nsfw,
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}", {
+            "name": body.name,
+            "about_group": body.about_group,
+            "icon_url": body.icon_url,
+            "nsfw": body.nsfw,
 
-                "content_filter": body.content_filter,
-                "content_filter_level": body.content_filter_level,
+            "content_filter": body.content_filter,
+            "content_filter_level": body.content_filter_level,
 
-                "id": body.id,
-            }
-        })
-        """
+            "id": body.id,
+        }).broadcast("group_edited")
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -583,19 +651,15 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        """
-        status, _, error = await self.__call_rtmserver("unsubscribe", {
-            "channel": f"{self.group_cluster_index}{body.id}",
-            "data": {
-                "type": "group_deleted", #"leave only if being unsubscribed" logic
-                "id": body.id,
-            }
-        })
-        """
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}", {
+            "id": body.id,
+        }).broadcast("group_deleted").close().done()
 
         if not status:
             return self.__construct_response(False, error=error)
-        return self.__construct_response(True)
+        
+        return self.__construct_response(True) #stopped here
 
     async def __join_group(self, session_token: str, body: JoinGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)

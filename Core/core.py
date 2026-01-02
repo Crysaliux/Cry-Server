@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, Form, WebSocket, HTTPException, Depends, W
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from socketio.async_server import AsyncServer
+from socketio.async_redis_manager import AsyncRedisManager
 from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -52,8 +54,19 @@ class Core(FastAPI):
         self.sv_port = CONFIG["SERVER_PORT"]
         self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
         self.rdserver = RDServer(
-            host=CONFIG['RDSERVER_HOST'],
-            port=CONFIG['RDSERVER_PORT'],
+            host=CONFIG["RDSERVER_HOST"],
+            port=CONFIG["RDSERVER_PORT"],
+        )
+
+        self.smger = AsyncRedisManager(
+            url=f"redis://{CONFIG["RDSERVER_HOST"]}:{CONFIG["RDSERVER_PORT"]}/1",
+            channel="socket",
+        ) 
+        self.socket = AsyncServer(
+            async_mode=CONFIG["SOCKET_MODE"], 
+            client_manager=self.smger, 
+            logger=CONFIG["SOCKET_LOGGER"],
+            cors_allowed_origins=self.client_server_origin
         )
         
         self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
@@ -91,6 +104,7 @@ class Core(FastAPI):
             session=self.worker.session,
             rdserver=self.rdserver,
             ws=worker_session,
+            s=self.socket,
             logger=LOGGER,
             hasher=self.hasher, 
             algorithm=self.algorithm, 

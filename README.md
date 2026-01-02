@@ -45,6 +45,11 @@ Error codes:
     321 - owner permission can't be removed<br>
     322 - client has been banned in this group<br>
 
+- Socket events:<br>
+    400 - connection failure<br>
+    401 - bad socket namespace<br>
+    402 - an unexpected socket error has occured<br>
+
 
 RDServer (Redis server):
 

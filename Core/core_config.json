@@ -5,6 +5,9 @@
     "RDSERVER_HOST": "localhost",
     "RDSERVER_PORT": 6379,
 
+    "SOCKET_MODE": "asgi",
+    "SOCKET_LOGGER": true,
+
     "CLIENT_SERVER_HOST": "localhost",
     "CLIENT_SERVER_PORT": 5173,
 
