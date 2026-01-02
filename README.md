@@ -48,5 +48,5 @@ Error codes:
 
 RDServer (Redis server):
 
-    - Cache port: 6380<br>
-    - Session port: 6381<br>
+ - Cache port: 6380<br>
+ - Session port: 6381<br>
