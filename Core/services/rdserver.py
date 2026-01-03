@@ -48,6 +48,16 @@ class Fallback:
 
             if not members:
                 return False, None, "306"
+            
+            rooms_res = await self.session.execute(
+                select(Room.id)
+                .join(Group.rooms)
+                .where(Group.id == group_id)
+            )
+            rooms = rooms_res.all()
+
+            if not rooms:
+                return False, None, "306"
 
             banned_res = await self.session.execute(
                 select(Client.id)
@@ -58,6 +68,7 @@ class Fallback:
             
             model = RedisDataModel(**{
                 "members": members,
+                "rooms": rooms,
                 "banned": banned,
             })
             group = model

@@ -1,5 +1,5 @@
 from .client import UpdateClient
-from .group import CreateGroup, EditGroup, DeleteGroup, JoinGroup
+from .group import CreateGroup, EditGroup, DeleteGroup, JoinGroup, LeaveGroup
 from .message import CreateMessage, EditMessage, DeleteMessage
 from .role import CreateRole, UpdateRole, DeleteRole
 from .room import CreateRoom, EditRoom, DeleteRoom, RelocateRoom

@@ -23,3 +23,6 @@ class DeleteGroup(BaseModel):
 
 class JoinGroup(BaseModel):
     global_name: str
+
+class LeaveGroup(BaseModel):
+    global_name: str

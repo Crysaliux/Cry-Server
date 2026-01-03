@@ -69,10 +69,10 @@ class GatewayModel(BaseModel):
 class Emitter:
     def __init__(self, socket: AsyncServer):
         self.s = socket
-        self.body = {}
-        self.cluster_id = ""
+        self.body = None
+        self.cluster_id = None
         self.status = True
-        self.error = ""
+        self.error = None
 
     async def init_(self, cluster_id: str, body: dict) -> None: #Clear typing later.
         self.body, self.cluster_id = body, cluster_id
@@ -89,8 +89,11 @@ class Emitter:
             self.status, self.error = False, "402"
 
     async def broadcast(self, event: str, status: bool = True, error: str | None = None):
-        if not self.body or self.cluster_id == "":
+        if not self.body or not self.cluster_id:
             raise("Can't broadcast, either body or cluster_id are not provided") 
+        if not self.status:
+            return self
+        
         await self.__proceed(
             partial(
                 self.s.emit,
@@ -106,11 +109,53 @@ class Emitter:
         return self
         
     async def close(self):
-        if not self.body or self.cluster_id == "":
+        if not self.body or not self.cluster_id:
             raise("Can't close, either body or cluster_id are not provided") 
+        if not self.status:
+            return self
+        
         await self.__proceed(
             partial(
                 self.s.close_room,
+                self.cluster_id
+            )
+        )
+        return self
+    
+    async def join(self, sid):
+        if not self.body or not self.cluster_id:
+            raise("Can't join, either body or cluster_id are not provided") 
+        if not self.status:
+            return self
+        if not sid:
+            self.status, self.error = False, "403"
+            return self
+        
+        await self.__proceed(
+            partial(
+                self.s.enter_room,
+                sid,
+                self.cluster_id
+            )
+        )
+        return self
+    
+    async def done(self):
+        return self.status, self.error
+    
+    async def leave(self, sid):
+        if not self.body or not self.cluster_id:
+            raise("Can't join, either body or cluster_id are not provided") 
+        if not self.status:
+            return self
+        if not sid:
+            self.status, self.error = False, "403"
+            return self
+        
+        await self.__proceed(
+            partial(
+                self.s.leave_room,
+                sid,
                 self.cluster_id
             )
         )
@@ -181,7 +226,7 @@ class Gateway:
             {"name": "edit_group", "handler": self.__edit_group},
             {"name": "delete_group", "handler": self.__delete_group},
             {"name": "join_group", "handler": self.__join_group},
-            {"name": "leave_group", "handler": ...},
+            {"name": "leave_group", "handler": self.__leave_group},
             {"name": "ban_client", "handler": ...},
             {"name": "kick_client", "handler": ...},
             {"name": "view_group_settings", "handler": ...},
@@ -321,6 +366,7 @@ class Gateway:
                     "groups": {}, # "group_id": [..]
                     "rooms": {},# "room_id": [...]
                 },
+                "sid": None,
                 "id": id,
             })
 
@@ -406,6 +452,7 @@ class Gateway:
                 "groups": {}, # "group_id": [..]
                 "rooms": {},# "room_id": [...]
             },
+            "sid": None,
             "id": id,
         })
 
@@ -459,6 +506,7 @@ class Gateway:
                 "groups": {}, # "group_id": [..]
                 "rooms": {},# "room_id": [...]
             },
+            "sid": None,
             "id": id,
         })
             
@@ -494,7 +542,14 @@ class Gateway:
         if not status:
             return False
         
+        status, error = await self.rdserver.update_(f"client:{client.id}", {
+            "sid": sid,
+        })
+        if not status:
+            return self.__construct_response(False, error=error)
+
         await self.gateway.save_session(sid, {"id": client.id})
+
         
     """
     EVENTS:
@@ -540,14 +595,14 @@ class Gateway:
         id, room_id, role_id, perm_id = map(str, [uuid.uuid4() for _ in range(4)])
 
         session.add(Group(
-            owner=client,
+            owner_id=client.id,
             name=body.name,
             globla_name=body.global_name,
             about_group=body.about_group,
             icon_url=body.icon_url,
             rooms=[
                 Room(
-                    creator=client,
+                    creator_id=client.id,
                     name="mega room",
                     about_room="Invincible room",
                     id=room_id,
@@ -568,6 +623,11 @@ class Gateway:
             id=id,
         ))
         await session.commit()
+
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{id}", {}).join(client.sid).done()
+        if not status:
+            return self.__construct_response(False, error=error)
 
         return self.__construct_response(True, {
             "id": id,
@@ -609,7 +669,7 @@ class Gateway:
             return self.__construct_response(False, error="306")
         
         emt = Emitter(self.s)
-        status, error = await emt.init_(f"{self.group_cluster_index}", {
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.id}", {
             "name": body.name,
             "about_group": body.about_group,
             "icon_url": body.icon_url,
@@ -619,7 +679,7 @@ class Gateway:
             "content_filter_level": body.content_filter_level,
 
             "id": body.id,
-        }).broadcast("group_edited")
+        }).broadcast("group_edited").done()
 
         if not status:
             return self.__construct_response(False, error=error)
@@ -652,14 +712,13 @@ class Gateway:
             return self.__construct_response(False, error=error)
         
         emt = Emitter(self.s)
-        status, error = await emt.init_(f"{self.group_cluster_index}", {
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.id}", {
             "id": body.id,
         }).broadcast("group_deleted").close().done()
-
         if not status:
             return self.__construct_response(False, error=error)
         
-        return self.__construct_response(True) #stopped here
+        return self.__construct_response(True)
 
     async def __join_group(self, session_token: str, body: JoinGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
@@ -679,26 +738,26 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        """
-        status, _, error = await self.__call_rtmserver("unsubscribe", { #?
-            "channel": f"{self.group_cluster_index}{body.id}",
-            "data": {
-                "type": "group_deleted", #"leave only if being unsubscribed" logic
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.room_cluster_index}{group.rooms[0]}", {
+            "nickname": client.nickname,
+            "id": client.id,
+        }).broadcast("group_joined").done()
         if not status:
             return self.__construct_response(False, error=error)
+        
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.id}", {}).join(client.sid).done()
+        if not status:
+            return self.__construct_response(False, error=error)
+        
         return self.__construct_response(True)
     
-    async def __leave_group(self, session_token: str, body: JoinGroup, session) -> EmitCommon:
+    async def __leave_group(self, session_token: str, body: LeaveGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, group, error = await self.__verify_group(body.id, session)
+        status, group, error = await self.__verify_group(body.id, session) # no body.id, group fetched by global name!!! + relation table
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -708,6 +767,18 @@ class Gateway:
         status, error = await self.rdserver.update_(f"group:{body.id}", {
             "members": group.members - [client.id]
         })
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.room_cluster_index}{group.rooms[0]}", {
+            "nickname": client.nickname,
+            "id": client.id,
+        }).broadcast("group_left").done()
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.id}", {}).leave(client.sid).done()
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -754,17 +825,11 @@ class Gateway:
         ))
         await session.commit()
 
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"{self.group_cluster_index}{body.group_id}",
-            "data": {
-                "type": "space_created",
-                "name": body.name,
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.group_id}", {
+            "name": body.name,
+            "id": id,
+        }).broadcast("space_created").done()
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -800,15 +865,11 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="307")
         
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"{self.group_cluster_index}{body.group_id}",
-            "data": {
-                "type": "space_edited",
-                "name": body.name,
-                "id": body.id,
-            }
-        })
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.group_id}", {
+            "name": body.name,
+            "id": body.id,
+        }).broadcast("space_edited").done()
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -840,16 +901,10 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="307")
         
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"{self.group_cluster_index}{body.group_id}",
-            "data": {
-                "type": "space_deleted",
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.group_id}", {
+            "id": body.id,
+        }).broadcast("space_deleted").done()
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -898,19 +953,17 @@ class Gateway:
         ))
         await session.commit()
 
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"{self.group_cluster_index}{body.group_id}",
-            "data": {
-                "type": "room_created",
-                "name": body.name,
-                "about_room": body.about_room,
-                "space_id": body.space_id,
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.group_id}", {
+            "name": body.name,
+            "about_room": body.about_room,
+            "space_id": body.space_id,
+            "id": body.id,
+        }).broadcast("room_created").done()
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, error = await emt.init_(f"{self.room_cluster_index}{id}", {}).join(client.sid).done()
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -972,18 +1025,12 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
         
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"{self.group_cluster_index}{body.group_id}",
-            "data": {
-                "type": "room_edited",
-                "name": body.name,
-                "about_room": body.about_room,
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.group_id}", {
+            "name": body.name,
+            "about_room": body.about_room,
+            "id": body.id,
+        }).broadcast("room_edited").done()
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1041,16 +1088,14 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
         
-        """
-        status, _, error = await self.__call_rtmserver("unsubscribe", {
-            "channel": f"{self.room_cluster_index}{body.id}",
-            "data": {
-                "type": "room_deleted",
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.group_id}", {
+            "id": body.id,
+        }).broadcast("room_deleted").done()
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, error = await emt.init_(f"{self.room_cluster_index}{body.id}", {}).close().done()
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1116,17 +1161,11 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="308")
         
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"{self.group_cluster_index}{body.group_id}",
-            "data": {
-                "type": "room_relocated",
-                "space_id": body.space_id,
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.group_id}", {
+            "space_id": body.space_id,
+            "id": body.id,
+        }).broadcast("room_relocated").done()
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1207,19 +1246,13 @@ class Gateway:
         ))
         await session.commit()
 
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"#{body.room_id}",
-            "data": {
-                "type": "message_created",
-                "username": client.name,
-                "content": body.content,
-                "edited": False,
-                "id": id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.room_cluster_index}{body.room_id}", {
+            "username": client.name,
+            "content": body.content,
+            "edited": False,
+            "id": id,
+        }).broadcast("message_created").done()
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -1247,16 +1280,12 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="309")
         
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"#{body.room_id}",
-            "data": {
-                "type": "message_edited",
-                "content": body.content,
-                "edited": True,
-                "id": body.id,
-            }
-        })
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.room_cluster_index}{body.room_id}", {
+            "content": body.content,
+            "edited": True,
+            "id": body.id,
+        }).broadcast("message_edited").done()
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1313,16 +1342,10 @@ class Gateway:
         if result.rowcount() == 0:
             return self.__construct_response(False, error="309")
         
-        """
-        status, _, error = await self.__call_rtmserver("broadcast", {
-            "channel": f"#{body.room_id}",
-            "data": {
-                "type": "message_deleted",
-                "id": body.id,
-            }
-        })
-        """
-
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.room_cluster_index}{body.room_id}", {
+            "id": body.id,
+        }).broadcast("message_deleted").done()
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -1368,6 +1391,11 @@ class Gateway:
         async def create_group(request: Request, body: JoinGroup, authorization: str = Header(...)):
             session_token = authorization.replace("Bearer", "").strip()
             return await self._call_join_group(session_token, body)
+        
+        @self.router.post("/leave_group")
+        async def create_group(request: Request, body: LeaveGroup, authorization: str = Header(...)):
+            session_token = authorization.replace("Bearer", "").strip()
+            return await self._call_leave_group(session_token, body)
         
 
         @self.router.post("/create_space")

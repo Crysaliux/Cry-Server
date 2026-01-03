@@ -49,6 +49,7 @@ Error codes:
     400 - connection failure<br>
     401 - bad socket namespace<br>
     402 - an unexpected socket error has occured<br>
+    403 - can't fetch socket session<br>
 
 
 RDServer (Redis server):
