@@ -681,7 +681,7 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         if not allowed:
-            return self.__construct_response(False, error="312")
+            return self.__construct_response(False, error="312") #add globalname deletion!
         
         status, error = await self.pg.cleanup(body.id, session)
         if not status:
