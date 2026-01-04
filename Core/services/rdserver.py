@@ -34,7 +34,37 @@ class Fallback:
         self.session = session
         self.rdsserver = rdserver
 
-    async def group_(self, group_id: str):
+    async def group_(self, id: str | None = None, global_name: str | None = None):
+        group_id = id
+
+        if not id:
+            if not global_name:
+                raise("No globalname provided")
+            status, data, error = await self.rdserver.get_(f"globalname:{global_name}")
+            if not status:
+                return False, None, error
+            if not data:
+                gid_res = await self.session.execute(
+                    select(Group.id)
+                    .where(Group.global_name == global_name)
+                )
+                gid = gid_res.scalar_one_or_none()
+
+                if not gid:
+                    return False, None, "306"
+                
+                model = RedisDataModel(**{
+                    "id": gid
+                })
+
+                status, error = await self.rdserver.set_(f"globalname:{global_name}", model)
+                if not status:
+                    return False, None, error
+                group_id = gid
+
+            if not group_id:
+                group_id = data.id
+
         status, group, error = await self.rdserver.get_(f"group:{group_id}")
         if not status:
             return False, None, error
@@ -78,6 +108,47 @@ class Fallback:
                 return False, None, error
             
         return True, group, None
+    
+    async def client_(self, id: str, refresh_token: str):
+        status, client, error = await self.rdserver.get_(f"client:{id}")
+        if not status:
+            return False, error
+        if not client:
+            fback_client_res = await self.session.execute(select(Client).where(
+                and_(
+                    Client.id == id,
+                    Client.refresh_token == refresh_token,
+                )
+            ))
+            fback_client = fback_client_res.scalar_one_or_none()
+            if not fback_client:
+                return False, "305"
+            
+            model = RedisDataModel(**{
+                "username": fback_client.username,
+                "nickname": fback_client.nickname,
+                "password": fback_client.password_hashed,
+                "email": fback_client.email,
+                "date_or_birth": fback_client.date_of_birth,
+
+                "refresh_token": refresh_token,
+                "roles": {}, # "role_id": "group_id"
+                "permissions": {
+                    "groups": {}, # "group_id": [..]
+                    "rooms": {},# "room_id": [...]
+                },
+                "sid": None,
+                "id": id,
+            })
+
+            status, error = await self.rdserver.set_(f"client:{id}", model)
+            if not status:
+                return False, error
+            
+            return True, None
+            
+        if client.refresh_token != refresh_token:
+            return False, "317"
 
 
 class RDServer:

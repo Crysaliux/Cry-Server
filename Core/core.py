@@ -149,23 +149,14 @@ class Core(FastAPI):
     async def __gather_background(self):
         await asyncio.gather(
             self.__background_worker(),
-            self.__background_session_monitor(),
-            self.__background_rdserver_cache(),
-            self.__background_rdserver_session(),
+            self.__background_rdserver(),
         )
 
-    #Background services
     async def __background_worker(self):
         await self.worker.start()
 
-    async def __background_session_monitor(self):
-        await self.gateway.run_session_monitor()
-
-    async def __background_rdserver_cache(self):
-        await self.rdserver_cache.connect()
-
-    async def __background_rdserver_session(self):
-        await self.rdserver_session.connect()
+    async def __background_rdserver(self):
+        await self.rdserver.connect()
 
 
     async def __main(self, request: Request):

@@ -339,51 +339,15 @@ class Gateway:
         if datetime.now(timezone.utc) > datetime.fromtimestamp(expires_at, tz=timezone.utc):
             return False, None, "316"
 
-        status, client, error = await self.rdserver.get_(f"client:{id}")
+        fallback = Fallback(session, self.rdserver)
+        status, error = await fallback.client_(id, refresh_token)
         if not status:
             return False, None, error
-        if not client:
-            fback_client_res = await session.execute(select(Client).where(
-                and_(
-                    Client.id == id,
-                    Client.refresh_token == refresh_token,
-                )
-            ))
-            fback_client = fback_client_res.scalar_one_or_none()
-            if not fback_client:
-                return False, None, "305"
-            
-            model = RedisDataModel(**{
-                "username": fback_client.username,
-                "nickname": fback_client.nickname,
-                "password": fback_client.password_hashed,
-                "email": fback_client.email,
-                "date_or_birth": fback_client.date_of_birth,
-
-                "refresh_token": refresh_token,
-                "roles": {}, # "role_id": "group_id"
-                "permissions": {
-                    "groups": {}, # "group_id": [..]
-                    "rooms": {},# "room_id": [...]
-                },
-                "sid": None,
-                "id": id,
-            })
-
-            await self.rdserver.set_(
-                f"client:{id}",
-                model,
-            )
-
-            return True, id, None
-
-        if client.refresh_token != refresh_token:
-            return False, None, "317"
         return True, id, None
-    
-    async def __verify_group(self, group_id: str, session):
+        
+    async def __verify_group(self, session, **kwargs):
         fallback = Fallback(session, self.rdserver)
-        status, group, error = await fallback.group_(group_id)
+        status, group, error = await fallback.group_(**kwargs)
         return status, group, error
 
     """
@@ -592,7 +556,7 @@ class Gateway:
         if global_name_exists:
             return self.__construct_response(False, error="311")
         
-        id, room_id, role_id, perm_id = map(str, [uuid.uuid4() for _ in range(4)])
+        id, room_id, role_id, owner_perm_id, everyone_perm_id = map(str, [uuid.uuid4() for _ in range(5)])
 
         session.add(Group(
             owner_id=client.id,
@@ -615,7 +579,11 @@ class Gateway:
                     global_permissions=[
                         GlobalPermission(
                             name="OWNER",
-                            id=perm_id,
+                            id=owner_perm_id,
+                        ),
+                        GlobalPermission(
+                            name="EVERYONE",
+                            id=everyone_perm_id,
                         )
                     ],
                 )
@@ -623,6 +591,14 @@ class Gateway:
             id=id,
         ))
         await session.commit()
+
+        model = RedisDataModel(**{
+            "id": id
+        })
+
+        status, error = await self.rdserver.set_(f"globalname:{body.global_name}", model)
+        if not status:
+            return False, None, error
 
         emt = Emitter(self.s)
         status, error = await emt.init_(f"{self.group_cluster_index}{id}", {}).join(client.sid).done()
@@ -639,7 +615,7 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(session, group_id=body.id)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -691,7 +667,7 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, _, error = await self.__verify_group(session, group_id=body.id)
         if not status:
             return self.__construct_response(False, error=error)
         
@@ -725,7 +701,7 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, group, error = await self.__verify_group(body.id, session)
+        status, group, error = await self.__verify_group(session, global_name=body.global_name)
         if not status:
             return self.__construct_response(False, error=error)
 
@@ -757,7 +733,7 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, group, error = await self.__verify_group(body.id, session) # no body.id, group fetched by global name!!! + relation table
+        status, group, error = await self.__verify_group(session, group_id=body.id)
         if not status:
             return self.__construct_response(False, error=error)
 

@@ -25,4 +25,4 @@ class JoinGroup(BaseModel):
     global_name: str
 
 class LeaveGroup(BaseModel):
-    global_name: str
+    id: str
