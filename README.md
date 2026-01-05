@@ -44,6 +44,7 @@ Error codes:
     320 - global permission not found<br>
     321 - owner permission can't be removed<br>
     322 - client has been banned in this group<br>
+    323 - client doesn't seem to be present in the group<br>
 
 - Socket events:<br>
     400 - connection failure<br>

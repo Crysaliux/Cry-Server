@@ -26,3 +26,7 @@ class JoinGroup(BaseModel):
 
 class LeaveGroup(BaseModel):
     id: str
+
+class BanClient(BaseModel):
+    id: str
+    client_id: str

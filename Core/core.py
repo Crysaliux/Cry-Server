@@ -138,24 +138,24 @@ class Core(FastAPI):
 
     
     def start(self):
-        background = threading.Thread(target=lambda: self.__start_background())
+        background = threading.Thread(target=lambda: self.__load())
         background.start()
 
         uvicorn.run(self, host=self.sv_host, port=self.sv_port, log_level="debug")
 
-    def __start_background(self):
-        asyncio.run(self.__gather_background())
+    def __load(self):
+        asyncio.run(self.__gather_processes())
 
-    async def __gather_background(self):
+    async def __gather_processes(self):
         await asyncio.gather(
-            self.__background_worker(),
-            self.__background_rdserver(),
+            self.__worker(),
+            self.__rdserver(),
         )
 
-    async def __background_worker(self):
+    async def __worker(self):
         await self.worker.start()
 
-    async def __background_rdserver(self):
+    async def __rdserver(self):
         await self.rdserver.connect()
 
 

@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, Form, Header, Cookie, WebSocket, HTTPExcep
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
-from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission
+from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission, client_group_relationship
 from .rdserver import RedisDataModel, Fallback
 from socketio.async_server import AsyncServer
 from socketio.exceptions import ConnectionError, BadNamespaceError, TimeoutError
@@ -227,12 +227,11 @@ class Gateway:
             {"name": "delete_group", "handler": self.__delete_group},
             {"name": "join_group", "handler": self.__join_group},
             {"name": "leave_group", "handler": self.__leave_group},
-            {"name": "ban_client", "handler": ...},
+            {"name": "ban_client", "handler": self.__ban_client},
             {"name": "kick_client", "handler": ...},
             {"name": "view_group_settings", "handler": ...},
             {"name": "view_group_roles", "handler": ...},
             {"name": "view_banned", "handler": ...},
-            {"name": "view_kicked", "handler": ...},
 
             {"name": "create_space", "handler": self.__create_space},
             {"name": "edit_space", "handler": self.__edit_space},
@@ -340,7 +339,7 @@ class Gateway:
             return False, None, "316"
 
         fallback = Fallback(session, self.rdserver)
-        status, error = await fallback.client_(id, refresh_token)
+        status, _, error = await fallback.client_(id, refresh_token, True)
         if not status:
             return False, None, error
         return True, id, None
@@ -615,9 +614,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(session, group_id=body.id)
+        status, group, error = await self.__verify_group(session, group_id=body.id)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         status, allowed, error = await self.pg.evaluator(partial(
             self.pg.check_global, 
@@ -667,9 +669,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(session, group_id=body.id)
+        status, group, error = await self.__verify_group(session, group_id=body.id)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         status, allowed, error = await self.pg.evaluator(partial(
             self.pg.check_global, 
@@ -682,6 +687,10 @@ class Gateway:
             return self.__construct_response(False, error=error)
         if not allowed:
             return self.__construct_response(False, error="312") #add globalname deletion!
+
+        status, error = await self.rdserver.delete_(f"globalname:{group.global_name}")
+        if not status:
+            return self.__construct_response(False, error=error)
         
         status, error = await self.pg.cleanup(body.id, session)
         if not status:
@@ -760,6 +769,68 @@ class Gateway:
 
         return self.__construct_response(True)
     
+    async def __ban_client(self, session_token: str, body: BanClient, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(session, group_id=body.id)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.id, 
+            ["OWNER", "CO_OWNER", "BAN"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+        
+        fallback = Fallback(session, self.rdserver)
+        status, culprit, error = await fallback.client_(body.client_id)
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not culprit:
+            return self.__construct_response(False, error="305")
+        
+        fetched_group_res = await self.session.execute(select(Group).where(Group.id == body.id))
+        fetched_group = fetched_group_res.scalar_one_or_none()
+
+        if not fetched_group:
+            return self.__construct_response(False, error="306")
+        
+        result = await session.execute(delete(client_group_relationship).where(
+            and_(
+                client_group_relationship.c.client_id == body.client_id,
+                client_group_relationship.c.group_id == body.id
+            )
+        ))
+
+        if result.rowcount() == 0:
+            return self.__construct_response(False, error="323")
+
+        status, error = await self.rdserver.update_(f"group:{body.id}", {
+            "members": group.members - [body.id]
+        })
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.id}", {
+            "id": body.client_id,
+        }).broadcast("client_banned").leave(culprit.sid).done()
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        return self.__construct_response(True)
+    
 
     #SPACE      
     async def __create_space(self, session_token: str, body: CreateSpace, session) -> EmitCommon:
@@ -767,9 +838,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -818,9 +892,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         status, allowed, error = await self.pg.evaluator(partial(
             self.pg.check_global, 
@@ -856,9 +933,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         status, allowed, error = await self.pg.evaluator(partial(
             self.pg.check_global, 
@@ -893,9 +973,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -952,9 +1035,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         status, allowed, error = await self.pg.evaluator((
             "or",
@@ -1017,9 +1103,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         status, allowed, error = await self.pg.evaluator((
             "or",
@@ -1082,9 +1171,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         space_res = await session.execute(
             select(Space).where(Space.id == body.space_id)
@@ -1154,9 +1246,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
 
         group_res = await session.execute(
             select(Group).where(Group.id == body.group_id)
@@ -1241,9 +1336,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         if not await self.pg.check_author(client.id, body.id, session):
             return self.__construct_response(False, error="312")
@@ -1272,9 +1370,12 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        status, _, error = await self.__verify_group(body.group_id, session)
+        status, group, error = await self.__verify_group(body.group_id, session)
         if not status:
             return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
         
         status, allowed, error = await self.pg.evaluator((
             "or",
