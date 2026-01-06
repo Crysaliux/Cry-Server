@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, Form, Header, Cookie, WebSocket, HTTPExcep
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
-from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission, client_group_relationship
+from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission, client_group_relationship, banlist_relationship, to_dict
 from .rdserver import RedisDataModel, Fallback
 from socketio.async_server import AsyncServer
 from socketio.exceptions import ConnectionError, BadNamespaceError, TimeoutError
@@ -228,15 +228,15 @@ class Gateway:
             {"name": "join_group", "handler": self.__join_group},
             {"name": "leave_group", "handler": self.__leave_group},
             {"name": "ban_client", "handler": self.__ban_client},
-            {"name": "kick_client", "handler": ...},
-            {"name": "view_group_settings", "handler": ...},
-            {"name": "view_group_roles", "handler": ...},
-            {"name": "view_banned", "handler": ...},
+            {"name": "kick_client", "handler": self.__kick_client},
+            {"name": "view_group_settings", "handler": self.__view_group_settings},
+            {"name": "view_group_roles", "handler": self.__view_group_roles},
+            {"name": "view_banned", "handler": self.__view_banned},
 
             {"name": "create_space", "handler": self.__create_space},
             {"name": "edit_space", "handler": self.__edit_space},
             {"name": "delete_space", "handler": self.__delete_space},
-            {"name": "view_space_settings", "handler": ...},
+            {"name": "view_space_settings", "handler": self.__view_space_settings},
 
             {"name": "create_room", "handler": self.__create_room},
             {"name": "edit_room", "handler": self.__edit_room},
@@ -781,6 +781,12 @@ class Gateway:
         if not client.id in group.members:
             return self.__construct_response(False, error="323")
         
+        if not body.client_id in group.members:
+            return self.__construct_response(False, error="324")
+        
+        if body.client_id in group.banned:
+            return self.__construct_response(False, error="325")
+        
         status, allowed, error = await self.pg.evaluator(partial(
             self.pg.check_global, 
             client.id, 
@@ -800,11 +806,72 @@ class Gateway:
         if not culprit:
             return self.__construct_response(False, error="305")
         
-        fetched_group_res = await self.session.execute(select(Group).where(Group.id == body.id))
-        fetched_group = fetched_group_res.scalar_one_or_none()
+        result = await session.execute(delete(client_group_relationship).where(
+            and_(
+                client_group_relationship.c.client_id == body.client_id,
+                client_group_relationship.c.group_id == body.id
+            )
+        ))
 
-        if not fetched_group:
-            return self.__construct_response(False, error="306")
+        if result.rowcount() == 0:
+            return self.__construct_response(False, error="323")
+        
+        await session.execute(
+            insert(banlist_relationship).values(
+                client_id=body.client_id,
+                group_id=body.id,
+            )
+        )
+        await session.commit()
+
+        status, error = await self.rdserver.update_(f"group:{body.id}", {
+            "members": group.members - [body.id]
+        })
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{body.id}", {
+            "id": body.client_id,
+        }).broadcast("client_banned").leave(culprit.sid).done()
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        return self.__construct_response(True)
+    
+    async def __kick_client(self, session_token: str, body: KickClient, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(session, group_id=body.id)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        if not body.client_id in group.members:
+            return self.__construct_response(False, error="324")
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.id, 
+            ["OWNER", "CO_OWNER", "KICK"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+        
+        fallback = Fallback(session, self.rdserver)
+        status, culprit, error = await fallback.client_(body.client_id)
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not culprit:
+            return self.__construct_response(False, error="305")
         
         result = await session.execute(delete(client_group_relationship).where(
             and_(
@@ -825,11 +892,118 @@ class Gateway:
         emt = Emitter(self.s)
         status, error = await emt.init_(f"{self.group_cluster_index}{body.id}", {
             "id": body.client_id,
-        }).broadcast("client_banned").leave(culprit.sid).done()
+        }).broadcast("client_kicked").leave(culprit.sid).done()
         if not status:
             return self.__construct_response(False, error=error)
 
         return self.__construct_response(True)
+    
+    async def __view_group_settings(self, session_token: str, body: ViewGroupSettings, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(session, group_id=body.id)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.id, 
+            ["OWNER", "CO_OWNER", "MANAGE_GROUP"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+
+        return self.__construct_response(True, {
+            "name": group.name,
+            "global_name": group.global_name,
+            "about_group": group.about_group,
+            "icon_url": group.icon_url,
+            "nsfw": group.nsfw,
+            "content_filter": group.content_filter,
+            "content_filter_level": group.content_filter_level,
+            "id": body.id,
+        })
+    
+    async def __view_group_roles(self, session_token: str, body: ViewGroupRoles, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(session, group_id=body.id)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.id, 
+            ["OWNER", "CO_OWNER", "MANAGE_GROUP"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+        
+        roles_res = await self.session.execute(
+            select(Role.id, Role.name, Role.color)
+            .join(Group.roles)
+            .where(Group.id == body.id)
+        )
+        roles = roles_res.all()
+
+        return self.__construct_response(True, {
+            "roles": roles, #returns a list of lists [id, nickname, avatar_url]
+            "id": body.id,
+        })
+    
+    async def __view_banned(self, session_token: str, body: ViewBanned, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(session, group_id=body.id)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.id, 
+            ["OWNER", "CO_OWNER", "MANAGE_GROUP"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+        
+        banned_res = await self.session.execute(
+            select(Client.id, Client.nickname, Client.avatar_url)
+            .join(Group.banned)
+            .where(Group.id == body.id)
+        )
+        banned = banned_res.all()
+
+        return self.__construct_response(True, {
+            "banned": banned, #returns a list of lists [id, nickname, avatar_url]
+            "id": body.id,
+        })
     
 
     #SPACE      
@@ -965,6 +1139,41 @@ class Gateway:
             return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
+    
+    async def __view_space_settings(self, session_token: str, body: ViewSpaceSettings, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.group_id, 
+            ["OWNER", "CO_OWNER", "MANAGE_ROOMS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+        
+        name_res = await self.session.execute(
+            select(Space.name)
+            .where(Space.id == body.id)
+        )
+        name = name_res.scalars_one_or_none()
+        
+        return self.__construct_response(True, {
+            "name": name,
+            "id": body.id,
+        })
     
 
     #ROOM    

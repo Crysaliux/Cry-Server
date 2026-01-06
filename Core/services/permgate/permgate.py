@@ -12,7 +12,7 @@ v0.0.1 beta
 """
 
 
-from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission
+from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission, to_dict
 from sqlalchemy import insert, select, update, delete, exists, and_, or_
 from ..rdserver import Fallback
 from sqlalchemy.orm import selectinload
@@ -76,21 +76,9 @@ class Permgate:
     def __any_of(self, perms: list[str], actual: list[str]):
         return set(perms) & set(actual)
     
-    def __global_index(self, client_id: str, group_id: str):
-        return f"client:{client_id}:group:{group_id}"
-    
-    def __rtr_index(self, client_id: str, room_id: str):
-        return f"client:{client_id}:room:{room_id}"
-    
     """
     FETCH ON LOAD
     """
-
-    def __to_dict(self, perms: list[tuple[str]]):
-        struct = defaultdict(list)
-        for parent, perm in perms:
-            struct[parent].append(perm)
-        return dict(struct)
 
     async def fetch_on_load(self, client_id: str, session):
         status, client, error = await self.rdserver.get_(f"client:{client_id}")
@@ -118,7 +106,7 @@ class Permgate:
         rtr_perms = rtr_perms_res.all()
 
         if global_perms:
-            rtg_rel = self.__to_dict(global_perms)
+            rtg_rel = to_dict(global_perms)
             status, error = self.rdserver.set_(f"client:{client_id}", {
                 "groups": rtg_rel,
             })
@@ -127,7 +115,7 @@ class Permgate:
                 return False, error
             
         if rtr_perms:
-            rtr_rel = self.__to_dict(rtr_perms)
+            rtr_rel = to_dict(rtr_perms)
             status, error = self.rdserver.set_(f"client:{client_id}", {
                 "rooms": rtr_rel,
             })

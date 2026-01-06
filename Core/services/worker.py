@@ -3,6 +3,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.exc import DatabaseError, OperationalError, IntegrityError, ProgrammingError
 from datetime import datetime, timezone, date
+from collections import defaultdict
 from typing import Optional
 from random import uniform
 from typing import List
@@ -268,3 +269,9 @@ def worker_session(func, session):
             await ss.rollback()
             return throw_db_error("104")
     return wrapper
+
+def to_dict(data: list[tuple[str]]):
+    struct = defaultdict(list)
+    for parent, child in data:
+        struct[parent].append(child)
+    return dict(struct)

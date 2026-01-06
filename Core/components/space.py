@@ -13,3 +13,7 @@ class EditSpace(BaseModel):
 class DeleteSpace(BaseModel):
     group_id: str
     id: str
+
+class ViewSpaceSettings(BaseModel):
+    group_id: str
+    id: str

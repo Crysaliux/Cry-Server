@@ -15,6 +15,7 @@ from sqlalchemy import insert, select, update, delete, exists, and_
 from .worker import Client, Group, Space, Room, Message, Role
 from redis.asyncio import Redis, ConnectionError, RedisError
 from pydantic import BaseModel, ValidationError
+from collections import defaultdict
 from typing import Literal
 
 class RedisDataModel(BaseModel):
@@ -76,9 +77,6 @@ class Fallback:
                 .where(Group.id == group_id)
             )
             members = members_res.all()
-
-            if not members:
-                return False, None, "306"
             
             rooms_res = await self.session.execute(
                 select(Room.id)
@@ -87,7 +85,7 @@ class Fallback:
             )
             rooms = rooms_res.all()
 
-            if not rooms:
+            if not members or not rooms:
                 return False, None, "306"
 
             banned_res = await self.session.execute(
@@ -97,6 +95,19 @@ class Fallback:
             )
             banned = banned_res.all()
 
+            rest_res = await self.session.execute(
+                select(
+                    Group.name, 
+                    Group.about_group, 
+                    Group.icon_url, 
+                    Group.nsfw, 
+                    Group.content_filter,
+                    Group.content_filter_level,
+                )
+                .where(Group.id == group_id)
+            )
+            rest = rest_res.scalar_one_or_none()
+
             if not gb_name:
                 gb_name_res = await self.session.execute(
                     select(Group.global_name)
@@ -105,7 +116,14 @@ class Fallback:
                 gb_name = gb_name_res.scalar_one_or_none()
     
             model = RedisDataModel(**{
+                "name": rest[0],
                 "global_name": gb_name,
+                "about_group": rest[1],
+                "icon_url": rest[2],
+                "nsfw": rest[3],
+                "content_filter": rest[4],
+                "content_filter_level": rest[5],
+
                 "members": members,
                 "rooms": rooms,
                 "banned": banned,

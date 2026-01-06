@@ -30,3 +30,16 @@ class LeaveGroup(BaseModel):
 class BanClient(BaseModel):
     id: str
     client_id: str
+
+class KickClient(BaseModel):
+    id: str
+    client_id: str
+
+class ViewGroupSettings(BaseModel):
+    id: str
+
+class ViewGroupRoles(BaseModel):
+    id: str
+
+class ViewBanned(BaseModel):
+    id: str
