@@ -87,7 +87,7 @@ class Permgate:
         if not client:
             return False, "305"
         
-        global_perms_res = await session.scalars(
+        global_perms_res = await session.execute(
             select(Group.id, GlobalPermission.name)
             .join(Group.members)
             .join(Client.roles)
@@ -96,11 +96,11 @@ class Permgate:
         )
         global_perms = global_perms_res.all()
         
-        rtr_perms_res = await session.scalars(
-            select(Group.id, GlobalPermission.name)
-            .join(Group.members)
+        rtr_perms_res = await session.execute(
+            select(Room.id, RoleToRoomPermission.name)
             .join(Client.roles)
-            .join(Role.global_permissions)
+            .join(Group.rooms)
+            .join(Room.role_to_room_permissions)
             .where(Client.id == client_id).distinct()
         )
         rtr_perms = rtr_perms_res.all()

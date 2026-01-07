@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, Form, Header, Cookie, WebSocket, HTTPExcep
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
-from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission, client_group_relationship, banlist_relationship, to_dict
+from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission, client_group_relationship, banlist_relationship, client_role_relationship, to_dict
 from .rdserver import RedisDataModel, Fallback
 from socketio.async_server import AsyncServer
 from socketio.exceptions import ConnectionError, BadNamespaceError, TimeoutError
@@ -735,7 +735,37 @@ class Gateway:
         if not status:
             return self.__construct_response(False, error=error)
         
-        return self.__construct_response(True)
+        rooms_res = await session.execute(
+            select(Room.id, Room.name)
+            .join(Group.rooms)
+            .join(Group.members)
+            .where(
+                Client.id == client.id,
+                exists(
+                    select(1)
+                    .select_from(RoleToRoomPermission)
+                    .join(
+                        client_role_relationship,
+                        client_role_relationship.c.client_id == client.id
+                    )
+                    .where(
+                        client_role_relationship.c.role_id == RoleToRoomPermission.role_id,
+                        RoleToRoomPermission.room_id == Room.id,
+                        RoleToRoomPermission.name == "VIEW_ROOM",
+                    )
+                ),
+            ).distinct()
+        )
+        rooms = rooms_res.all()
+
+        #members!!!
+        
+        return self.__construct_response(True, {
+            "name": ...,
+            "global_name": ...,
+            "members": ...,
+            "rooms": rooms
+        })
     
     async def __leave_group(self, session_token: str, body: LeaveGroup, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)
@@ -1443,6 +1473,51 @@ class Gateway:
             "space_id": body.space_id,
             "id": body.id,
         }).broadcast("room_relocated").done()
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        return self.__construct_response(True)
+    
+    async def __join_room(self, session_token: str, body: JoinRoom, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(session, id=body.group_id)
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, allowed, error = await self.pg.evaluator((
+            "or",
+            [
+                partial(
+                    self.pg.check_global, 
+                    client.id, 
+                    body.group_id, 
+                    ["OWNER", "CO_OWNER"], 
+                    "any_of"
+                ),
+                (      
+                    partial(
+                        self.pg.check_rtr,
+                        client.id,
+                        body.room_id,
+                        ["VIEW_ROOM"],
+                        "must_have",
+                    )    
+                )
+            ]
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+        
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.room_cluster_index}{body.id}", {}).join(client.sid).done()
         if not status:
             return self.__construct_response(False, error=error)
         

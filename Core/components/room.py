@@ -22,3 +22,7 @@ class RelocateRoom(BaseModel):
     group_id: str
     space_id: str
     id: str
+
+class JoinRoom(BaseModel):
+    group_id: str
+    id: str
