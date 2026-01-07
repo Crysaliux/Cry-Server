@@ -761,8 +761,10 @@ class Gateway:
         #members!!!
         
         return self.__construct_response(True, {
-            "name": ...,
-            "global_name": ...,
+            "name": group.name,
+            "global_name": group.global_name,
+            "about_group": group.about_group,
+            "icon_url": group.icon_url,
             "members": ...,
             "rooms": rooms
         })
