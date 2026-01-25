@@ -38,6 +38,12 @@ banlist_relationship = Table(
     Column('group_id', String, ForeignKey('group.id'), primary_key=True)
 )
 
+blocked_relationship = Table(
+    'bkrel', Base.metadata,
+    Column('client_id', String, ForeignKey('client.id'), primary_key=True),
+    Column('blocked_id', String, ForeignKey('client.id'), primary_key=True)
+)
+
 
 class Client(Base):
     __tablename__ = "client"
@@ -61,6 +67,12 @@ class Client(Base):
         primaryjoin=id==friend_relationship.c.client_id,
         secondaryjoin=id==friend_relationship.c.friend_id,
         backref="friended_by",
+    )
+    blocked = relationship("Client", 
+        secondary=blocked_relationship, 
+        primaryjoin=id==blocked_relationship.c.client_id,
+        secondaryjoin=id==blocked_relationship.c.blocked_id,
+        backref="blocked_by",
     )
     groups = relationship("Group", secondary=client_group_relationship, back_populates="members")
     roles = relationship("Role", secondary=client_role_relationship, back_populates="assignees")

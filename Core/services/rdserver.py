@@ -12,7 +12,7 @@ v0.0.1 beta
 """
 
 from sqlalchemy import insert, select, update, delete, exists, and_
-from .worker import Client, Group, Space, Room, Message, Role
+from .worker import Client, Group, Space, Room, Message, Role, blocked_relationship
 from redis.asyncio import Redis, ConnectionError, RedisError
 from pydantic import BaseModel, ValidationError
 from collections import defaultdict
@@ -136,7 +136,7 @@ class Fallback:
             
         return True, group, None
     
-    async def client_(self, id: str, refresh_token: str | None = None, check_token: bool = False):
+    async def client_(self, id: str, pg, refresh_token: str | None = None, check_token: bool = False):
         status, client, error = await self.rdserver.get_(f"client:{id}")
         if not status:
             return False, None, error
@@ -159,6 +159,12 @@ class Fallback:
             
             if not rsh_token:
                 rsh_token = fback_client.refresh_token
+
+            blocked_res = (
+                select(blocked_relationship.c.blocked_id)
+                .where(blocked_relationship.c.client_id == client.id)
+            )
+            blocked = await self.session.scalars(blocked_res).all()
             
             model = RedisDataModel(**{
                 "username": fback_client.username,
@@ -166,6 +172,7 @@ class Fallback:
                 "password": fback_client.password_hashed,
                 "email": fback_client.email,
                 "date_or_birth": fback_client.date_of_birth,
+                "blocked": blocked,
 
                 "refresh_token": rsh_token,
                 "roles": {}, # "role_id": "group_id"
@@ -178,6 +185,11 @@ class Fallback:
             })
 
             status, error = await self.rdserver.set_(f"client:{id}", model)
+            if not status:
+                return False, None, error
+            
+            #Fetching permissions related data (roles, permissions)
+            status, error = await pg.fetch_on_load(client.id, self.session)
             if not status:
                 return False, None, error
             

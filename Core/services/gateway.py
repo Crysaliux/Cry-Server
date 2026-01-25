@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, Form, Header, Cookie, WebSocket, HTTPExcep
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, TypeAdapter, Field as _type, ValidationError
 from typing import TypeAlias, Literal
-from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission, client_group_relationship, banlist_relationship, client_role_relationship, to_dict
+from .worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission, client_group_relationship, banlist_relationship, client_role_relationship, blocked_relationship, to_dict
 from .rdserver import RedisDataModel, Fallback
 from socketio.async_server import AsyncServer
 from socketio.exceptions import ConnectionError, BadNamespaceError, TimeoutError
@@ -242,15 +242,15 @@ class Gateway:
             {"name": "edit_room", "handler": self.__edit_room},
             {"name": "delete_room", "handler": self.__delete_room},
             {"name": "relocate_room", "handler": self.__relocate_room},
-            {"name": "join_room", "handler": ...},
-            {"name": "view_room_settings", "handler": ...},
+            {"name": "join_room", "handler": self.__join_room},
+            {"name": "view_room_settings", "handler": self.__view_room_settings},
 
             {"name": "create_message", "handler": self.__create_message},
             {"name": "edit_message", "handler": self.__edit_message},
             {"name": "delete_message", "handler": self.__delete_message},
 
-            {"name": "block_client", "handler": ...},
-            {"name": "view_client", "handler": ...},
+            {"name": "block_client", "handler": self.__block_client},
+            {"name": "view_client", "handler": self.__view_client},
             {"name": "view_profile_settings", "handler": ...},
             {"name": "view_blocked", "handler": ...},
             {"name": "view_group", "handler": ...},
@@ -339,7 +339,7 @@ class Gateway:
             return False, None, "316"
 
         fallback = Fallback(session, self.rdserver)
-        status, _, error = await fallback.client_(id, refresh_token, True)
+        status, _, error = await fallback.client_(id, self.pg, refresh_token, True)
         if not status:
             return False, None, error
         return True, id, None
@@ -408,6 +408,7 @@ class Gateway:
             "password": password_hashed,
             "email": body.email,
             "date_or_birth": dob,
+            "blocked": [],
 
             "refresh_token": refresh_token,
             "roles": {}, # "role_id": "group_id"
@@ -456,12 +457,19 @@ class Gateway:
         client.refresh_token = refresh_token
         await session.commit() #will work?
 
+        blocked_res = (
+            select(blocked_relationship.c.blocked_id)
+            .where(blocked_relationship.c.client_id == client.id)
+        )
+        blocked = await session.scalars(blocked_res).all()
+
         model = RedisDataModel(**{
             "username": client.username,
             "nickname": client.nickname,
             "password": body.password,
             "email": body.email,
             "date_or_birth": client.date_of_birth,
+            "blocked": blocked,
 
             "refresh_token": refresh_token,
             "roles": {}, # "role_id": "group_id"
@@ -470,13 +478,18 @@ class Gateway:
                 "rooms": {},# "room_id": [...]
             },
             "sid": None,
-            "id": id,
+            "id": client.id,
         })
             
         await self.rdserver.set_(
-            f"client:{id}",
+            f"client:{client.id}",
             model,
         )
+
+        #Fetching permissions related data (roles, permissions)
+        status, error = await self.pg.fetch_on_load(client.id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
 
         response.set_cookie(
             key="refresh_token",
@@ -1501,16 +1514,14 @@ class Gateway:
                     body.group_id, 
                     ["OWNER", "CO_OWNER"], 
                     "any_of"
-                ),
-                (      
-                    partial(
-                        self.pg.check_rtr,
-                        client.id,
-                        body.room_id,
-                        ["VIEW_ROOM"],
-                        "must_have",
-                    )    
-                )
+                ),    
+                partial(
+                    self.pg.check_rtr,
+                    client.id,
+                    body.room_id,
+                    ["VIEW_ROOM"],
+                    "must_have",
+                )      
             ]
         ))
         if not status:
@@ -1524,6 +1535,43 @@ class Gateway:
             return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
+    
+    async def __view_room_settings(self, session_token: str, body: ViewRoomSettings, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        if not client.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, allowed, error = await self.pg.evaluator(partial(
+            self.pg.check_global, 
+            client.id, 
+            body.group_id, 
+            ["OWNER", "CO_OWNER", "MANAGE_ROOMS"], 
+            "any_of",
+        ))
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not allowed:
+            return self.__construct_response(False, error="312")
+        
+        name_res = await self.session.execute(
+            select(Room.name, Room.about_room, Room.nsfw)
+            .where(Room.id == body.id)
+        )
+        name, about_room, nsfw = name_res.one()
+        
+        return self.__construct_response(True, {
+            "name": name,
+            "about_room": about_room,
+            "nsfw": nsfw,
+            "id": body.id,
+        })
 
 
     #MESSAGE 
@@ -1713,6 +1761,57 @@ class Gateway:
             return self.__construct_response(False, error=error)
         
         return self.__construct_response(True)
+    
+
+    #CLIENT
+    async def __block_client(self, session_token: str, body: BlockClient, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        await session.execute(
+            blocked_relationship.insert(),
+            {
+                "client_id": client.id,
+                "blocked_id": body.id,
+            }
+        )
+        await session.commit()
+        
+        status, error = await self.rdserver.update_(f"client:{client.id}", {
+            "banned": client.banned + [body.id]
+        })
+        if not status:
+            return False, None, error
+
+        emt = Emitter(self.s)
+        status, error = await emt.init_(f"{self.group_cluster_index}{id}", {}).join(client.sid).done()
+        if not status:
+            return self.__construct_response(False, error=error)
+
+        return self.__construct_response(True)
+    
+    async def __view_client(self, session_token: str, body: ViewClient, session) -> EmitCommon:
+        status, _, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        status, group, error = await self.__verify_group(body.group_id, session)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        if not body.id in group.members:
+            return self.__construct_response(False, error="323")
+        
+        status, client, error = await self.rdserver.get_(f"client:{body.id}")
+        if not status:
+            return self.__construct_response(False, error=error)
+        if not client:
+            return self.__construct_response(False, error="305")
+        return self.__construct_response(True, {
+            "username": client.username,
+            "named_roles": ...,
+        }) #might need named_roles field.
     
 
     def router_tasks(self):

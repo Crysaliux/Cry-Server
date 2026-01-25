@@ -6,3 +6,10 @@ class UpdateClient(BaseModel):
     about_me: str | None
     avatar_url: str | None
     color_theme: str | None
+
+class BlockClient(BaseModel):
+    id: str
+
+class ViewClient(BaseModel):
+    group_id: str
+    id: str

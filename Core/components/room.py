@@ -26,3 +26,7 @@ class RelocateRoom(BaseModel):
 class JoinRoom(BaseModel):
     group_id: str
     id: str
+
+class ViewRoomSettings(BaseModel):
+    group_id: str
+    id: str

@@ -12,7 +12,7 @@ v0.0.1 beta
 """
 
 
-from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission, to_dict
+from ..worker import Client, Group, Space, Room, Message, Role, GlobalPermission, RoleToRoomPermission, client_role_relationship, to_dict
 from sqlalchemy import insert, select, update, delete, exists, and_, or_
 from ..rdserver import Fallback
 from sqlalchemy.orm import selectinload
@@ -80,7 +80,7 @@ class Permgate:
     FETCH ON LOAD
     """
 
-    async def fetch_on_load(self, client_id: str, session):
+    async def fetch_on_load(self, client_id: str, session): 
         status, client, error = await self.rdserver.get_(f"client:{client_id}")
         if not status:
             return False, error
@@ -105,6 +105,16 @@ class Permgate:
         )
         rtr_perms = rtr_perms_res.all()
 
+        rtg_res = await session.execute(
+            select(Role.id, Role.group_id)
+            .join(
+                client_role_relationship,
+                client_role_relationship.c.role_id == Role.id
+            )
+            .where(client_role_relationship.c.client_id == client_id)
+        )
+        rtg = dict(rtg_res.all())
+
         if global_perms:
             rtg_rel = to_dict(global_perms)
             status, error = self.rdserver.set_(f"client:{client_id}", {
@@ -118,6 +128,14 @@ class Permgate:
             rtr_rel = to_dict(rtr_perms)
             status, error = self.rdserver.set_(f"client:{client_id}", {
                 "rooms": rtr_rel,
+            })
+
+            if not status:
+                return False, error
+            
+        if rtg:
+            status, error = self.rdserver.set_(f"client:{client_id}", {
+                "roles": rtg,
             })
 
             if not status:
