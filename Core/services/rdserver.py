@@ -169,8 +169,6 @@ class Fallback:
             model = RedisDataModel(**{
                 "username": fback_client.username,
                 "nickname": fback_client.nickname,
-                "password": fback_client.password_hashed,
-                "email": fback_client.email,
                 "date_or_birth": fback_client.date_of_birth,
                 "blocked": blocked,
 

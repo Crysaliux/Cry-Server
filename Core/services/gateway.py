@@ -251,8 +251,10 @@ class Gateway:
 
             {"name": "block_client", "handler": self.__block_client},
             {"name": "view_client", "handler": self.__view_client},
-            {"name": "view_profile_settings", "handler": ...},
-            {"name": "view_blocked", "handler": ...},
+            {"name": "view_profile_settings", "handler": self.__view_profile_settings},
+            {"name": "edit_profile_settings", "handler": self.__edit_profile_settings},
+            {"name": "change_password", "handler": self.__change_password},
+            {"name": "view_blocked", "handler": self.__view_blocked},
             {"name": "view_group", "handler": ...},
             {"name": "view_room", "handler": ...},
         ]
@@ -405,8 +407,6 @@ class Gateway:
         model = RedisDataModel(**{
             "username": body.username,
             "nickname": body.nickname,
-            "password": password_hashed,
-            "email": body.email,
             "date_or_birth": dob,
             "blocked": [],
 
@@ -466,8 +466,6 @@ class Gateway:
         model = RedisDataModel(**{
             "username": client.username,
             "nickname": client.nickname,
-            "password": body.password,
-            "email": body.email,
             "date_or_birth": client.date_of_birth,
             "blocked": blocked,
 
@@ -1808,6 +1806,78 @@ class Gateway:
             return self.__construct_response(False, error=error)
         if not client:
             return self.__construct_response(False, error="305")
+        return self.__construct_response(True, {
+            "username": client.username,
+            "named_roles": ...,
+        }) #might need named_roles field.
+
+    async def __view_profile_settings(self, session_token: str, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        client_res = await session.execute(
+            select(Client.about_me, Client.avatar_url, Client.color_theme)
+            .where(Client.id == client.id)
+        )
+        about_me, avatar_url, color_theme = client_res.one()
+        
+        return self.__construct_response(True, {
+            "username": client.username,
+            "nickname": client.nickname,
+            "about_me": about_me,
+            "avatar_url": avatar_url,
+            "color_theme": color_theme,
+        })
+    
+    async def __edit_profile_settings(self, session_token: str, body: EditProfileSettings, session) -> EmitCommon:
+        status, _, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        result = await session.execute(update(Client).where(Client.id == body.id).values(
+            username=body.username,
+            nickname=body.nickname,
+            about_me=body.about_me,
+            avatar_url=body.avatar_url,
+            color_theme=body.color_theme,
+        ))
+
+        if result.rowcount() == 0:
+            return self.__construct_response(False, error="306")
+        
+        return self.__construct_response(True)
+    
+    async def __change_password(self, session_token: str, body: ChangePassword, session) -> EmitCommon:
+        status, client, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        client_res = await session.execute(
+            select(Client.password_hashed)
+            .where(Client.id == client.id)
+        )
+        password_hashed = client_res.one()
+
+        if not self.hasher.verify(password_hashed, body.old_password):
+            return self.__construct_response(False, error="318")
+        
+        result = await session.execute(update(Client).where(Client.id == body.id).values(
+            hashed_password=self.hasher.hash(body.new_password)
+        ))
+
+        if result.rowcount() == 0:
+            return self.__construct_response(False, error="306")
+        
+        return self.__construct_response(True)
+    
+    async def __view_blocked(self, session_token: str, session) -> EmitCommon:
+        status, _, error = await self.__verify_session(session_token)
+        if not status:
+            return self.__construct_response(False, error=error)
+        
+        #load all blocked clients
+
         return self.__construct_response(True, {
             "username": client.username,
             "named_roles": ...,

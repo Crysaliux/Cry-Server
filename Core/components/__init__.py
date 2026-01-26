@@ -1,4 +1,4 @@
-from .client import UpdateClient, BlockClient, ViewClient
+from .client import BlockClient, ViewClient, EditProfileSettings, ChangePassword
 from .group import CreateGroup, EditGroup, DeleteGroup, JoinGroup, LeaveGroup, BanClient, KickClient, ViewGroupSettings, ViewGroupRoles, ViewBanned
 from .message import CreateMessage, EditMessage, DeleteMessage
 from .role import CreateRole, UpdateRole, DeleteRole
