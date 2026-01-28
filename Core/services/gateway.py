@@ -179,6 +179,8 @@ class Gateway:
             max_message_length: dict, 
             max_image_size: int, 
             max_file_size: dict, 
+            message_load_batch_size: int,
+            member_load_batch_size: int,
             client_server_origin: str, 
             login_expiration: int,
             session_expiration: int,
@@ -203,6 +205,8 @@ class Gateway:
         self.max_message_length = max_message_length
         self.max_image_size = max_image_size
         self.max_file_size = max_file_size
+        self.message_load_batch_size = message_load_batch_size
+        self.member_load_batch_size = member_load_batch_size
         self.client_server_origin = client_server_origin
         self.login_expiration = login_expiration
         self.session_expiration = session_expiration
@@ -751,6 +755,7 @@ class Gateway:
             .join(Group.rooms)
             .join(Group.members)
             .where(
+                Group.id == body.id,
                 Client.id == client.id,
                 exists(
                     select(1)
@@ -765,19 +770,27 @@ class Gateway:
                         RoleToRoomPermission.name == "VIEW_ROOM",
                     )
                 ),
-            ).distinct()
+            )
         )
         rooms = rooms_res.all()
 
-        #members!!!
+        members_res = await session.execute(
+            select(Client.id, Client.nickname)
+            .join(Group.members)
+            .where(
+                Group.id == body.id,
+            )
+            .limit(self.member_load_batch_size)
+        )
+        members = members_res.all()
         
         return self.__construct_response(True, {
             "name": group.name,
             "global_name": group.global_name,
             "about_group": group.about_group,
             "icon_url": group.icon_url,
-            "members": ...,
-            "rooms": rooms
+            "members": members,
+            "rooms": rooms,
         })
     
     async def __leave_group(self, session_token: str, body: LeaveGroup, session) -> EmitCommon:
@@ -1527,12 +1540,29 @@ class Gateway:
         if not allowed:
             return self.__construct_response(False, error="312")
         
+        cutoff_at = datetime.now(timezone.utc)
+
         emt = Emitter(self.s)
         status, error = await emt.init_(f"{self.room_cluster_index}{body.id}", {}).join(client.sid).done()
         if not status:
             return self.__construct_response(False, error=error)
         
-        return self.__construct_response(True)
+        messages_res = await session.execute(
+            select(Message.id, Message.content, Message.created_at)
+            .where(
+                Message.room_id == body.id,
+                Message.sent_at <= cutoff_at,
+            )
+            .order_by(Message.sent_at.desc())
+            .limit(self.message_load_batch_size)
+        )
+        messages = messages_res.all()
+        messages.reverse()
+        
+        return self.__construct_response(True, {
+            "members": ..., #add!
+            "messages": messages
+        })
     
     async def __view_room_settings(self, session_token: str, body: ViewRoomSettings, session) -> EmitCommon:
         status, client, error = await self.__verify_session(session_token)

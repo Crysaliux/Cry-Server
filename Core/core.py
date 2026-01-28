@@ -18,6 +18,7 @@ from redis.asyncio import Redis
 from pathlib import Path
 from Core.services import *
 from Core.services.permgate import *
+import configparser
 import subprocess
 import threading
 import asyncio
@@ -32,6 +33,8 @@ import uuid
 import re
 import sys
 
+
+os.chdir("../")
 
 #logging
 logging.basicConfig(
@@ -50,44 +53,48 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "core_config.
 class Core(FastAPI):
     def __init__(self):
         super().__init__()
-        self.sv_host = CONFIG["SERVER_HOST"]
-        self.sv_port = CONFIG["SERVER_PORT"]
-        self.client_server_origin = f"http://{CONFIG['CLIENT_SERVER_HOST']}:{CONFIG['CLIENT_SERVER_PORT']}"
+        self.root_path = os.getcwd()
+        self.config = configparser.ConfigParser()
+        self.config.read(os.path.join(self.root_path, "Core/core.conf"))
+        self.sv_host = self.config["coreserver"]["host"]
+        self.sv_port = self.config["coreserver"]["port"]
+        self.client_server_origin = f"http://{self.config["clientserver"]["host"]}:{self.config["clientserver"]["port"]}"
         self.rdserver = RDServer(
-            host=CONFIG["RDSERVER_HOST"],
-            port=CONFIG["RDSERVER_PORT"],
+            host=self.config["rdsserver"]["host"],
+            port=self.config["rdsserver"]["port"],
         )
 
         self.smger = AsyncRedisManager(
-            url=f"redis://{CONFIG["RDSERVER_HOST"]}:{CONFIG["RDSERVER_PORT"]}/1",
+            url=f"redis://{self.config["rdsserver"]["host"]}:{self.config["rdsserver"]["port"]}/1",
             channel="socket",
         ) 
         self.socket = AsyncServer(
-            async_mode=CONFIG["SOCKET_MODE"], 
+            async_mode=self.config["socket"]["mode"], 
             client_manager=self.smger, 
-            logger=CONFIG["SOCKET_LOGGER"],
+            logger=self.config.getboolean("socket", "logger"),
             cors_allowed_origins=self.client_server_origin
         )
         
-        self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["IMAGE_STORAGE_PATH"])
-        self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG["FILE_STORAGE_PATH"])
-        self.group_cluster_index = CONFIG["GROUP_CLUSTER_INDEX"]
-        self.room_cluster_index = CONFIG["ROOM_CLUSTER_INDEX"]
+        self.storage_images_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.config["storage"]["images"])
+        self.storage_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.config["storage"]["files"])
+        self.group_cluster_index = self.config["clusters"]["groups"]
+        self.room_cluster_index = self.config["clusters"]["rooms"]
 
         self.worker = Worker()
         self.pg = Permgate()
         
         self.server_access_key = str(uuid.uuid4())
-        self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
-        self.login_expiration = CONFIG["LOGIN_EXPIRATION"]
-        self.session_expiration = CONFIG["SESSION_EXPIRATION"]
+        #self.algorithm = CONFIG["ENCRYPTION_ALGORITHM"]
+        self.login_expiration = self.config.getint("oauth", "login_expiration")
+        self.session_expiration = self.config.getint("oauth", "session_expiration")
         self.heartbeat_delta = (self.session_expiration // 3) * 2  #must be in config!!!
         self.hasher = PasswordHasher()
         
-        self.message_load_batch_size = CONFIG["MESSAGE_LOAD_BATCH_SIZE"]
-        self.max_message_length = CONFIG["MAX_MESSAGE_LENGTH"]
-        self.max_image_size = CONFIG["MAX_IMAGE_SIZE"]
-        self.max_file_size = CONFIG["MAX_FILE_SIZE"]
+        self.message_load_batch_size = self.config.getint("batchloading", "messages")
+        self.member_load_batch_size = self.config.getint("batchloading", "members")
+        self.max_message_length = self.config.getint("limits", "message_length")
+        self.max_image_size = self.config.getint("limits", "image_size")
+        self.max_file_size = self.config.getint("limits", "file_size")
 
 
         self.add_middleware(
@@ -113,6 +120,8 @@ class Core(FastAPI):
             max_image_size=self.max_image_size,
             max_file_size=self.max_file_size,
             max_message_length=self.max_message_length,
+            message_load_batch_size=self.message_load_batch_size,
+            member_load_batch_size=self.member_load_batch_size,
             client_server_origin=self.client_server_origin,
             access_key=self.server_access_key,
             login_expiration=self.login_expiration,
